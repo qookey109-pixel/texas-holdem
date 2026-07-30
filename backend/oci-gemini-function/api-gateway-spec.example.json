@@ -1,0 +1,47 @@
+{
+  "requestPolicies": {
+    "rateLimiting": {
+      "rateKey": "CLIENT_IP",
+      "rateInRequestsPerSecond": 2
+    },
+    "cors": {
+      "allowedOrigins": [
+        "https://qoo109.github.io"
+      ],
+      "allowedMethods": [
+        "GET",
+        "POST",
+        "OPTIONS"
+      ],
+      "allowedHeaders": [
+        "content-type",
+        "accept"
+      ],
+      "exposedHeaders": [],
+      "isAllowCredentialsEnabled": false,
+      "maxAgeInSeconds": 86400
+    }
+  },
+  "routes": [
+    {
+      "path": "/health",
+      "methods": [
+        "GET"
+      ],
+      "backend": {
+        "type": "ORACLE_FUNCTIONS_BACKEND",
+        "functionId": "REPLACE_WITH_FUNCTION_OCID"
+      }
+    },
+    {
+      "path": "/v1/decision",
+      "methods": [
+        "POST"
+      ],
+      "backend": {
+        "type": "ORACLE_FUNCTIONS_BACKEND",
+        "functionId": "REPLACE_WITH_FUNCTION_OCID"
+      }
+    }
+  ]
+}

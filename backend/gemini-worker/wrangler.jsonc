@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "texas-holdem-gemini",
+  "main": "src/index.js",
+  "compatibility_date": "2026-07-26",
+  "workers_dev": true,
+  "vars": {
+    "GEMINI_MODEL": "gemini-3.6-flash",
+    "ALLOWED_ORIGINS": "https://qoo109.github.io,http://localhost:4173,http://127.0.0.1:4173"
+  },
+  "ratelimits": [
+    {
+      "name": "GEMINI_RATE_LIMITER",
+      "namespace_id": "2026072601",
+      "simple": {
+        "limit": 20,
+        "period": 60
+      }
+    }
+  ]
+}

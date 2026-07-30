@@ -1,0 +1,102 @@
+德州撲克 ChatGPT File Library 原始檔索引
+建立日期：2026-07-29
+
+說明：pointer 是本次搜尋結果的檔案指標，原始檔仍保存在 ChatGPT File Library。
+
+1. cyberpoker_beginner_manual_v1.html
+   建立時間：2026-07-09T08:59:53Z
+   類型：HTML 教學手冊
+   pointer：2:5
+   file_id：file_00000000d4ac7207bf1f2daddb803a75
+   說明：CyberPoker 新手教學手冊 V1，含搜尋、牌型、流程、同牌型比較與基本操作。
+
+2. cyberpoker_beginner_manual_v2.html
+   建立時間：2026-07-09T09:24:13Z
+   類型：HTML 教學手冊
+   pointer：2:2
+   file_id：file_00000000e7e472098ec52abd0e5afb7e
+   說明：CyberPoker 新手教學手冊 V2，擴充位置、下注、All-in 與邊池。
+
+3. cyberpoker_beginner_manual_v2_no_search.html
+   建立時間：2026-07-09T09:28:56Z
+   類型：HTML 教學手冊
+   pointer：2:0
+   file_id：file_00000000f240720983c5ff0394c84490
+   說明：V2 無搜尋版。
+
+4. cyberpoker_beginner_manual_v3_icons.html
+   建立時間：2026-07-09T09:30:47Z
+   類型：HTML 教學手冊
+   pointer：2:16
+   file_id：file_00000000d05072099976842b052bec35
+   說明：V3 圖示版，新增圖示導覽與視覺提示。
+
+5. cyberpoker_beginner_manual_v4_table_visual.html
+   建立時間：2026-07-09T09:48:06Z
+   類型：HTML 教學手冊
+   pointer：2:4
+   file_id：file_0000000098b472098b062bf0a2b9888d
+   說明：V4 牌桌示意版，加入桌面圖、座位圖與底池圖。
+
+6. 像素風格撲克牌資源表.png
+   建立時間：2026-07-19T09:25:12Z
+   類型：PNG 圖片
+   pointer：2:19
+   file_id：file_0000000064a08209b3c9fa04e36271b7
+   說明：像素風格牌面資源與牌面要素參考。
+
+7. 繽紛牌組設計圖.png
+   建立時間：2026-07-20T04:05:47Z
+   類型：PNG 圖片
+   pointer：2:18
+   file_id：file_000000007200820c8baf88d0d8a8ffa5
+   說明：用於同風格原創牌組與經典牌組替換參考。
+
+8. ai.html
+   建立時間：2026-06-26T15:00:36Z
+   類型：HTML 遊戲原型
+   pointer：7:13
+   file_id：file_000000003428720784c0f38980b4ad1b
+   說明：含牌局狀態、AI、玩家生涯、成就與本機儲存的早期 CyberPoker 原型。
+
+9. app_deluxe_v2.js
+   建立時間：2026-06-25T16:42:00Z
+   類型：JavaScript 遊戲程式
+   pointer：7:0
+   file_id：file_00000000461872098a6e4dd366db0de4
+   說明：Deluxe V2 遊戲邏輯，含 AI、音效、自動新牌局、生涯與成就附加功能。
+
+10. app_fixed.js
+   建立時間：2026-06-24T06:53:03Z
+   類型：JavaScript 遊戲程式
+   pointer：7:4
+   file_id：file_00000000d2287209a2a8eb5504f49070
+   說明：早期輪流指針、最後加注者、莊家位與表態計算修正版。
+
+11. app_stable_rebuild.js
+   建立時間：2026-06-24T19:55:51Z
+   類型：JavaScript 遊戲程式
+   pointer：7:6
+   file_id：file_0000000036c07206b1bab730cbc3e952
+   說明：早期穩定重建版。
+
+12. 已貼上文字 (1).txt
+   建立時間：2026-06-25T16:25:46Z
+   類型：文字／程式碼備份
+   pointer：7:2
+   file_id：file_000000003d0c7209933968a09f38f83f
+   說明：與 Deluxe V2 相近的程式碼文字備份。
+
+13. 已貼上文字 (1).txt
+   建立時間：2026-06-25T16:35:24Z
+   類型：文字／程式碼備份
+   pointer：7:3
+   file_id：file_000000008bc87209a71a4026d29ee441
+   說明：同名的另一份程式碼文字備份，保留為可能的歷史版本。
+
+14. index.html
+   建立時間：2026-07-06T06:13:53Z
+   類型：HTML 遊戲頁面
+   pointer：7:16
+   file_id：file_0000000073ec71fdb1144c83e7acf7a9
+   說明：德州撲克遊戲頁，含棄牌、跟注、加注、All-in、快捷下注與 Poker Coach 側欄。

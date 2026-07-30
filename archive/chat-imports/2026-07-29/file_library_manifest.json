@@ -1,0 +1,137 @@
+{
+  "bundle_name": "德州撲克_專案聊天室檔案整合包_2026-07-29",
+  "created_at": "2026-07-29T20:23:00+08:00",
+  "project": "德州撲克 / Texas Hold’em Web Game",
+  "repository": "qoo109/texas-holdem",
+  "repository_read_status": "404 Not Found on 2026-07-29; latest state pending verification",
+  "last_handoff_main_sha": "45370b392731071eef39cecb0f271e6a4b0e0556",
+  "raw_file_library_bytes_embedded": false,
+  "items": [
+    {
+      "name": "cyberpoker_beginner_manual_v1.html",
+      "created_at": "2026-07-09T08:59:53Z",
+      "type": "HTML 教學手冊",
+      "pointer": "2:5",
+      "file_id": "file_00000000d4ac7207bf1f2daddb803a75",
+      "status": "原始檔位於 ChatGPT File Library；整合包收錄中繼資料與辨識摘要",
+      "notes": "CyberPoker 新手教學手冊 V1，含搜尋、牌型、流程、同牌型比較與基本操作。"
+    },
+    {
+      "name": "cyberpoker_beginner_manual_v2.html",
+      "created_at": "2026-07-09T09:24:13Z",
+      "type": "HTML 教學手冊",
+      "pointer": "2:2",
+      "file_id": "file_00000000e7e472098ec52abd0e5afb7e",
+      "status": "原始檔位於 ChatGPT File Library；整合包收錄中繼資料與辨識摘要",
+      "notes": "CyberPoker 新手教學手冊 V2，擴充位置、下注、All-in 與邊池。"
+    },
+    {
+      "name": "cyberpoker_beginner_manual_v2_no_search.html",
+      "created_at": "2026-07-09T09:28:56Z",
+      "type": "HTML 教學手冊",
+      "pointer": "2:0",
+      "file_id": "file_00000000f240720983c5ff0394c84490",
+      "status": "原始檔位於 ChatGPT File Library；整合包收錄中繼資料與辨識摘要",
+      "notes": "V2 無搜尋版。"
+    },
+    {
+      "name": "cyberpoker_beginner_manual_v3_icons.html",
+      "created_at": "2026-07-09T09:30:47Z",
+      "type": "HTML 教學手冊",
+      "pointer": "2:16",
+      "file_id": "file_00000000d05072099976842b052bec35",
+      "status": "原始檔位於 ChatGPT File Library；整合包收錄中繼資料與辨識摘要",
+      "notes": "V3 圖示版，新增圖示導覽與視覺提示。"
+    },
+    {
+      "name": "cyberpoker_beginner_manual_v4_table_visual.html",
+      "created_at": "2026-07-09T09:48:06Z",
+      "type": "HTML 教學手冊",
+      "pointer": "2:4",
+      "file_id": "file_0000000098b472098b062bf0a2b9888d",
+      "status": "原始檔位於 ChatGPT File Library；整合包收錄中繼資料與辨識摘要",
+      "notes": "V4 牌桌示意版，加入桌面圖、座位圖與底池圖。"
+    },
+    {
+      "name": "像素風格撲克牌資源表.png",
+      "created_at": "2026-07-19T09:25:12Z",
+      "type": "PNG 圖片",
+      "pointer": "2:19",
+      "file_id": "file_0000000064a08209b3c9fa04e36271b7",
+      "status": "原始圖片位於 ChatGPT File Library；整合包收錄圖片說明",
+      "notes": "像素風格牌面資源與牌面要素參考。"
+    },
+    {
+      "name": "繽紛牌組設計圖.png",
+      "created_at": "2026-07-20T04:05:47Z",
+      "type": "PNG 圖片",
+      "pointer": "2:18",
+      "file_id": "file_000000007200820c8baf88d0d8a8ffa5",
+      "status": "原始圖片位於 ChatGPT File Library；整合包收錄圖片說明",
+      "notes": "用於同風格原創牌組與經典牌組替換參考。"
+    },
+    {
+      "name": "ai.html",
+      "created_at": "2026-06-26T15:00:36Z",
+      "type": "HTML 遊戲原型",
+      "pointer": "7:13",
+      "file_id": "file_000000003428720784c0f38980b4ad1b",
+      "status": "原始檔位於 ChatGPT File Library；整合包收錄中繼資料與辨識摘要",
+      "notes": "含牌局狀態、AI、玩家生涯、成就與本機儲存的早期 CyberPoker 原型。"
+    },
+    {
+      "name": "app_deluxe_v2.js",
+      "created_at": "2026-06-25T16:42:00Z",
+      "type": "JavaScript 遊戲程式",
+      "pointer": "7:0",
+      "file_id": "file_00000000461872098a6e4dd366db0de4",
+      "status": "原始檔位於 ChatGPT File Library；整合包收錄中繼資料與辨識摘要",
+      "notes": "Deluxe V2 遊戲邏輯，含 AI、音效、自動新牌局、生涯與成就附加功能。"
+    },
+    {
+      "name": "app_fixed.js",
+      "created_at": "2026-06-24T06:53:03Z",
+      "type": "JavaScript 遊戲程式",
+      "pointer": "7:4",
+      "file_id": "file_00000000d2287209a2a8eb5504f49070",
+      "status": "原始檔位於 ChatGPT File Library；整合包收錄中繼資料與辨識摘要",
+      "notes": "早期輪流指針、最後加注者、莊家位與表態計算修正版。"
+    },
+    {
+      "name": "app_stable_rebuild.js",
+      "created_at": "2026-06-24T19:55:51Z",
+      "type": "JavaScript 遊戲程式",
+      "pointer": "7:6",
+      "file_id": "file_0000000036c07206b1bab730cbc3e952",
+      "status": "原始檔位於 ChatGPT File Library；整合包收錄中繼資料與辨識摘要",
+      "notes": "早期穩定重建版。"
+    },
+    {
+      "name": "已貼上文字 (1).txt",
+      "created_at": "2026-06-25T16:25:46Z",
+      "type": "文字／程式碼備份",
+      "pointer": "7:2",
+      "file_id": "file_000000003d0c7209933968a09f38f83f",
+      "status": "原始檔位於 ChatGPT File Library；整合包收錄中繼資料與辨識摘要",
+      "notes": "與 Deluxe V2 相近的程式碼文字備份。"
+    },
+    {
+      "name": "已貼上文字 (1).txt",
+      "created_at": "2026-06-25T16:35:24Z",
+      "type": "文字／程式碼備份",
+      "pointer": "7:3",
+      "file_id": "file_000000008bc87209a71a4026d29ee441",
+      "status": "原始檔位於 ChatGPT File Library；整合包收錄中繼資料與辨識摘要",
+      "notes": "同名的另一份程式碼文字備份，保留為可能的歷史版本。"
+    },
+    {
+      "name": "index.html",
+      "created_at": "2026-07-06T06:13:53Z",
+      "type": "HTML 遊戲頁面",
+      "pointer": "7:16",
+      "file_id": "file_0000000073ec71fdb1144c83e7acf7a9",
+      "status": "原始檔位於 ChatGPT File Library；整合包收錄中繼資料與辨識摘要",
+      "notes": "德州撲克遊戲頁，含棄牌、跟注、加注、All-in、快捷下注與 Poker Coach 側欄。"
+    }
+  ]
+}

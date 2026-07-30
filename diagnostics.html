@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>德州撲克｜線上部署診斷</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #07111f;
+        color: #e8f0ff;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #173055, #07111f 52%); }
+      main { width: min(920px, calc(100% - 28px)); margin: 0 auto; padding: 34px 0 56px; }
+      header, .summary, .card { border: 1px solid rgba(148, 177, 226, .24); background: rgba(8, 22, 40, .88); box-shadow: 0 20px 55px rgba(0, 0, 0, .28); }
+      header { padding: 24px; border-radius: 20px; }
+      h1 { margin: 4px 0 8px; font-size: clamp(1.75rem, 5vw, 2.65rem); }
+      p { line-height: 1.65; color: #b9c8df; }
+      .eyebrow { margin: 0; color: #83b7ff; font-size: .78rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+      .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+      button, a.button { appearance: none; border: 1px solid rgba(141, 181, 238, .4); border-radius: 12px; background: #16355d; color: #fff; padding: 10px 14px; font: inherit; font-weight: 750; cursor: pointer; text-decoration: none; }
+      button:hover, a.button:hover { background: #204879; }
+      .summary { margin: 16px 0; padding: 18px 20px; border-radius: 16px; display: grid; gap: 8px; }
+      .summary strong { font-size: 1.15rem; }
+      .summary[data-state="pass"] strong { color: #6ff0a9; }
+      .summary[data-state="fail"] strong { color: #ff8d8d; }
+      .summary[data-state="running"] strong { color: #ffd87b; }
+      .grid { display: grid; gap: 12px; }
+      .card { padding: 16px 18px; border-radius: 15px; }
+      .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+      .card h2 { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+      .badge { flex: 0 0 auto; border-radius: 999px; padding: 5px 9px; font-size: .74rem; font-weight: 850; }
+      .badge.pass { background: rgba(54, 208, 127, .17); color: #76f1ad; }
+      .badge.fail { background: rgba(255, 92, 92, .17); color: #ff9a9a; }
+      .detail { margin: 10px 0 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; color: #9fb1ca; overflow-wrap: anywhere; white-space: pre-wrap; }
+      footer { margin-top: 20px; text-align: center; font-size: .84rem; color: #8495ad; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Deployment diagnostics</p>
+        <h1>德州撲克線上部署診斷</h1>
+        <p>這個頁面會從目前 GitHub Pages 網站實際讀取 root 檔案，檢查關鍵資源是否可載入，以及最新 AI 表情修正是否已上線。</p>
+        <div class="actions">
+          <button id="runButton" type="button">重新檢查</button>
+          <button id="copyButton" type="button">複製報告</button>
+          <a class="button" href="./">回到遊戲</a>
+        </div>
+      </header>
+
+      <section id="summary" class="summary" data-state="running" aria-live="polite">
+        <strong>正在檢查…</strong>
+        <span id="summaryText">準備讀取線上資源。</span>
+      </section>
+
+      <section id="results" class="grid" aria-label="診斷結果"></section>
+      <footer>檢查時間會以你的裝置時間顯示；重新整理可避開舊快取。</footer>
+    </main>
+
+    <script>
+      (() => {
+        "use strict";
+
+        const checks = [
+          { path: "index.html", label: "首頁 index.html", includes: "events-boot.js?v=reaction-corner-badges-v85" },
+          { path: "styles.css", label: "主樣式 styles.css" },
+          { path: "app.js", label: "主程式 app.js" },
+          { path: "js/events-boot.js", label: "啟動流程 events-boot.js", includes: "js/bgm-light-continuous.js" },
+          { path: "js/ai-turn-indicator.js", label: "最新 AI 表情與行動提示", includes: "preferred.classList.add(\"slot-single\")" },
+          { path: "js/ai-emotion-face-ui.js", label: "AI 表情介面" },
+          { path: "js/bgm-light-continuous.js", label: "持續 BGM" },
+          { path: "js/sfx-volume-engine.js", label: "音效音量引擎" },
+          { path: "js/audio-controls-split.js", label: "BGM／音效分離控制" },
+          { path: "js/audio-recovery.js", label: "Safari 音訊恢復" },
+          { path: "js/layout-size-controls.js", label: "版面尺寸控制" },
+          { path: "js/ai-timing.js", label: "AI 行動節奏" },
+          { path: "js/card-theme-ui.js", label: "牌組收藏介面" },
+          { path: "js/card-collection-owned-only.js", label: "舊快取相容層" }
+        ];
+
+        const resultsElement = document.querySelector("#results");
+        const summaryElement = document.querySelector("#summary");
+        const summaryText = document.querySelector("#summaryText");
+        const runButton = document.querySelector("#runButton");
+        const copyButton = document.querySelector("#copyButton");
+        let latestReport = "";
+
+        async function runCheck(check) {
+          const url = new URL(check.path, window.location.href);
+          url.searchParams.set("diagnostics", Date.now().toString());
+
+          try {
+            const response = await fetch(url, { cache: "no-store" });
+            const text = await response.text();
+            const markerPassed = !check.includes || text.includes(check.includes);
+            const passed = response.ok && markerPassed;
+            const detail = response.ok
+              ? markerPassed
+                ? `HTTP ${response.status}｜${text.length.toLocaleString()} bytes`
+                : `HTTP ${response.status}｜檔案存在，但缺少最新版識別內容`
+              : `HTTP ${response.status} ${response.statusText}`;
+
+            return { ...check, passed, detail, url: url.href };
+          } catch (error) {
+            return { ...check, passed: false, detail: error instanceof Error ? error.message : String(error), url: url.href };
+          }
+        }
+
+        function renderResult(result) {
+          const article = document.createElement("article");
+          article.className = "card";
+          article.innerHTML = `
+            <div class="card-head">
+              <h2>${escapeHtml(result.label)}</h2>
+              <span class="badge ${result.passed ? "pass" : "fail"}">${result.passed ? "通過" : "失敗"}</span>
+            </div>
+            <p class="detail">${escapeHtml(result.path)}\n${escapeHtml(result.detail)}</p>
+          `;
+          return article;
+        }
+
+        function escapeHtml(value) {
+          return String(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+        }
+
+        async function runDiagnostics() {
+          runButton.disabled = true;
+          resultsElement.replaceChildren();
+          summaryElement.dataset.state = "running";
+          summaryElement.querySelector("strong").textContent = "正在檢查…";
+          summaryText.textContent = "逐一讀取 GitHub Pages 線上檔案。";
+
+          const results = [];
+          for (const check of checks) {
+            const result = await runCheck(check);
+            results.push(result);
+            resultsElement.appendChild(renderResult(result));
+          }
+
+          const passedCount = results.filter(result => result.passed).length;
+          const failedCount = results.length - passedCount;
+          const allPassed = failedCount === 0;
+          const checkedAt = new Date().toLocaleString("zh-TW", { hour12: false });
+
+          summaryElement.dataset.state = allPassed ? "pass" : "fail";
+          summaryElement.querySelector("strong").textContent = allPassed ? "全部通過" : `發現 ${failedCount} 項問題`;
+          summaryText.textContent = `${passedCount}/${results.length} 通過｜檢查時間：${checkedAt}`;
+
+          latestReport = [
+            "德州撲克線上部署診斷",
+            `頁面：${window.location.href}`,
+            `時間：${checkedAt}`,
+            `結果：${passedCount}/${results.length} 通過`,
+            "",
+            ...results.map(result => `${result.passed ? "PASS" : "FAIL"}｜${result.label}｜${result.path}｜${result.detail}`)
+          ].join("\n");
+
+          runButton.disabled = false;
+        }
+
+        runButton.addEventListener("click", runDiagnostics);
+        copyButton.addEventListener("click", async () => {
+          if (!latestReport) return;
+          try {
+            await navigator.clipboard.writeText(latestReport);
+            copyButton.textContent = "已複製";
+            setTimeout(() => { copyButton.textContent = "複製報告"; }, 1600);
+          } catch (error) {
+            window.prompt("請複製以下報告：", latestReport);
+          }
+        });
+
+        runDiagnostics();
+      })();
+    </script>
+  </body>
+</html>

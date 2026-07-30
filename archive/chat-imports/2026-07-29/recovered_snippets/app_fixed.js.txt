@@ -1,0 +1,4 @@
+辨識摘要（非原始完整檔）
+早期修正版。
+可確認新增：buttonIndex、currentTurn、lastRaiser、playersActed、botTimeoutId，
+用於修正輪流順序、莊家位、最後加注者與下注圈完成判定。
