@@ -1,11 +1,21 @@
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { extname, relative, resolve } from "node:path";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, extname, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const root = process.cwd();
 const failures = [];
 const checkedAssets = new Set();
 const ignoredDirectories = new Set([".git", ".github", "docs", "versions", "node_modules"]);
+let checkedInlineScripts = 0;
 
 function fail(message) {
   failures.push(message);
@@ -60,12 +70,56 @@ function checkReference(value, sourceFile, baseDirectory) {
   if (!existsSync(target)) fail(`Missing asset: ${key}`);
 }
 
+function checkJavaScriptSyntax(source, label, extension = ".js") {
+  const temporaryDirectory = mkdtempSync(resolve(tmpdir(), "texas-holdem-static-check-"));
+  const temporaryFile = resolve(temporaryDirectory, `script${extension}`);
+
+  try {
+    writeFileSync(temporaryFile, source, "utf8");
+    const syntax = spawnSync(process.execPath, ["--check", temporaryFile], { encoding: "utf8" });
+
+    if (syntax.status !== 0) {
+      fail(`JavaScript syntax error in ${label}:\n${syntax.stderr.trim()}`);
+    }
+  } finally {
+    rmSync(temporaryDirectory, { recursive: true, force: true });
+  }
+}
+
+function checkInlineScripts(html, htmlFile) {
+  let scriptIndex = 0;
+
+  for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+    const attributes = match[1];
+    const source = match[2];
+
+    if (/\bsrc\s*=/i.test(attributes)) continue;
+
+    const typeMatch = attributes.match(/\btype\s*=\s*["']([^"']+)["']/i);
+    const type = (typeMatch?.[1] || "text/javascript").trim().toLowerCase();
+    const supportedTypes = new Set(["text/javascript", "application/javascript", "module"]);
+
+    if (!supportedTypes.has(type)) continue;
+
+    scriptIndex += 1;
+    checkedInlineScripts += 1;
+    checkJavaScriptSyntax(
+      source,
+      `${relative(root, htmlFile)} inline script #${scriptIndex}`,
+      type === "module" ? ".mjs" : ".js",
+    );
+  }
+}
+
 const htmlPath = resolve(root, "index.html");
+const diagnosticsPath = resolve(root, "diagnostics.html");
 const cssPath = resolve(root, "styles.css");
 const requiredRootFiles = [
   htmlPath,
+  diagnosticsPath,
   cssPath,
   resolve(root, "app.js"),
+  resolve(root, "package.json"),
   resolve(root, "PROJECT_STATUS.md"),
   resolve(root, "README.md"),
   resolve(root, "AGENTS.md"),
@@ -75,19 +129,23 @@ for (const required of requiredRootFiles) {
   if (!existsSync(required)) fail(`Missing required root file: ${relative(root, required)}`);
 }
 
-if (existsSync(htmlPath)) {
-  const html = readFileSync(htmlPath, "utf8");
+const htmlFiles = walk(root, new Set([".html"]));
+
+for (const htmlFile of htmlFiles) {
+  const html = readFileSync(htmlFile, "utf8");
 
   for (const match of html.matchAll(/\b(?:src|href)=["']([^"']+)["']/gi)) {
-    checkReference(match[1], htmlPath, root);
+    checkReference(match[1], htmlFile, dirname(htmlFile));
   }
+
+  checkInlineScripts(html, htmlFile);
 }
 
 for (const file of walk(root, new Set([".css"]))) {
   const css = readFileSync(file, "utf8");
 
   for (const match of css.matchAll(/url\(\s*(["']?)([^)"']+)\1\s*\)/gi)) {
-    checkReference(match[2], file, resolve(file, ".."));
+    checkReference(match[2], file, dirname(file));
   }
 }
 
@@ -112,4 +170,7 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Static site validation passed. Checked ${checkedAssets.size} local asset reference(s).`);
+console.log(
+  `Static site validation passed. Checked ${htmlFiles.length} HTML file(s), ` +
+    `${checkedInlineScripts} inline script(s), and ${checkedAssets.size} local asset reference(s).`,
+);
