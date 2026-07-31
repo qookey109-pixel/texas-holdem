@@ -111,15 +111,54 @@ function checkInlineScripts(html, htmlFile) {
   }
 }
 
+function normalizeDependencies(dependencies = {}) {
+  return Object.fromEntries(
+    Object.entries(dependencies).sort(([left], [right]) => left.localeCompare(right)),
+  );
+}
+
+function checkPackageLock(packagePath, packageLockPath) {
+  if (!existsSync(packagePath) || !existsSync(packageLockPath)) return;
+
+  try {
+    const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
+    const packageLock = JSON.parse(readFileSync(packageLockPath, "utf8"));
+    const lockedRoot = packageLock.packages?.[""];
+
+    if (packageLock.lockfileVersion !== 3) {
+      fail(`package-lock.json must use lockfileVersion 3; found ${packageLock.lockfileVersion}.`);
+    }
+
+    if (!lockedRoot) {
+      fail("package-lock.json is missing the root package entry.");
+      return;
+    }
+
+    for (const section of ["dependencies", "devDependencies", "optionalDependencies"]) {
+      const expected = normalizeDependencies(packageJson[section]);
+      const actual = normalizeDependencies(lockedRoot[section]);
+
+      if (JSON.stringify(expected) !== JSON.stringify(actual)) {
+        fail(`package-lock.json ${section} do not match package.json.`);
+      }
+    }
+  } catch (error) {
+    fail(`Invalid package metadata: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 const htmlPath = resolve(root, "index.html");
 const diagnosticsPath = resolve(root, "diagnostics.html");
 const cssPath = resolve(root, "styles.css");
+const packagePath = resolve(root, "package.json");
+const packageLockPath = resolve(root, "package-lock.json");
 const requiredRootFiles = [
   htmlPath,
   diagnosticsPath,
   cssPath,
   resolve(root, "app.js"),
-  resolve(root, "package.json"),
+  packagePath,
+  packageLockPath,
   resolve(root, "PROJECT_STATUS.md"),
   resolve(root, "README.md"),
   resolve(root, "AGENTS.md"),
@@ -128,6 +167,8 @@ const requiredRootFiles = [
 for (const required of requiredRootFiles) {
   if (!existsSync(required)) fail(`Missing required root file: ${relative(root, required)}`);
 }
+
+checkPackageLock(packagePath, packageLockPath);
 
 const htmlFiles = walk(root, new Set([".html"]));
 
