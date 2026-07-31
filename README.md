@@ -2,21 +2,31 @@
 
 純 HTML、CSS、JavaScript 製作的德州撲克網頁遊戲。
 
+## 正式 Repository
+
+`qookey109-pixel/texas-holdem`
+
+舊的 `qoo109/texas-holdem` 僅保留為歷史來源，不再作為正式維護位置。
+
 ## 線上網站
 
-`https://qoo109.github.io/texas-holdem/`
+GitHub Pages 預定網址：
 
-診斷頁：
+`https://qookey109-pixel.github.io/texas-holdem/`
 
-`https://qoo109.github.io/texas-holdem/diagnostics.html`
+診斷頁預定網址：
+
+`https://qookey109-pixel.github.io/texas-holdem/diagnostics.html`
+
+新 Repository 必須先在 `Settings → Pages` 設定：
+
+- Source：`Deploy from a branch`
+- Branch：`main`
+- Folder：`/ (root)`
+
+設定並完成部署前，不應把預定網址視為已正式上線。
 
 ## 唯一正式來源
-
-GitHub Pages 使用：
-
-- Source: `Deploy from a branch`
-- Branch: `main`
-- Folder: `/ (root)`
 
 正式程式來源：
 
@@ -29,7 +39,7 @@ GitHub Pages 使用：
 
 ## 本機開發
 
-請直接使用 GitHub 工作副本：
+正式 Mac 工作副本：
 
 ```text
 /Users/qoo/Documents/GitHub/texas-holdem
@@ -37,23 +47,35 @@ GitHub Pages 使用：
 
 不要把 `/Users/qoo/Desktop/德州` 當成另一份正式版本。
 
-## 開始工作前
+Repository 遷移後，先確認遠端：
 
 ```bash
+cd /Users/qoo/Documents/GitHub/texas-holdem
+git remote set-url origin https://github.com/qookey109-pixel/texas-holdem.git
+git remote -v
 git status
 git pull --ff-only
 ```
 
-並先閱讀：
+開始工作前先閱讀：
 
 - `PROJECT_STATUS.md`
 - `AGENTS.md`
 - `versions/README.md`
 
+## 安裝測試套件
+
+```bash
+npm install
+npx playwright install chromium webkit
+```
+
+目前 Repository 尚未提交 `package-lock.json`，因此 CI 與首次本機安裝使用 `npm install`，不是 `npm ci`。
+
 ## 靜態檢查
 
 ```bash
-node scripts/validate-static-site.mjs
+npm run validate
 ```
 
 檢查內容包括：
@@ -65,31 +87,28 @@ node scripts/validate-static-site.mjs
 
 ## 瀏覽器 E2E
 
-首次使用：
-
-```bash
-npm install
-npx playwright install chromium
-```
-
-執行最小瀏覽器回歸測試：
-
 ```bash
 npm run test:e2e
 ```
 
-測試會自動啟動本機靜態伺服器，檢查頁面啟動、六位 AI、玩家手牌、新牌局、玩家行動、遊戲紀錄、新手教學、版面編輯、AI 資訊卡、Console error 與失敗的網路請求。
+Playwright 會執行 Chromium 與 WebKit，檢查頁面啟動、六位 AI、玩家手牌、新牌局、玩家行動、遊戲紀錄、新手教學、版面編輯、AI 資訊卡、攤牌、本輪結算、Console error 與失敗的網路請求。
 
-GitHub Actions 會在 `Browser E2E` workflow 執行相同測試；失敗時會保留 Playwright report、trace、截圖與影片。
+GitHub Actions：
+
+- `Static site check`
+- `Browser E2E`（Chromium／WebKit 矩陣）
+
+失敗時會保留 Playwright report、trace、截圖與影片。
 
 ## 發布流程
 
-1. 在 Repository root 修改與測試。
-2. 執行 `node scripts/validate-static-site.mjs`。
-3. 涉及遊戲流程或介面互動時執行 `npm run test:e2e`。
-4. 使用 GitHub Desktop 或 Git 提交至 `main`。
-5. 確認 `Static site check` 與 `Browser E2E` 通過。
-6. 等待 GitHub Pages 更新。
-7. 強制重新整理網站，檢查 Console、Network 與核心功能。
+1. 從最新 `main` 建立功能分支。
+2. 只在 Repository root 修改需要的內容。
+3. 執行 `npm run validate`。
+4. 涉及遊戲流程或介面互動時執行 `npm run test:e2e`。
+5. 建立 Pull Request，不直接覆蓋已驗證成果。
+6. 確認 `Static site check` 與 `Browser E2E` 通過。
+7. 合併後等待 GitHub Pages 更新。
+8. 強制重新整理網站，檢查 Console、Network 與核心功能。
 
 詳細狀態請看 `PROJECT_STATUS.md`。
