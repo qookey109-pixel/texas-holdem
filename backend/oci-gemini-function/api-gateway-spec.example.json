@@ -6,7 +6,9 @@
     },
     "cors": {
       "allowedOrigins": [
-        "https://qoo109.github.io"
+        "https://qookey109-pixel.github.io",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173"
       ],
       "allowedMethods": [
         "GET",

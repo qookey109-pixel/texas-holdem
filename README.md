@@ -4,11 +4,11 @@
 
 ## 線上網站
 
-`https://qoo109.github.io/texas-holdem/`
+`https://qookey109-pixel.github.io/texas-holdem/`
 
 診斷頁：
 
-`https://qoo109.github.io/texas-holdem/diagnostics.html`
+`https://qookey109-pixel.github.io/texas-holdem/diagnostics.html`
 
 ## 唯一正式來源
 

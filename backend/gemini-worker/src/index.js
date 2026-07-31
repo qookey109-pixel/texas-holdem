@@ -16,7 +16,7 @@ function json(data, { status = 200, headers = {} } = {}) {
 }
 
 function allowedOrigins(env) {
-  return String(env.ALLOWED_ORIGINS || "https://qoo109.github.io")
+  return String(env.ALLOWED_ORIGINS || "https://qookey109-pixel.github.io")
     .split(",")
     .map(value => value.trim())
     .filter(Boolean);

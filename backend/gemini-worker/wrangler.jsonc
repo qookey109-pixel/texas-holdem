@@ -6,7 +6,7 @@
   "workers_dev": true,
   "vars": {
     "GEMINI_MODEL": "gemini-3.6-flash",
-    "ALLOWED_ORIGINS": "https://qoo109.github.io,http://localhost:4173,http://127.0.0.1:4173"
+    "ALLOWED_ORIGINS": "https://qookey109-pixel.github.io,http://localhost:4173,http://127.0.0.1:4173"
   },
   "ratelimits": [
     {

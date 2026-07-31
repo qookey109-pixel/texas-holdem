@@ -1,0 +1,65 @@
+name: Validate OCI Gemini Backend
+
+on:
+  push:
+    paths:
+      - "backend/oci-gemini-function/**"
+      - ".github/workflows/oci-gemini-validate.yml"
+  pull_request:
+    paths:
+      - "backend/oci-gemini-function/**"
+      - ".github/workflows/oci-gemini-validate.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check Python syntax
+        run: python -m py_compile backend/oci-gemini-function/func.py
+
+      - name: Validate deployment contracts
+        run: |
+          python - <<'PY'
+          import json
+          import pathlib
+          import re
+
+          root = pathlib.Path("backend/oci-gemini-function")
+          spec = json.loads((root / "api-gateway-spec.example.json").read_text())
+          policies = spec["requestPolicies"]
+          assert policies["rateLimiting"] == {
+              "rateKey": "CLIENT_IP",
+              "rateInRequestsPerSecond": 2,
+          }
+          assert policies["cors"]["allowedOrigins"] == [
+              "https://qookey109-pixel.github.io",
+              "http://localhost:4173",
+              "http://127.0.0.1:4173",
+          ]
+
+          routes = {(route["path"], tuple(route["methods"])) for route in spec["routes"]}
+          assert ("/health", ("GET",)) in routes
+          assert ("/v1/decision", ("POST",)) in routes
+          assert all(route["backend"]["type"] == "ORACLE_FUNCTIONS_BACKEND" for route in spec["routes"])
+
+          func_yaml = (root / "func.yaml").read_text()
+          assert "runtime: python3.12" in func_yaml
+          assert "timeout: 30" in func_yaml
+          assert "GEMINI_SECRET_OCID:" not in func_yaml
+
+          secret_pattern = re.compile(r"AIza[0-9A-Za-z_-]{20,}")
+          for path in root.rglob("*"):
+              if path.is_file() and path.suffix in {".py", ".md", ".yaml", ".yml", ".json", ".txt"}:
+                  assert not secret_pattern.search(path.read_text()), f"Possible API key in {path}"
+          PY
