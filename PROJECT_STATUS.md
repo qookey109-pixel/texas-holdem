@@ -9,7 +9,6 @@
 - 線上網站預定網址: `https://qookey109-pixel.github.io/texas-holdem/`
 - 線上診斷預定網址: `https://qookey109-pixel.github.io/texas-holdem/diagnostics.html`
 - 正式分支: `main`
-- 最新已核對 `main`: `dc082d92d2d323aab9d299898d88ecdae00c567f`
 - 唯一正式開發與發布來源: Repository root
 - GitHub Pages 發布來源: `Deploy from a branch / main / (root)`
 - 新 Repository Pages 狀態: 使用者於 2026-07-31 表示應已啟用；本次外部連線環境無法直接讀取 Pages 網址，因此首頁與診斷頁仍標示「待重新實測」。
@@ -21,6 +20,8 @@
 - `main` 已恢復 `Static site check`、Chromium／WebKit `Browser E2E` 與 OCI Gemini 後端驗證 workflow。
 - 過時的 PR #1 `Restore CI and update project after repository migration` 已於 2026-07-31 關閉並標記為 `Superseded`，未合併至 `main`。
 - PR #1 的分支以舊 `08932e12...` 為基準，已落後且與現行 `main` 分岔，不得重新開啟後直接合併。
+- PR #3 `Clarify repository migration and verification status` 已於 2026-07-31 通過 Static 與 Browser E2E，並以 squash 方式合併至 `main`。
+- PR #3 合併 commit 為 `fb02c273217935d4266f6eba4ffabbf5a8eb9c2a`；此 SHA 僅作為歷史里程碑，不作為永久「最新 main」欄位。
 - 後續變更應從最新 `main` 建立新分支與 Pull Request，不得沿用舊遷移分支。
 - 正式 Mac 工作副本的 `origin` 是否已切換到新 Repository，仍需在本機執行 `git remote -v` 確認。
 
@@ -72,13 +73,13 @@
 - 2026-07-27 已確認 Gemini OCI 安全後端與本地備援仍是正式功能，不應淘汰 `gemini-final-boss.spec.js`。
 - 2026-07-27 已確認桌機 `.seat-status` 正式規則為至少 `21px`，保留 E2E 的 `20px` 可讀性門檻。
 - 2026-07-27 遷移前最後已確認回歸結果：`Static site check`、Chromium E2E、WebKit E2E 均通過。
-- 2026-07-31 已確認新 Repository 的 `main` 為 `dc082d92d2d323aab9d299898d88ecdae00c567f`。
 - 2026-07-31 已關閉未合併且已過時的 PR #1，避免後續誤合併造成回退。
+- 2026-07-31 PR #3 的 `Static site check` 與 Chromium／WebKit `Browser E2E` 已通過，並完成合併。
 
 ## 尚未完成
 
 - 需在可連線環境重新實測新 Pages 首頁與 `diagnostics.html`。
-- 需在 GitHub Actions 頁面確認新 Repository 最新 `main` 的 Static、Chromium、WebKit 與 OCI 驗證狀態。
+- 需確認 PR #3 合併後最新 `main` 的 push workflow 執行結果；PR 分支上的 Static 與 Browser E2E 已通過。
 - 需在正式 Mac 工作副本執行 `git remote -v`、`git status` 與 `git pull --ff-only`，確認本機已切換至新 Repository 且沒有未提交修改。
 - 後續功能改動需持續進行 Chromium 與 WebKit 線上回歸測試。
 - GitHub 無法反映尚未推送的本機修改；接續前仍需在正式 Mac 工作副本執行 `git status` 確認。
@@ -125,4 +126,4 @@
 
 ## 下一步
 
-先完成新 Repository 的 Pages、診斷頁、Actions 與正式 Mac remote 實測；確認遷移基礎穩定後，再從最新 `main` 建立新分支，進入依賴鎖定、診斷檢查與手機 E2E 等第二優先修正。
+先完成新 Repository 的 Pages、診斷頁、合併後 Actions 與正式 Mac remote 實測；確認遷移基礎穩定後，再從最新 `main` 建立新分支，進入依賴鎖定、診斷檢查與手機 E2E 等第二優先修正。
