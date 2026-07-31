@@ -35,8 +35,16 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Install test dependency
+      - name: Install test dependency and generate lockfile
         run: npm install
+
+      - name: Upload generated package lock
+        uses: actions/upload-artifact@v5
+        with:
+          name: package-lock-${{ matrix.browser }}-${{ github.run_id }}
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Install ${{ matrix.browser }}
         run: npx playwright install --with-deps ${{ matrix.browser }}
