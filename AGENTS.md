@@ -2,7 +2,7 @@
 
 ## 專案來源
 
-- Repository: `qoo109/texas-holdem`
+- Repository: `qookey109-pixel/texas-holdem`
 - Canonical development source: repository root
 - GitHub Pages: `Deploy from a branch / main / (root)`
 - Local working copy: `/Users/qoo/Documents/GitHub/texas-holdem`

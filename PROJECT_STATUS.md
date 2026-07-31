@@ -2,9 +2,9 @@
 
 ## 專案資訊
 
-- Repository: `qoo109/texas-holdem`
-- 線上網站: `https://qoo109.github.io/texas-holdem/`
-- 線上診斷: `https://qoo109.github.io/texas-holdem/diagnostics.html`
+- Repository: `qookey109-pixel/texas-holdem`
+- 線上網站: `https://qookey109-pixel.github.io/texas-holdem/`
+- 線上診斷: `https://qookey109-pixel.github.io/texas-holdem/diagnostics.html`
 - 正式分支: `main`
 - 唯一正式開發與發布來源: Repository root
 - GitHub Pages 發布來源: `Deploy from a branch / main / (root)`

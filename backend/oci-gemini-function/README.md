@@ -64,7 +64,7 @@ Functions Application 必須位於可連外的 VCN/Subnet，才能呼叫 Gemini 
 打開 OCI Console 右上角的 Cloud Shell，執行：
 
 ```bash
-git clone https://github.com/qoo109/texas-holdem.git
+git clone https://github.com/qookey109-pixel/texas-holdem.git
 cd texas-holdem/backend/oci-gemini-function
 fn -v deploy --app texas-holdem-gemini-app
 ```
@@ -88,7 +88,7 @@ GEMINI_SECRET_OCID = 你的 Vault Secret OCID
 
 ```text
 GEMINI_MODEL = gemini-3.6-flash
-ALLOWED_ORIGINS = https://qoo109.github.io
+ALLOWED_ORIGINS = https://qookey109-pixel.github.io,http://localhost:4173,http://127.0.0.1:4173
 ```
 
 也可以在 Cloud Shell 設定：
@@ -167,7 +167,7 @@ Specification：使用更新後的 JSON
 
 Specification 已包含：
 
-- CORS 僅允許 `https://qoo109.github.io`
+- CORS 允許 `https://qookey109-pixel.github.io` 與本機測試來源。
 - `GET /health`
 - `POST /v1/decision`
 - 每個 Client IP 每秒最多 2 次請求

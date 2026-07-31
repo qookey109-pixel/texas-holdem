@@ -34,7 +34,7 @@ def config_value(config, key, default=""):
 
 
 def allowed_origins(config):
-    raw = config_value(config, "ALLOWED_ORIGINS", "https://qoo109.github.io")
+    raw = config_value(config, "ALLOWED_ORIGINS", "https://qookey109-pixel.github.io")
     return {value.strip() for value in raw.split(",") if value.strip()}
 
 
