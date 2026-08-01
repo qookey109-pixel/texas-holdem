@@ -120,11 +120,24 @@ function currentBuyIn() {
   return currentBlindLevel().buyIn;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  if (document.querySelector('script[data-ai-profile-position]')) return;
+function loadDeferredUiScript(selector, src, dataAttribute) {
+  if (document.querySelector(selector)) return;
   const script = document.createElement("script");
-  script.src = "js/ai-profile-position.js?v=nearby-seat-v1";
+  script.src = src;
   script.async = false;
-  script.dataset.aiProfilePosition = "true";
+  script.setAttribute(dataAttribute, "true");
   document.body.appendChild(script);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  loadDeferredUiScript(
+    'script[data-ai-profile-position]',
+    "js/ai-profile-position.js?v=nearby-seat-v1",
+    "data-ai-profile-position",
+  );
+  loadDeferredUiScript(
+    'script[data-accessibility-focus]',
+    "js/accessibility-focus.js?v=desktop-a11y-v1",
+    "data-accessibility-focus",
+  );
 }, { once: true });
