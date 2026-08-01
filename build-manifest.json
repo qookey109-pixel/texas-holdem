@@ -27,6 +27,7 @@
     { "path": "js/gemini-backend-client-v2.js", "label": "Gemini 安全後端客戶端" },
     { "path": "js/gemini-async-betting-loop.js", "label": "Gemini 非同步下注流程" },
     { "path": "js/tournament-mode.js", "label": "淘汰賽模式" },
+    { "path": "js/tournament-gemini-bridge.js", "label": "淘汰賽 Gemini 後端橋接" },
     { "path": "js/session-summary.js", "label": "本輪結算" },
     { "path": "js/hand-review.js", "label": "牌局覆盤" },
     { "path": "js/hand-review-analysis.js", "label": "覆盤分析" },
@@ -51,7 +52,7 @@
     {
       "id": "tournament-mode",
       "label": "永久淘汰賽與角色輪替",
-      "assets": ["js/tournament-mode.js", "js/ai-data.js", "js/game-flow.js", "js/session-summary.js"]
+      "assets": ["js/tournament-mode.js", "js/tournament-gemini-bridge.js", "js/ai-data.js", "js/game-flow.js", "js/session-summary.js"]
     },
     {
       "id": "ai-experience",
@@ -81,7 +82,7 @@
     {
       "id": "gemini-boss",
       "label": "Gemini 最終 Boss 安全後端",
-      "assets": ["js/gemini-final-boss.js", "js/gemini-backend-client-v2.js", "js/gemini-async-betting-loop.js"]
+      "assets": ["js/gemini-final-boss.js", "js/gemini-backend-client-v2.js", "js/gemini-async-betting-loop.js", "js/tournament-gemini-bridge.js"]
     },
     {
       "id": "card-collection",
