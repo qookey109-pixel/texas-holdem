@@ -64,6 +64,9 @@ test("淘汰賽永久淘汰、分層候補與縮桌流程", async ({ page }) => 
   const survivorName = await page.evaluate(() => state.players[1].name);
   expect(["Ace", "Momo", "Nori", "Bruno", "Dodo", "Viper"]).toContain(survivorName);
 
+  const headsUpPositions = await page.evaluate(() => state.players.map(player => positionLabel(player)).sort());
+  expect(headsUpPositions).toEqual(["BB", "BTN/SB"]);
+
   await page.evaluate(() => {
     state.players[1].stack = 0;
     state.players[1].allIn = true;
