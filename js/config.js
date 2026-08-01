@@ -121,6 +121,14 @@ function currentBuyIn() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  if (!document.querySelector('script[data-tournament-mode]')) {
+    const tournamentScript = document.createElement("script");
+    tournamentScript.src = "js/tournament-mode.js?v=elimination-mode-v1";
+    tournamentScript.async = false;
+    tournamentScript.dataset.tournamentMode = "true";
+    document.body.appendChild(tournamentScript);
+  }
+
   if (document.querySelector('script[data-ai-profile-position]')) return;
   const script = document.createElement("script");
   script.src = "js/ai-profile-position.js?v=nearby-seat-v1";
