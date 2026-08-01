@@ -121,12 +121,29 @@ function currentBuyIn() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  const installTournamentNewHandGuard = () => {
+    if (document.documentElement.dataset.tournamentNewHandGuard === "true") return;
+    document.documentElement.dataset.tournamentNewHandGuard = "true";
+
+    document.addEventListener("click", event => {
+      if (!window.TournamentMode?.isActive?.()) return;
+      const button = event.target.closest("#newHandButton");
+      if (!button) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      startHand();
+    }, true);
+  };
+
   if (!document.querySelector('script[data-tournament-mode]')) {
     const tournamentScript = document.createElement("script");
     tournamentScript.src = "js/tournament-mode.js?v=elimination-mode-v1";
     tournamentScript.async = false;
     tournamentScript.dataset.tournamentMode = "true";
+    tournamentScript.addEventListener("load", installTournamentNewHandGuard, { once: true });
     document.body.appendChild(tournamentScript);
+  } else if (window.TournamentMode?.version) {
+    installTournamentNewHandGuard();
   }
 
   if (document.querySelector('script[data-ai-profile-position]')) return;
