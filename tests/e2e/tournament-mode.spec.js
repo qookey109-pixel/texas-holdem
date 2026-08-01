@@ -7,12 +7,30 @@ test("淘汰賽永久淘汰、分層候補與縮桌流程", async ({ page }) => 
     () => page.evaluate(() => Boolean(window.TournamentMode?.version)),
     { timeout: 10_000 },
   ).toBe(true);
+  await expect.poll(
+    () => page.evaluate(() => Boolean(window.TournamentModeVisibleEntry?.version)),
+    { timeout: 10_000 },
+  ).toBe(true);
+
+  const modeButton = page.locator("#tournamentModeButton");
+  await expect(modeButton).toBeVisible();
+  await expect(modeButton).toContainText("淘汰賽模式");
+  await expect(modeButton).toHaveClass(/tournament-mode-(side|floating)-entry/);
+
+  const buttonBox = await modeButton.boundingBox();
+  const viewport = page.viewportSize();
+  expect(buttonBox).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  expect(buttonBox.x).toBeGreaterThanOrEqual(0);
+  expect(buttonBox.y).toBeGreaterThanOrEqual(0);
+  expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(viewport.width);
+  expect(buttonBox.y + buttonBox.height).toBeLessThanOrEqual(viewport.height);
 
   await page.evaluate(() => {
     TournamentMode.setMode("tournament");
   });
 
-  await expect(page.locator("#tournamentModeButton")).toHaveAttribute("aria-pressed", "true");
+  await expect(modeButton).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("#opponents .seat")).toHaveCount(6);
 
   const openingNames = await page.evaluate(() => state.players.slice(1).map(player => player.name));
