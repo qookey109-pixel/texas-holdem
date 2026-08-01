@@ -35,8 +35,8 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Install test dependency
-        run: npm install
+      - name: Install locked test dependencies
+        run: npm ci
 
       - name: Install ${{ matrix.browser }}
         run: npx playwright install --with-deps ${{ matrix.browser }}
