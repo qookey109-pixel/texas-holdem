@@ -16,6 +16,8 @@ const failures = [];
 const checkedAssets = new Set();
 const ignoredDirectories = new Set([".git", ".github", "docs", "versions", "node_modules"]);
 let checkedInlineScripts = 0;
+let checkedManifestAssets = 0;
+let checkedManifestFeatures = 0;
 
 function fail(message) {
   failures.push(message);
@@ -147,11 +149,138 @@ function checkPackageLock(packagePath, packageLockPath) {
   }
 }
 
+function checkBuildManifest(manifestPath, diagnosticsPath) {
+  if (!existsSync(manifestPath)) return;
+
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+
+    if (manifest.schemaVersion !== 1) {
+      fail(`build-manifest.json schemaVersion must be 1; found ${manifest.schemaVersion}.`);
+    }
+
+    if (typeof manifest.buildId !== "string" || !manifest.buildId.trim()) {
+      fail("build-manifest.json requires a non-empty buildId.");
+    }
+
+    if (manifest.channel !== "main") {
+      fail(`build-manifest.json channel must be main; found ${manifest.channel}.`);
+    }
+
+    if (manifest.entrypoint !== "index.html") {
+      fail(`build-manifest.json entrypoint must be index.html; found ${manifest.entrypoint}.`);
+    }
+
+    if (manifest.diagnostics !== "diagnostics.html") {
+      fail(`build-manifest.json diagnostics must be diagnostics.html; found ${manifest.diagnostics}.`);
+    }
+
+    if (!Array.isArray(manifest.assets) || manifest.assets.length === 0) {
+      fail("build-manifest.json requires a non-empty assets array.");
+      return;
+    }
+
+    const assetPaths = new Set();
+
+    for (const [index, asset] of manifest.assets.entries()) {
+      if (!asset || typeof asset !== "object") {
+        fail(`build-manifest.json assets[${index}] must be an object.`);
+        continue;
+      }
+
+      if (typeof asset.path !== "string" || !asset.path.trim()) {
+        fail(`build-manifest.json assets[${index}] requires a non-empty path.`);
+        continue;
+      }
+
+      if (typeof asset.label !== "string" || !asset.label.trim()) {
+        fail(`build-manifest.json asset ${asset.path} requires a non-empty label.`);
+      }
+
+      if (asset.path !== cleanReference(asset.path)) {
+        fail(`build-manifest.json asset path must not contain query or hash: ${asset.path}`);
+      }
+
+      if (assetPaths.has(asset.path)) {
+        fail(`build-manifest.json contains duplicate asset path: ${asset.path}`);
+        continue;
+      }
+
+      assetPaths.add(asset.path);
+      checkedManifestAssets += 1;
+      checkReference(asset.path, manifestPath, root);
+    }
+
+    if (!Array.isArray(manifest.features) || manifest.features.length === 0) {
+      fail("build-manifest.json requires a non-empty features array.");
+      return;
+    }
+
+    const featureIds = new Set();
+
+    for (const [index, feature] of manifest.features.entries()) {
+      if (!feature || typeof feature !== "object") {
+        fail(`build-manifest.json features[${index}] must be an object.`);
+        continue;
+      }
+
+      if (typeof feature.id !== "string" || !feature.id.trim()) {
+        fail(`build-manifest.json features[${index}] requires a non-empty id.`);
+        continue;
+      }
+
+      if (featureIds.has(feature.id)) {
+        fail(`build-manifest.json contains duplicate feature id: ${feature.id}`);
+      }
+      featureIds.add(feature.id);
+
+      if (typeof feature.label !== "string" || !feature.label.trim()) {
+        fail(`build-manifest.json feature ${feature.id} requires a non-empty label.`);
+      }
+
+      if (!Array.isArray(feature.assets) || feature.assets.length === 0) {
+        fail(`build-manifest.json feature ${feature.id} requires a non-empty assets array.`);
+        continue;
+      }
+
+      const featureAssetPaths = new Set();
+      checkedManifestFeatures += 1;
+
+      for (const assetPath of feature.assets) {
+        if (typeof assetPath !== "string" || !assetPath.trim()) {
+          fail(`build-manifest.json feature ${feature.id} contains an invalid asset path.`);
+          continue;
+        }
+
+        if (featureAssetPaths.has(assetPath)) {
+          fail(`build-manifest.json feature ${feature.id} repeats asset: ${assetPath}`);
+        }
+        featureAssetPaths.add(assetPath);
+
+        if (!assetPaths.has(assetPath)) {
+          fail(`build-manifest.json feature ${feature.id} references unlisted asset: ${assetPath}`);
+        }
+      }
+    }
+
+    if (existsSync(diagnosticsPath)) {
+      const diagnosticsHtml = readFileSync(diagnosticsPath, "utf8");
+      const manifestMeta = /<meta\s+name=["']texas-holdem-build-manifest["']\s+content=["']build-manifest\.json["']\s*\/?\s*>/i;
+      if (!manifestMeta.test(diagnosticsHtml)) {
+        fail("diagnostics.html must declare build-manifest.json through the texas-holdem-build-manifest meta tag.");
+      }
+    }
+  } catch (error) {
+    fail(`Invalid build-manifest.json: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 const htmlPath = resolve(root, "index.html");
 const diagnosticsPath = resolve(root, "diagnostics.html");
 const cssPath = resolve(root, "styles.css");
 const packagePath = resolve(root, "package.json");
 const packageLockPath = resolve(root, "package-lock.json");
+const buildManifestPath = resolve(root, "build-manifest.json");
 const requiredRootFiles = [
   htmlPath,
   diagnosticsPath,
@@ -159,6 +288,7 @@ const requiredRootFiles = [
   resolve(root, "app.js"),
   packagePath,
   packageLockPath,
+  buildManifestPath,
   resolve(root, "PROJECT_STATUS.md"),
   resolve(root, "README.md"),
   resolve(root, "AGENTS.md"),
@@ -169,6 +299,7 @@ for (const required of requiredRootFiles) {
 }
 
 checkPackageLock(packagePath, packageLockPath);
+checkBuildManifest(buildManifestPath, diagnosticsPath);
 
 const htmlFiles = walk(root, new Set([".html"]));
 
@@ -213,5 +344,6 @@ if (failures.length) {
 
 console.log(
   `Static site validation passed. Checked ${htmlFiles.length} HTML file(s), ` +
-    `${checkedInlineScripts} inline script(s), and ${checkedAssets.size} local asset reference(s).`,
+    `${checkedInlineScripts} inline script(s), ${checkedManifestAssets} manifest asset(s), ` +
+    `${checkedManifestFeatures} manifest feature(s), and ${checkedAssets.size} local asset reference(s).`,
 );
