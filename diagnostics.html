@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex" />
+    <meta name="texas-holdem-build-manifest" content="build-manifest.json" />
     <title>德州撲克｜線上部署診斷</title>
     <style>
       :root {
@@ -20,18 +21,24 @@
       h1 { margin: 4px 0 8px; font-size: clamp(1.75rem, 5vw, 2.65rem); }
       p { line-height: 1.65; color: #b9c8df; }
       .eyebrow { margin: 0; color: #83b7ff; font-size: .78rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+      .build-info { margin: 10px 0 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; color: #83b7ff; overflow-wrap: anywhere; }
       .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
       button, a.button { appearance: none; border: 1px solid rgba(141, 181, 238, .4); border-radius: 12px; background: #16355d; color: #fff; padding: 10px 14px; font: inherit; font-weight: 750; cursor: pointer; text-decoration: none; }
       button:hover, a.button:hover { background: #204879; }
+      button:disabled { cursor: wait; opacity: .7; }
       .summary { margin: 16px 0; padding: 18px 20px; border-radius: 16px; display: grid; gap: 8px; }
       .summary strong { font-size: 1.15rem; }
       .summary[data-state="pass"] strong { color: #6ff0a9; }
       .summary[data-state="fail"] strong { color: #ff8d8d; }
       .summary[data-state="running"] strong { color: #ffd87b; }
+      .section-head { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin: 24px 2px 10px; }
+      .section-head h2 { margin: 0; font-size: 1.1rem; }
+      .section-head span { color: #8495ad; font-size: .82rem; }
       .grid { display: grid; gap: 12px; }
+      .feature-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
       .card { padding: 16px 18px; border-radius: 15px; }
       .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
-      .card h2 { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+      .card h3 { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
       .badge { flex: 0 0 auto; border-radius: 999px; padding: 5px 9px; font-size: .74rem; font-weight: 850; }
       .badge.pass { background: rgba(54, 208, 127, .17); color: #76f1ad; }
       .badge.fail { background: rgba(255, 92, 92, .17); color: #ff9a9a; }
@@ -44,7 +51,8 @@
       <header>
         <p class="eyebrow">Deployment diagnostics</p>
         <h1>德州撲克線上部署診斷</h1>
-        <p>這個頁面會從目前 GitHub Pages 網站實際讀取 root 檔案，檢查關鍵資源是否可載入，以及最新 AI 表情修正是否已上線。</p>
+        <p>這個頁面會讀取目前網站的 Build Manifest，檢查正式資產是否可載入，並依功能群組彙總部署狀態。</p>
+        <p id="buildInfo" class="build-info">Build Manifest 讀取中…</p>
         <div class="actions">
           <button id="runButton" type="button">重新檢查</button>
           <button id="copyButton" type="button">複製報告</button>
@@ -54,74 +62,39 @@
 
       <section id="summary" class="summary" data-state="running" aria-live="polite">
         <strong>正在檢查…</strong>
-        <span id="summaryText">準備讀取線上資源。</span>
+        <span id="summaryText">準備讀取 Build Manifest。</span>
       </section>
 
-      <section id="results" class="grid" aria-label="診斷結果"></section>
-      <footer>檢查時間會以你的裝置時間顯示；重新整理可避開舊快取。</footer>
+      <div class="section-head">
+        <h2>功能狀態</h2>
+        <span id="featureCount">等待 Manifest</span>
+      </div>
+      <section id="featureResults" class="grid feature-grid" aria-label="功能狀態"></section>
+
+      <div class="section-head">
+        <h2>資產檢查</h2>
+        <span id="assetCount">等待 Manifest</span>
+      </div>
+      <section id="assetResults" class="grid" aria-label="資產檢查結果"></section>
+
+      <footer>檢查時間會以你的裝置時間顯示；每次檢查都會避開舊快取。</footer>
     </main>
 
     <script>
       (() => {
         "use strict";
 
-        const checks = [
-          { path: "index.html", label: "首頁 index.html", includes: "events-boot.js?v=reaction-corner-badges-v85" },
-          { path: "styles.css", label: "主樣式 styles.css" },
-          { path: "app.js", label: "主程式 app.js" },
-          { path: "js/events-boot.js", label: "啟動流程 events-boot.js", includes: "js/bgm-light-continuous.js" },
-          { path: "js/ai-turn-indicator.js", label: "最新 AI 表情與行動提示", includes: "preferred.classList.add(\"slot-single\")" },
-          { path: "js/ai-emotion-face-ui.js", label: "AI 表情介面" },
-          { path: "js/bgm-light-continuous.js", label: "持續 BGM" },
-          { path: "js/sfx-volume-engine.js", label: "音效音量引擎" },
-          { path: "js/audio-controls-split.js", label: "BGM／音效分離控制" },
-          { path: "js/audio-recovery.js", label: "Safari 音訊恢復" },
-          { path: "js/layout-size-controls.js", label: "版面尺寸控制" },
-          { path: "js/ai-timing.js", label: "AI 行動節奏" },
-          { path: "js/card-theme-ui.js", label: "牌組收藏介面" },
-          { path: "js/card-collection-owned-only.js", label: "舊快取相容層" }
-        ];
-
-        const resultsElement = document.querySelector("#results");
+        const manifestPath = document.querySelector('meta[name="texas-holdem-build-manifest"]')?.content || "build-manifest.json";
+        const featureResults = document.querySelector("#featureResults");
+        const assetResults = document.querySelector("#assetResults");
+        const featureCount = document.querySelector("#featureCount");
+        const assetCount = document.querySelector("#assetCount");
+        const buildInfo = document.querySelector("#buildInfo");
         const summaryElement = document.querySelector("#summary");
         const summaryText = document.querySelector("#summaryText");
         const runButton = document.querySelector("#runButton");
         const copyButton = document.querySelector("#copyButton");
         let latestReport = "";
-
-        async function runCheck(check) {
-          const url = new URL(check.path, window.location.href);
-          url.searchParams.set("diagnostics", Date.now().toString());
-
-          try {
-            const response = await fetch(url, { cache: "no-store" });
-            const text = await response.text();
-            const markerPassed = !check.includes || text.includes(check.includes);
-            const passed = response.ok && markerPassed;
-            const detail = response.ok
-              ? markerPassed
-                ? `HTTP ${response.status}｜${text.length.toLocaleString()} bytes`
-                : `HTTP ${response.status}｜檔案存在，但缺少最新版識別內容`
-              : `HTTP ${response.status} ${response.statusText}`;
-
-            return { ...check, passed, detail, url: url.href };
-          } catch (error) {
-            return { ...check, passed: false, detail: error instanceof Error ? error.message : String(error), url: url.href };
-          }
-        }
-
-        function renderResult(result) {
-          const article = document.createElement("article");
-          article.className = "card";
-          article.innerHTML = `
-            <div class="card-head">
-              <h2>${escapeHtml(result.label)}</h2>
-              <span class="badge ${result.passed ? "pass" : "fail"}">${result.passed ? "通過" : "失敗"}</span>
-            </div>
-            <p class="detail">${escapeHtml(result.path)}\n${escapeHtml(result.detail)}</p>
-          `;
-          return article;
-        }
 
         function escapeHtml(value) {
           return String(value)
@@ -132,39 +105,161 @@
             .replaceAll("'", "&#039;");
         }
 
-        async function runDiagnostics() {
+        function cacheBustedUrl(path) {
+          const url = new URL(path, window.location.href);
+          url.searchParams.set("diagnostics", Date.now().toString());
+          return url;
+        }
+
+        function validateManifest(manifest) {
+          if (!manifest || typeof manifest !== "object") throw new Error("Build Manifest 不是有效物件");
+          if (manifest.schemaVersion !== 1) throw new Error(`不支援的 schemaVersion：${manifest.schemaVersion}`);
+          if (!manifest.buildId || typeof manifest.buildId !== "string") throw new Error("Build Manifest 缺少 buildId");
+          if (!Array.isArray(manifest.assets) || manifest.assets.length === 0) throw new Error("Build Manifest 沒有資產清單");
+          if (!Array.isArray(manifest.features) || manifest.features.length === 0) throw new Error("Build Manifest 沒有功能清單");
+        }
+
+        async function loadManifest() {
+          const url = cacheBustedUrl(manifestPath);
+          const response = await fetch(url, { cache: "no-store" });
+          if (!response.ok) throw new Error(`Build Manifest 讀取失敗：HTTP ${response.status}`);
+          const manifest = await response.json();
+          validateManifest(manifest);
+          return { manifest, url: url.href };
+        }
+
+        async function runAssetCheck(asset) {
+          const url = cacheBustedUrl(asset.path);
+
+          try {
+            const response = await fetch(url, { cache: "no-store" });
+            const text = await response.text();
+            const passed = response.ok && text.trim().length > 0;
+            const detail = response.ok
+              ? text.trim().length > 0
+                ? `HTTP ${response.status}｜${text.length.toLocaleString()} bytes`
+                : `HTTP ${response.status}｜檔案內容為空`
+              : `HTTP ${response.status} ${response.statusText}`;
+
+            return { ...asset, passed, detail, url: url.href };
+          } catch (error) {
+            return {
+              ...asset,
+              passed: false,
+              detail: error instanceof Error ? error.message : String(error),
+              url: url.href,
+            };
+          }
+        }
+
+        function createCard({ label, passed, detail, kind }) {
+          const article = document.createElement("article");
+          article.className = "card";
+          article.dataset.kind = kind;
+          article.innerHTML = `
+            <div class="card-head">
+              <h3>${escapeHtml(label)}</h3>
+              <span class="badge ${passed ? "pass" : "fail"}">${passed ? "通過" : "失敗"}</span>
+            </div>
+            <p class="detail">${escapeHtml(detail)}</p>
+          `;
+          return article;
+        }
+
+        function featureStatus(feature, resultByPath) {
+          const failedAssets = feature.assets.filter(path => !resultByPath.get(path)?.passed);
+          return {
+            label: feature.label,
+            passed: failedAssets.length === 0,
+            detail: failedAssets.length === 0
+              ? `${feature.assets.length} 個必要資產皆可載入`
+              : `失敗資產：${failedAssets.join(", ")}`,
+            kind: "feature",
+          };
+        }
+
+        function setRunningState() {
           runButton.disabled = true;
-          resultsElement.replaceChildren();
+          featureResults.replaceChildren();
+          assetResults.replaceChildren();
+          featureCount.textContent = "檢查中";
+          assetCount.textContent = "檢查中";
+          buildInfo.textContent = "Build Manifest 讀取中…";
           summaryElement.dataset.state = "running";
           summaryElement.querySelector("strong").textContent = "正在檢查…";
-          summaryText.textContent = "逐一讀取 GitHub Pages 線上檔案。";
+          summaryText.textContent = "讀取 Build Manifest 與正式資產。";
+        }
 
-          const results = [];
-          for (const check of checks) {
-            const result = await runCheck(check);
-            results.push(result);
-            resultsElement.appendChild(renderResult(result));
-          }
-
-          const passedCount = results.filter(result => result.passed).length;
-          const failedCount = results.length - passedCount;
-          const allPassed = failedCount === 0;
-          const checkedAt = new Date().toLocaleString("zh-TW", { hour12: false });
-
-          summaryElement.dataset.state = allPassed ? "pass" : "fail";
-          summaryElement.querySelector("strong").textContent = allPassed ? "全部通過" : `發現 ${failedCount} 項問題`;
-          summaryText.textContent = `${passedCount}/${results.length} 通過｜檢查時間：${checkedAt}`;
-
+        function setFatalState(error) {
+          const message = error instanceof Error ? error.message : String(error);
+          summaryElement.dataset.state = "fail";
+          summaryElement.querySelector("strong").textContent = "診斷無法開始";
+          summaryText.textContent = message;
+          buildInfo.textContent = `Manifest：${manifestPath}`;
+          featureCount.textContent = "0 項";
+          assetCount.textContent = "0 項";
+          assetResults.appendChild(createCard({ label: "Build Manifest", passed: false, detail: message, kind: "manifest" }));
           latestReport = [
             "德州撲克線上部署診斷",
             `頁面：${window.location.href}`,
-            `時間：${checkedAt}`,
-            `結果：${passedCount}/${results.length} 通過`,
-            "",
-            ...results.map(result => `${result.passed ? "PASS" : "FAIL"}｜${result.label}｜${result.path}｜${result.detail}`)
+            `Manifest：${manifestPath}`,
+            `結果：FAIL｜${message}`,
           ].join("\n");
+        }
 
-          runButton.disabled = false;
+        async function runDiagnostics() {
+          setRunningState();
+
+          try {
+            const { manifest, url: manifestUrl } = await loadManifest();
+            buildInfo.textContent = `Build ${manifest.buildId}｜Channel ${manifest.channel || "unknown"}｜Manifest ${manifestUrl}`;
+
+            const results = await Promise.all(manifest.assets.map(runAssetCheck));
+            const resultByPath = new Map(results.map(result => [result.path, result]));
+            const features = manifest.features.map(feature => featureStatus(feature, resultByPath));
+
+            for (const feature of features) featureResults.appendChild(createCard(feature));
+            for (const result of results) {
+              assetResults.appendChild(createCard({
+                label: result.label,
+                passed: result.passed,
+                detail: `${result.path}\n${result.detail}`,
+                kind: "asset",
+              }));
+            }
+
+            const passedAssets = results.filter(result => result.passed).length;
+            const passedFeatures = features.filter(feature => feature.passed).length;
+            const allPassed = passedAssets === results.length && passedFeatures === features.length;
+            const checkedAt = new Date().toLocaleString("zh-TW", { hour12: false });
+
+            featureCount.textContent = `${passedFeatures}/${features.length} 通過`;
+            assetCount.textContent = `${passedAssets}/${results.length} 通過`;
+            summaryElement.dataset.state = allPassed ? "pass" : "fail";
+            summaryElement.querySelector("strong").textContent = allPassed
+              ? "全部通過"
+              : `發現 ${results.length - passedAssets} 項資產問題`;
+            summaryText.textContent = `Build ${manifest.buildId}｜功能 ${passedFeatures}/${features.length}｜資產 ${passedAssets}/${results.length}｜${checkedAt}`;
+
+            latestReport = [
+              "德州撲克線上部署診斷",
+              `頁面：${window.location.href}`,
+              `Build：${manifest.buildId}`,
+              `Channel：${manifest.channel || "unknown"}`,
+              `Manifest：${manifestUrl}`,
+              `時間：${checkedAt}`,
+              `功能：${passedFeatures}/${features.length} 通過`,
+              `資產：${passedAssets}/${results.length} 通過`,
+              "",
+              ...features.map(feature => `${feature.passed ? "PASS" : "FAIL"}｜功能｜${feature.label}｜${feature.detail}`),
+              "",
+              ...results.map(result => `${result.passed ? "PASS" : "FAIL"}｜資產｜${result.label}｜${result.path}｜${result.detail}`),
+            ].join("\n");
+          } catch (error) {
+            setFatalState(error);
+          } finally {
+            runButton.disabled = false;
+          }
         }
 
         runButton.addEventListener("click", runDiagnostics);

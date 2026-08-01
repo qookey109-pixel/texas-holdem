@@ -41,7 +41,7 @@ jobs:
       - name: Install ${{ matrix.browser }}
         run: npx playwright install --with-deps ${{ matrix.browser }}
 
-      - name: Run all six E2E scenarios on ${{ matrix.browser }}
+      - name: Run all E2E scenarios on ${{ matrix.browser }}
         run: npx playwright test --project=${{ matrix.browser }}
 
       - name: Upload Playwright report
