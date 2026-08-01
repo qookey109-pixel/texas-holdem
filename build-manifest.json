@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-main-2026-08-01",
+  "buildId": "desktop-accessibility-2026-08-01",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
@@ -12,6 +12,7 @@
     { "path": "js/cards-data.js", "label": "撲克牌資料" },
     { "path": "js/ai-data.js", "label": "AI 人物資料" },
     { "path": "js/config.js", "label": "遊戲設定" },
+    { "path": "js/accessibility-focus.js", "label": "桌機鍵盤與焦點管理" },
     { "path": "js/tutorial-data.js", "label": "教學資料" },
     { "path": "js/layout-ui.js", "label": "版面介面" },
     { "path": "js/card-engine.js", "label": "牌型引擎" },
@@ -61,6 +62,11 @@
       "id": "layout",
       "label": "版面編輯與尺寸控制",
       "assets": ["js/layout-ui.js", "js/layout-size-controls.js", "js/positions.js"]
+    },
+    {
+      "id": "desktop-accessibility",
+      "label": "桌機鍵盤與焦點管理",
+      "assets": ["js/accessibility-focus.js", "js/tutorial-ui.js", "js/session-summary.js", "js/render-ui.js", "js/events-boot.js"]
     },
     {
       "id": "coach-tutorial",
