@@ -79,3 +79,37 @@ test("淘汰賽永久淘汰、分層候補與縮桌流程", async ({ page }) => 
   await expect(page.locator("#sessionSummaryContent .session-hero h2")).toHaveText("淘汰賽冠軍");
   await expect(page.locator(".tournament-summary-card")).toContainText("完整通關");
 });
+
+test("淘汰賽 Gemini 登場時立即取得安全後端資格", async ({ page }) => {
+  await page.goto("/", { waitUntil: "networkidle" });
+
+  await expect.poll(
+    () => page.evaluate(() => Boolean(window.TournamentGeminiBridge?.version)),
+    { timeout: 10_000 },
+  ).toBe(true);
+
+  await page.evaluate(() => {
+    TournamentMode.setMode("tournament");
+    const profile = AI_ROSTER.find(candidate => candidate.name === "Gemini")
+      || window.GeminiFinalBoss.profile;
+    Object.assign(state.players[1], profile, {
+      name: "Gemini",
+      stack: Math.max(1, state.players[1].stack),
+    });
+    TournamentGeminiBridge.sync();
+  });
+
+  await expect.poll(
+    () => page.evaluate(() => window.GeminiFinalBoss?.isBossMode?.()),
+  ).toBe(true);
+  await expect.poll(
+    () => page.evaluate(() => TournamentGeminiBridge.isTemporaryBossMode()),
+  ).toBe(true);
+
+  await page.evaluate(() => TournamentMode.setMode("normal"));
+
+  await expect.poll(
+    () => page.evaluate(() => window.GeminiFinalBoss?.isBossMode?.()),
+    { timeout: 3_000 },
+  ).toBe(false);
+});
