@@ -5,244 +5,88 @@
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
   "assets": [
-    {
-      "path": "index.html",
-      "label": "首頁"
-    },
-    {
-      "path": "styles.css",
-      "label": "主樣式"
-    },
-    {
-      "path": "app.js",
-      "label": "主程式"
-    },
-    {
-      "path": "js/audio.js",
-      "label": "音訊核心"
-    },
-    {
-      "path": "js/cards-data.js",
-      "label": "撲克牌資料"
-    },
-    {
-      "path": "js/ai-data.js",
-      "label": "AI 人物資料"
-    },
-    {
-      "path": "js/config.js",
-      "label": "遊戲設定"
-    },
-    {
-      "path": "js/tutorial-data.js",
-      "label": "教學資料"
-    },
-    {
-      "path": "js/layout-ui.js",
-      "label": "版面介面"
-    },
-    {
-      "path": "js/card-engine.js",
-      "label": "牌型引擎"
-    },
-    {
-      "path": "js/dialogue.js",
-      "label": "AI 對話"
-    },
-    {
-      "path": "js/positions.js",
-      "label": "位置系統"
-    },
-    {
-      "path": "js/ai-logic.js",
-      "label": "AI 決策"
-    },
-    {
-      "path": "js/coach.js",
-      "label": "撲克教練"
-    },
-    {
-      "path": "js/tutorial-ui.js",
-      "label": "教學介面"
-    },
-    {
-      "path": "js/game-flow.js",
-      "label": "牌局流程"
-    },
-    {
-      "path": "js/showdown-actions.js",
-      "label": "攤牌結算"
-    },
-    {
-      "path": "js/render-ui.js",
-      "label": "牌桌渲染"
-    },
-    {
-      "path": "js/gemini-final-boss.js",
-      "label": "Gemini 最終 Boss"
-    },
-    {
-      "path": "js/gemini-backend-client-v2.js",
-      "label": "Gemini 安全後端客戶端"
-    },
-    {
-      "path": "js/gemini-async-betting-loop.js",
-      "label": "Gemini 非同步下注流程"
-    },
-    {
-      "path": "js/tournament-mode.js",
-      "label": "淘汰賽模式"
-    },
-    {
-      "path": "js/session-summary.js",
-      "label": "本輪結算"
-    },
-    {
-      "path": "js/hand-review.js",
-      "label": "牌局覆盤"
-    },
-    {
-      "path": "js/hand-review-analysis.js",
-      "label": "覆盤分析"
-    },
-    {
-      "path": "js/events-boot.js",
-      "label": "啟動流程"
-    },
-    {
-      "path": "js/card-theme-ui.js",
-      "label": "牌組收藏介面"
-    },
-    {
-      "path": "js/card-collection-owned-only.js",
-      "label": "牌組快取相容層"
-    },
-    {
-      "path": "js/bgm-light-continuous.js",
-      "label": "持續背景音樂"
-    },
-    {
-      "path": "js/sfx-volume-engine.js",
-      "label": "音效音量引擎"
-    },
-    {
-      "path": "js/audio-controls-split.js",
-      "label": "BGM／音效分離控制"
-    },
-    {
-      "path": "js/audio-recovery.js",
-      "label": "Safari 音訊恢復"
-    },
-    {
-      "path": "js/layout-size-controls.js",
-      "label": "版面尺寸控制"
-    },
-    {
-      "path": "js/ai-emotion-face-ui.js",
-      "label": "AI 表情介面"
-    },
-    {
-      "path": "js/ai-timing.js",
-      "label": "AI 行動節奏"
-    },
-    {
-      "path": "js/ai-turn-indicator.js",
-      "label": "AI 行動提示"
-    }
+    { "path": "index.html", "label": "首頁" },
+    { "path": "styles.css", "label": "主樣式" },
+    { "path": "app.js", "label": "主程式" },
+    { "path": "js/audio.js", "label": "音訊核心" },
+    { "path": "js/cards-data.js", "label": "撲克牌資料" },
+    { "path": "js/ai-data.js", "label": "AI 人物資料" },
+    { "path": "js/config.js", "label": "遊戲設定" },
+    { "path": "js/tutorial-data.js", "label": "教學資料" },
+    { "path": "js/layout-ui.js", "label": "版面介面" },
+    { "path": "js/card-engine.js", "label": "牌型引擎" },
+    { "path": "js/dialogue.js", "label": "AI 對話" },
+    { "path": "js/positions.js", "label": "位置系統" },
+    { "path": "js/ai-logic.js", "label": "AI 決策" },
+    { "path": "js/coach.js", "label": "撲克教練" },
+    { "path": "js/tutorial-ui.js", "label": "教學介面" },
+    { "path": "js/game-flow.js", "label": "牌局流程" },
+    { "path": "js/showdown-actions.js", "label": "攤牌結算" },
+    { "path": "js/render-ui.js", "label": "牌桌渲染" },
+    { "path": "js/gemini-final-boss.js", "label": "Gemini 最終 Boss" },
+    { "path": "js/gemini-backend-client-v2.js", "label": "Gemini 安全後端客戶端" },
+    { "path": "js/gemini-async-betting-loop.js", "label": "Gemini 非同步下注流程" },
+    { "path": "js/tournament-mode.js", "label": "淘汰賽模式" },
+    { "path": "js/session-summary.js", "label": "本輪結算" },
+    { "path": "js/hand-review.js", "label": "牌局覆盤" },
+    { "path": "js/hand-review-analysis.js", "label": "覆盤分析" },
+    { "path": "js/events-boot.js", "label": "啟動流程" },
+    { "path": "js/card-theme-ui.js", "label": "牌組收藏介面" },
+    { "path": "js/card-collection-owned-only.js", "label": "牌組快取相容層" },
+    { "path": "js/bgm-light-continuous.js", "label": "持續背景音樂" },
+    { "path": "js/sfx-volume-engine.js", "label": "音效音量引擎" },
+    { "path": "js/audio-controls-split.js", "label": "BGM／音效分離控制" },
+    { "path": "js/audio-recovery.js", "label": "Safari 音訊恢復" },
+    { "path": "js/layout-size-controls.js", "label": "版面尺寸控制" },
+    { "path": "js/ai-emotion-face-ui.js", "label": "AI 表情介面" },
+    { "path": "js/ai-timing.js", "label": "AI 行動節奏" },
+    { "path": "js/ai-turn-indicator.js", "label": "AI 行動提示" }
   ],
   "features": [
     {
       "id": "core-game",
       "label": "核心牌桌與牌局",
-      "assets": [
-        "index.html",
-        "styles.css",
-        "app.js",
-        "js/config.js",
-        "js/card-engine.js",
-        "js/game-flow.js",
-        "js/render-ui.js",
-        "js/events-boot.js"
-      ]
+      "assets": ["index.html", "styles.css", "app.js", "js/config.js", "js/card-engine.js", "js/game-flow.js", "js/render-ui.js", "js/events-boot.js"]
     },
     {
       "id": "tournament-mode",
       "label": "永久淘汰賽與角色輪替",
-      "assets": [
-        "js/tournament-mode.js",
-        "js/ai-data.js",
-        "js/game-flow.js",
-        "js/session-summary.js"
-      ]
+      "assets": ["js/tournament-mode.js", "js/ai-data.js", "js/game-flow.js", "js/session-summary.js"]
     },
     {
       "id": "ai-experience",
       "label": "AI 決策、表情與節奏",
-      "assets": [
-        "js/ai-data.js",
-        "js/ai-logic.js",
-        "js/dialogue.js",
-        "js/ai-emotion-face-ui.js",
-        "js/ai-timing.js",
-        "js/ai-turn-indicator.js"
-      ]
+      "assets": ["js/ai-data.js", "js/ai-logic.js", "js/dialogue.js", "js/ai-emotion-face-ui.js", "js/ai-timing.js", "js/ai-turn-indicator.js"]
     },
     {
       "id": "audio",
       "label": "音訊與 Safari 恢復",
-      "assets": [
-        "js/audio.js",
-        "js/bgm-light-continuous.js",
-        "js/sfx-volume-engine.js",
-        "js/audio-controls-split.js",
-        "js/audio-recovery.js"
-      ]
+      "assets": ["js/audio.js", "js/bgm-light-continuous.js", "js/sfx-volume-engine.js", "js/audio-controls-split.js", "js/audio-recovery.js"]
     },
     {
       "id": "layout",
       "label": "版面編輯與尺寸控制",
-      "assets": [
-        "js/layout-ui.js",
-        "js/layout-size-controls.js",
-        "js/positions.js"
-      ]
+      "assets": ["js/layout-ui.js", "js/layout-size-controls.js", "js/positions.js"]
     },
     {
       "id": "coach-tutorial",
       "label": "撲克教練與新手教學",
-      "assets": [
-        "js/coach.js",
-        "js/tutorial-data.js",
-        "js/tutorial-ui.js"
-      ]
+      "assets": ["js/coach.js", "js/tutorial-data.js", "js/tutorial-ui.js"]
     },
     {
       "id": "review-session",
       "label": "攤牌、結算與覆盤",
-      "assets": [
-        "js/showdown-actions.js",
-        "js/session-summary.js",
-        "js/hand-review.js",
-        "js/hand-review-analysis.js"
-      ]
+      "assets": ["js/showdown-actions.js", "js/session-summary.js", "js/hand-review.js", "js/hand-review-analysis.js"]
     },
     {
       "id": "gemini-boss",
       "label": "Gemini 最終 Boss 安全後端",
-      "assets": [
-        "js/gemini-final-boss.js",
-        "js/gemini-backend-client-v2.js",
-        "js/gemini-async-betting-loop.js"
-      ]
+      "assets": ["js/gemini-final-boss.js", "js/gemini-backend-client-v2.js", "js/gemini-async-betting-loop.js"]
     },
     {
       "id": "card-collection",
       "label": "牌組收藏與相容層",
-      "assets": [
-        "js/cards-data.js",
-        "js/card-theme-ui.js",
-        "js/card-collection-owned-only.js"
-      ]
+      "assets": ["js/cards-data.js", "js/card-theme-ui.js", "js/card-collection-owned-only.js"]
     }
   ]
 }
