@@ -135,15 +135,28 @@ document.addEventListener("DOMContentLoaded", () => {
     }, true);
   };
 
+  const loadTournamentGeminiBridge = () => {
+    if (document.querySelector('script[data-tournament-gemini-bridge]')) return;
+    const bridgeScript = document.createElement("script");
+    bridgeScript.src = "js/tournament-gemini-bridge.js?v=secure-final-boss-v1";
+    bridgeScript.async = false;
+    bridgeScript.dataset.tournamentGeminiBridge = "true";
+    document.body.appendChild(bridgeScript);
+  };
+
   if (!document.querySelector('script[data-tournament-mode]')) {
     const tournamentScript = document.createElement("script");
     tournamentScript.src = "js/tournament-mode.js?v=elimination-mode-v1";
     tournamentScript.async = false;
     tournamentScript.dataset.tournamentMode = "true";
-    tournamentScript.addEventListener("load", installTournamentNewHandGuard, { once: true });
+    tournamentScript.addEventListener("load", () => {
+      installTournamentNewHandGuard();
+      loadTournamentGeminiBridge();
+    }, { once: true });
     document.body.appendChild(tournamentScript);
   } else if (window.TournamentMode?.version) {
     installTournamentNewHandGuard();
+    loadTournamentGeminiBridge();
   }
 
   if (document.querySelector('script[data-ai-profile-position]')) return;
