@@ -4,7 +4,7 @@
 
   if (window.CoachHandReviewIntegration?.version) return;
 
-  const VERSION = "1.0.0";
+  const VERSION = "1.0.1";
   const STORAGE_KEY = "texasHoldemCoachHandReviewEnabledV1";
   let installed = false;
   let observer = null;
@@ -130,9 +130,10 @@
     const content = document.querySelector("#coachContent");
     if (!content) return null;
 
-    let card = document.querySelector('[data-coach-card="review"]');
+    let card = document.querySelector("#coachReviewCard");
     if (!card) {
       card = document.createElement("section");
+      card.id = "coachReviewCard";
       card.className = "coach-card coach-review-card";
       card.dataset.coachCard = "review";
       card.innerHTML = `
@@ -157,13 +158,16 @@
     const mount = card?.querySelector("#coachReviewMount");
     const panel = document.querySelector("#handReviewPanel");
     if (!mount || !panel) return false;
+    if (panel.matches('[data-coach-card="review"]')) {
+      panel.removeAttribute("data-coach-card");
+    }
     if (panel.parentElement !== mount) mount.appendChild(panel);
     panel.setAttribute("aria-label", "撲克教練－上一手牌局復盤");
     return true;
   }
 
   function syncPlaceholder() {
-    const card = document.querySelector('[data-coach-card="review"]');
+    const card = document.querySelector("#coachReviewCard");
     const panel = document.querySelector("#handReviewPanel");
     const placeholder = card?.querySelector("#coachReviewPlaceholder");
     const stateLabel = card?.querySelector("#coachReviewState");
