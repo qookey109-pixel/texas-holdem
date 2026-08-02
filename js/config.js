@@ -180,9 +180,19 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.appendChild(characterScript);
   };
 
+  const loadCoachHandReviewIntegration = () => {
+    if (document.querySelector('script[data-coach-hand-review-integration]')) return;
+    const reviewScript = document.createElement("script");
+    reviewScript.src = "js/coach-hand-review-integration.js?v=coach-review-v1";
+    reviewScript.async = false;
+    reviewScript.dataset.coachHandReviewIntegration = "true";
+    document.body.appendChild(reviewScript);
+  };
+
   loadEliteCharacterPresentation();
   loadTableStatusDock();
   loadTournamentVisibleEntry();
+  loadCoachHandReviewIntegration();
 
   if (!document.querySelector('script[data-tournament-mode]')) {
     const tournamentScript = document.createElement("script");

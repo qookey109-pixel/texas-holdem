@@ -40,6 +40,10 @@ test("固定牌面攤牌會發出五張公共牌、分配底池並顯示勝者",
     () => page.evaluate(() => Boolean(window.CoachReviewPlacement?.version)),
     { timeout: 5_000 },
   ).toBe(true);
+  await expect.poll(
+    () => page.evaluate(() => window.CoachHandReviewIntegration?.version || ""),
+    { timeout: 5_000 },
+  ).toBe("1.0.1");
 
   await page.evaluate(() => {
     const suitSymbols = { s: "♠", h: "♥", d: "♦", c: "♣" };
@@ -100,7 +104,7 @@ test("固定牌面攤牌會發出五張公共牌、分配底池並顯示勝者",
   const review = page.locator("#handReviewPanel");
   await expect(review).toBeVisible();
   await expect(review).toHaveAttribute("data-review-owner", "coach");
-  await expect(page.locator("#coachContent > #handReviewPanel")).toHaveCount(1);
+  await expect(page.locator("#coachReviewMount > #handReviewPanel")).toHaveCount(1);
   await expect(page.locator("#historyPanel > #handReviewPanel")).toHaveCount(0);
   await expect(review).toContainText("本手覆盤");
   await expect(review).toContainText(/A♠\s*K♦/);
@@ -149,8 +153,8 @@ test("固定牌面攤牌會發出五張公共牌、分配底池並顯示勝者",
     reviewDecisionScore: 82,
     reviewDecisionLabel: "良好",
     reviewAnalysisVersion: "2.0.0",
-    reviewPlacementVersion: "1.0.0",
-    reviewParentId: "coachContent",
+    reviewPlacementVersion: "2.0.0",
+    reviewParentId: "coachReviewMount",
     reviewInsideCoach: true,
     reviewInsideHistory: false,
     reviewAboveHistory: true,

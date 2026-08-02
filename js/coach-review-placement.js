@@ -1,16 +1,21 @@
-// Keep the single-hand review with the Poker Coach instead of the chronological hand log.
+// Keep the single-hand review inside the Poker Coach review card.
 (() => {
   "use strict";
 
   if (window.CoachReviewPlacement?.version) return;
 
+  function reviewTarget() {
+    return document.querySelector("#coachReviewMount")
+      || document.querySelector("#coachContent");
+  }
+
   function mountReviewPanel() {
     const panel = document.querySelector("#handReviewPanel");
-    const coachContent = document.querySelector("#coachContent");
-    if (!panel || !coachContent) return false;
+    const target = reviewTarget();
+    if (!panel || !target) return false;
 
-    if (panel.parentElement !== coachContent) {
-      coachContent.appendChild(panel);
+    if (panel.parentElement !== target) {
+      target.appendChild(panel);
     }
 
     panel.dataset.reviewOwner = "coach";
@@ -23,6 +28,7 @@
     const style = document.createElement("style");
     style.id = "coachReviewPlacementStyles";
     style.textContent = `
+      #coachReviewMount > #handReviewPanel,
       #coachContent > #handReviewPanel {
         grid-column: 1 / -1;
         max-height: min(300px, 38vh);
@@ -36,10 +42,12 @@
           inset 0 1px 0 rgba(255,255,255,.08);
       }
 
+      #coachReviewMount > #handReviewPanel .hand-review-title p,
       #coachContent > #handReviewPanel .hand-review-title p {
         color: var(--gold);
       }
 
+      #coachReviewMount > #handReviewPanel .hand-review-title h3,
       #coachContent > #handReviewPanel .hand-review-title h3 {
         color: var(--ink);
       }
@@ -49,6 +57,7 @@
       }
 
       @media (max-width: 900px) {
+        #coachReviewMount > #handReviewPanel,
         #coachContent > #handReviewPanel {
           max-height: min(240px, 36vh);
           margin-top: 1px;
@@ -72,7 +81,7 @@
   observer.observe(document.body, { childList: true, subtree: true });
 
   window.CoachReviewPlacement = {
-    version: "1.0.0",
+    version: "2.0.0",
     refresh,
   };
 })();

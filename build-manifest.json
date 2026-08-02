@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-main-elite-character-presentation-published-2026-08-02",
+  "buildId": "desktop-coach-hand-review-preview-2026-08-02",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
@@ -19,6 +19,7 @@
     { "path": "js/positions.js", "label": "位置系統" },
     { "path": "js/ai-logic.js", "label": "AI 決策" },
     { "path": "js/coach.js", "label": "撲克教練" },
+    { "path": "js/coach-hand-review-integration.js", "label": "教練牌局復盤整合與開關" },
     { "path": "js/tutorial-ui.js", "label": "教學介面" },
     { "path": "js/game-flow.js", "label": "牌局流程" },
     { "path": "js/showdown-actions.js", "label": "攤牌結算" },
@@ -98,13 +99,13 @@
     },
     {
       "id": "coach-tutorial",
-      "label": "撲克教練與新手教學",
-      "assets": ["js/coach.js", "js/tutorial-data.js", "js/tutorial-ui.js"]
+      "label": "撲克教練、牌局復盤與新手教學",
+      "assets": ["js/coach.js", "js/coach-hand-review-integration.js", "js/hand-review.js", "js/hand-review-analysis.js", "js/tutorial-data.js", "js/tutorial-ui.js"]
     },
     {
       "id": "review-session",
       "label": "攤牌、結算與覆盤",
-      "assets": ["js/showdown-actions.js", "js/session-summary.js", "js/hand-review.js", "js/hand-review-analysis.js"]
+      "assets": ["js/showdown-actions.js", "js/session-summary.js", "js/hand-review.js", "js/hand-review-analysis.js", "js/coach-hand-review-integration.js"]
     },
     {
       "id": "gemini-boss",
