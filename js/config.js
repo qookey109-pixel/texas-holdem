@@ -162,6 +162,16 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.appendChild(balanceScript);
   };
 
+  const loadTableStatusDock = () => {
+    if (document.querySelector('script[data-table-status-dock]')) return;
+    const statusScript = document.createElement("script");
+    statusScript.src = "js/table-status-dock.js?v=board-safe-v1";
+    statusScript.async = false;
+    statusScript.dataset.tableStatusDock = "true";
+    document.body.appendChild(statusScript);
+  };
+
+  loadTableStatusDock();
   loadTournamentVisibleEntry();
 
   if (!document.querySelector('script[data-tournament-mode]')) {
