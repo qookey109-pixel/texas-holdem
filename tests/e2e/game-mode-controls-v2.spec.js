@@ -14,7 +14,7 @@ test("挑戰賽入口固定在新手教學旁、模式標籤同步且重新整�
   await expect.poll(
     () => page.evaluate(() => window.TournamentModeVisibleEntry?.version || ""),
     { timeout: 10_000 },
-  ).toBe("3.0.0");
+  ).toBe("3.1.0");
 
   await expect.poll(
     () => page.evaluate(() => window.TournamentMode?.isActive?.()),
@@ -23,6 +23,11 @@ test("挑戰賽入口固定在新手教學旁、模式標籤同步且重新整�
   expect(await page.evaluate(() => localStorage.getItem("texasHoldemGameModeV1"))).toBeNull();
   await expect(page.locator("#coachPanel")).toBeVisible();
   expect(await page.evaluate(() => document.querySelector(".side-rail")?.firstElementChild?.id)).toBe("coachPanel");
+
+  const autoButton = page.locator("#autoNewHandButton");
+  await expect.poll(() => page.evaluate(() => state.autoNewHand)).toBe(true);
+  await expect(autoButton).toHaveText("⏸ 自動牌局");
+  await expect(autoButton).toHaveAttribute("aria-pressed", "true");
 
   const challengeButton = page.locator("#challengeModeButton");
   await expect(challengeButton).toBeVisible();
@@ -40,6 +45,11 @@ test("挑戰賽入口固定在新手教學旁、模式標籤同步且重新整�
   await page.getByRole("button", { name: /設定/ }).first().click();
   await expect(page.locator("#tournamentModeButton")).toBeHidden();
 
+  await autoButton.click();
+  await expect.poll(() => page.evaluate(() => state.autoNewHand)).toBe(false);
+  await expect(autoButton).toHaveText("▶ 自動牌局");
+  await expect(autoButton).toHaveAttribute("aria-pressed", "false");
+
   await challengeButton.click();
   await expect.poll(
     () => page.evaluate(() => window.TournamentMode?.isActive?.()),
@@ -48,6 +58,7 @@ test("挑戰賽入口固定在新手教學旁、模式標籤同步且重新整�
   await expect(challengeButton).toHaveAttribute("aria-pressed", "true");
   await expect(modeLabel).toHaveText("挑戰賽模式");
   await expect(modeLabel).toHaveAttribute("data-mode", "challenge");
+  await expect.poll(() => page.evaluate(() => state.autoNewHand)).toBe(false);
 
   await page.reload({ waitUntil: "networkidle" });
   await expect.poll(
@@ -55,10 +66,12 @@ test("挑戰賽入口固定在新手教學旁、模式標籤同步且重新整�
   ).toBe("2.0.0");
   await expect.poll(
     () => page.evaluate(() => window.TournamentModeVisibleEntry?.version || ""),
-  ).toBe("3.0.0");
+  ).toBe("3.1.0");
   await expect.poll(
     () => page.evaluate(() => window.TournamentMode?.isActive?.()),
   ).toBe(false);
+  await expect.poll(() => page.evaluate(() => state.autoNewHand)).toBe(true);
+  await expect(page.locator("#autoNewHandButton")).toHaveText("⏸ 自動牌局");
   await expect(page.locator("#coachPanel")).toBeVisible();
   await expect(page.locator("#challengeModeButton")).toHaveText("🏆 挑戰賽模式");
   await expect(page.locator("#gameModeLabel")).toHaveText("一般模式");
