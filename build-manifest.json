@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-main-replacement-stack-balance-published-2026-08-02",
+  "buildId": "desktop-main-game-speed-controls-published-2026-08-02",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
@@ -15,7 +15,7 @@
     { "path": "js/tutorial-data.js", "label": "教學資料" },
     { "path": "js/layout-ui.js", "label": "版面介面" },
     { "path": "js/card-engine.js", "label": "牌型引擎" },
-    { "path": "js/dialogue.js", "label": "AI 對話" },
+    { "path": "js/dialogue.js", "label": "AI 對話與牌局速度" },
     { "path": "js/positions.js", "label": "位置系統" },
     { "path": "js/ai-logic.js", "label": "AI 決策" },
     { "path": "js/coach.js", "label": "撲克教練" },
@@ -61,6 +61,11 @@
       "id": "replacement-stack-balance",
       "label": "新進角色動態籌碼平衡",
       "assets": ["js/replacement-stack-balance.js", "js/config.js", "js/game-flow.js", "js/tournament-mode.js"]
+    },
+    {
+      "id": "game-speed",
+      "label": "本地牌局速度控制",
+      "assets": ["js/dialogue.js", "js/ai-timing.js", "js/game-flow.js", "js/showdown-actions.js"]
     },
     {
       "id": "ai-experience",
