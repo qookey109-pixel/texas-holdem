@@ -9,10 +9,10 @@ test("牌局復盤整合進撲克教練並可獨立開關", async ({ page }) => 
   await expect.poll(
     () => page.evaluate(() => window.CoachHandReviewIntegration?.version || ""),
     { timeout: 10_000 },
-  ).toBe("1.0.0");
+  ).toBe("1.0.1");
 
   const toggle = page.locator("#coachReviewToggle");
-  const reviewCard = page.locator('[data-coach-card="review"]');
+  const reviewCard = page.locator("#coachReviewCard");
   const reviewPanel = page.locator("#handReviewPanel");
 
   await expect(toggle).toBeVisible();
@@ -54,17 +54,20 @@ test("牌局復盤整合進撲克教練並可獨立開關", async ({ page }) => 
 
 test("牌局復盤開關會在重新整理後保留", async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem("texasHoldemCoachHandReviewEnabledV1", "false");
+    if (!sessionStorage.getItem("coachReviewPersistenceSeeded")) {
+      localStorage.setItem("texasHoldemCoachHandReviewEnabledV1", "false");
+      sessionStorage.setItem("coachReviewPersistenceSeeded", "true");
+    }
   });
   await page.goto("/", { waitUntil: "networkidle" });
 
   await expect.poll(
     () => page.evaluate(() => window.CoachHandReviewIntegration?.version || ""),
     { timeout: 10_000 },
-  ).toBe("1.0.0");
+  ).toBe("1.0.1");
 
   await expect(page.locator("#coachReviewToggle")).not.toBeChecked();
-  await expect(page.locator('[data-coach-card="review"]')).toBeHidden();
+  await expect(page.locator("#coachReviewCard")).toBeHidden();
   expect(await page.evaluate(() => state.coach.review)).toBe(false);
 
   await page.locator("#coachReviewToggle").check();
@@ -73,8 +76,8 @@ test("牌局復盤開關會在重新整理後保留", async ({ page }) => {
   await expect.poll(
     () => page.evaluate(() => window.CoachHandReviewIntegration?.version || ""),
     { timeout: 10_000 },
-  ).toBe("1.0.0");
+  ).toBe("1.0.1");
   await expect(page.locator("#coachReviewToggle")).toBeChecked();
-  await expect(page.locator('[data-coach-card="review"]')).toBeVisible();
+  await expect(page.locator("#coachReviewCard")).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("texasHoldemCoachHandReviewEnabledV1"))).toBe("true");
 });
