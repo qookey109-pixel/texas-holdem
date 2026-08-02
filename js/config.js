@@ -153,6 +153,15 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.appendChild(visibilityScript);
   };
 
+  const loadReplacementStackBalance = () => {
+    if (document.querySelector('script[data-replacement-stack-balance]')) return;
+    const balanceScript = document.createElement("script");
+    balanceScript.src = "js/replacement-stack-balance.js?v=table-average-v1";
+    balanceScript.async = false;
+    balanceScript.dataset.replacementStackBalance = "true";
+    document.body.appendChild(balanceScript);
+  };
+
   loadTournamentVisibleEntry();
 
   if (!document.querySelector('script[data-tournament-mode]')) {
@@ -163,13 +172,17 @@ document.addEventListener("DOMContentLoaded", () => {
     tournamentScript.addEventListener("load", () => {
       installTournamentNewHandGuard();
       loadTournamentGeminiBridge();
+      loadReplacementStackBalance();
       window.TournamentModeVisibleEntry?.refresh?.();
     }, { once: true });
     document.body.appendChild(tournamentScript);
   } else if (window.TournamentMode?.version) {
     installTournamentNewHandGuard();
     loadTournamentGeminiBridge();
+    loadReplacementStackBalance();
     window.TournamentModeVisibleEntry?.refresh?.();
+  } else {
+    loadReplacementStackBalance();
   }
 
   if (document.querySelector('script[data-ai-profile-position]')) return;
