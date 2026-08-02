@@ -8,29 +8,24 @@ test("淘汰賽永久淘汰、分層候補與縮桌流程", async ({ page }) => 
     { timeout: 10_000 },
   ).toBe(true);
   await expect.poll(
-    () => page.evaluate(() => Boolean(window.TournamentModeVisibleEntry?.version)),
+    () => page.evaluate(() => Boolean(window.GameModeControlsV2?.version)),
     { timeout: 10_000 },
   ).toBe(true);
 
+  expect(await page.evaluate(() => document.querySelector(".side-rail")?.firstElementChild?.id)).toBe("coachPanel");
+  await expect(page.locator("#coachPanel")).toBeVisible();
+
+  await page.getByRole("button", { name: /設定/ }).first().click();
   const modeButton = page.locator("#tournamentModeButton");
   await expect(modeButton).toBeVisible();
-  await expect(modeButton).toContainText("淘汰賽模式");
-  await expect(modeButton).toHaveClass(/tournament-mode-(side|floating)-entry/);
+  await expect(modeButton).toHaveText("🏆 淘汰賽模式");
+  await expect(modeButton).toHaveClass(/topbar-settings-item/);
+  expect(await page.evaluate(() => document.querySelector("#tournamentModeButton")?.parentElement?.id)).toBe("settingsMenuPanel");
 
-  const buttonBox = await modeButton.boundingBox();
-  const viewport = page.viewportSize();
-  expect(buttonBox).not.toBeNull();
-  expect(viewport).not.toBeNull();
-  expect(buttonBox.x).toBeGreaterThanOrEqual(0);
-  expect(buttonBox.y).toBeGreaterThanOrEqual(0);
-  expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(viewport.width);
-  expect(buttonBox.y + buttonBox.height).toBeLessThanOrEqual(viewport.height);
-
-  await page.evaluate(() => {
-    TournamentMode.setMode("tournament");
-  });
+  await modeButton.click();
 
   await expect(modeButton).toHaveAttribute("aria-pressed", "true");
+  await expect(modeButton).toHaveText("🏆 結束淘汰賽");
   await expect(page.locator("#opponents .seat")).toHaveCount(6);
 
   const openingNames = await page.evaluate(() => state.players.slice(1).map(player => player.name));
