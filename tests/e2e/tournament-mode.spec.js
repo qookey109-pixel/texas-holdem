@@ -15,6 +15,10 @@ test("淘汰賽永久淘汰、分層候補與縮桌流程", async ({ page }) => 
     () => page.evaluate(() => window.TournamentModeVisibleEntry?.version || ""),
     { timeout: 10_000 },
   ).toBe("3.1.0");
+  await expect.poll(
+    () => page.evaluate(() => window.EliteCharacterPresentation?.version || ""),
+    { timeout: 10_000 },
+  ).toBe("2.0.0");
 
   expect(await page.evaluate(() => document.querySelector(".side-rail")?.firstElementChild?.id)).toBe("coachPanel");
   await expect(page.locator("#coachPanel")).toBeVisible();
@@ -38,12 +42,12 @@ test("淘汰賽永久淘汰、分層候補與縮桌流程", async ({ page }) => 
   expect(openingNames).toEqual(["Leo", "Toto", "Foxy", "Wolf", "Pao", "Shark"]);
 
   const initialSnapshot = await page.evaluate(() => TournamentMode.snapshot());
-  expect(initialSnapshot.queue).toHaveLength(10);
+  expect(initialSnapshot.queue).toHaveLength(11);
   expect(new Set(initialSnapshot.queue.slice(0, 6))).toEqual(
     new Set(["Ace", "Momo", "Nori", "Bruno", "Dodo", "Viper"]),
   );
-  expect(new Set(initialSnapshot.queue.slice(6, 9))).toEqual(
-    new Set(["Nova", "Unit-9", "Merlin"]),
+  expect(new Set(initialSnapshot.queue.slice(6, 10))).toEqual(
+    new Set(["Nova", "Unit-9", "Merlin", "Vlad"]),
   );
   expect(initialSnapshot.queue.at(-1)).toBe("Gemini");
 
@@ -71,6 +75,9 @@ test("淘汰賽永久淘汰、分層候補與縮桌流程", async ({ page }) => 
   await page.evaluate(() => {
     state.handOver = true;
     state.waitingForHuman = false;
+    if (!state.tournament.eliminated.includes("Vlad")) {
+      state.tournament.eliminated.push("Vlad");
+    }
     state.tournament.queue = [];
     state.players.slice(2).forEach(player => {
       player.stack = 0;
