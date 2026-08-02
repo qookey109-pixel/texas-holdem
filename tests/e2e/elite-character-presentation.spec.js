@@ -84,10 +84,14 @@ test("Vlad 加入挑戰賽高階候補且 Gemini 仍是最後一位", async ({ p
     () => page.evaluate(() => window.EliteCharacterPresentation?.version || ""),
     { timeout: 10_000 },
   ).toBe("2.0.0");
+  await expect.poll(
+    () => page.evaluate(() => window.EliteCharacterProgressFix?.version || ""),
+    { timeout: 10_000 },
+  ).toBe("1.0.0");
 
   await page.evaluate(() => window.TournamentMode.setMode("tournament"));
 
-  const snapshot = await expect.poll(
+  await expect.poll(
     () => page.evaluate(() => window.TournamentMode.snapshot()),
     { timeout: 10_000 },
   ).toMatchObject({ mode: "tournament" });
@@ -98,6 +102,13 @@ test("Vlad 加入挑戰賽高階候補且 Gemini 仍是最後一位", async ({ p
   expect(queue.at(-1)).toBe("Gemini");
   expect(queue.indexOf("Vlad")).toBeLessThan(queue.indexOf("Gemini"));
 
-  await expect(page.locator("#tournamentProgressBadge strong")).toHaveText("0 / 17");
+  await expect.poll(
+    () => page.evaluate(() => document.querySelector("#tournamentProgressBadge strong")?.dataset.eliteProgress || ""),
+    { timeout: 10_000 },
+  ).toBe("0 / 17");
+  const visibleProgress = await page.locator("#tournamentProgressBadge strong").evaluate(
+    element => getComputedStyle(element, "::after").content.replaceAll('"', ""),
+  );
+  expect(visibleProgress).toBe("0 / 17");
   expect(await page.evaluate(() => EliteCharacterPresentation.totalTournamentAi)).toBe(17);
 });
