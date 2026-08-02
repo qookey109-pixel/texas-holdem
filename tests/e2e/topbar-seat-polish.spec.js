@@ -43,7 +43,8 @@ test("頂部設定會收合且本輪下注會貼合玩家資訊卡", async ({ pa
   await expect(settingsButton).toHaveAttribute("aria-expanded", "false");
   await expect(settingsPanel).toBeHidden();
 
-  await expect(page.locator(".top-bar-actions > button:visible")).toHaveCount(3);
+  await expect(page.locator(".top-bar-actions > button:visible")).toHaveCount(4);
+  await expect(page.locator("#challengeModeButton")).toBeVisible();
   await expect(page.locator(".top-bar-actions > .topbar-settings > #settingsMenuButton:visible")).toHaveCount(1);
 
   await settingsButton.click();

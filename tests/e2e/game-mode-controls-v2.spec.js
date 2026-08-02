@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("淘汰賽入口留在設定選單、教練可見且重新整理預設一般模式", async ({ page }) => {
+test("挑戰賽入口固定在新手教學旁、模式標籤同步且重新整理預設一般模式", async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("texasHoldemGameModeV1", "tournament");
   });
@@ -11,6 +11,10 @@ test("淘汰賽入口留在設定選單、教練可見且重新整理預設一�
     () => page.evaluate(() => window.GameModeControlsV2?.version || ""),
     { timeout: 10_000 },
   ).toBe("2.0.0");
+  await expect.poll(
+    () => page.evaluate(() => window.TournamentModeVisibleEntry?.version || ""),
+    { timeout: 10_000 },
+  ).toBe("3.0.0");
 
   await expect.poll(
     () => page.evaluate(() => window.TournamentMode?.isActive?.()),
@@ -19,27 +23,45 @@ test("淘汰賽入口留在設定選單、教練可見且重新整理預設一�
   expect(await page.evaluate(() => localStorage.getItem("texasHoldemGameModeV1"))).toBeNull();
   await expect(page.locator("#coachPanel")).toBeVisible();
   expect(await page.evaluate(() => document.querySelector(".side-rail")?.firstElementChild?.id)).toBe("coachPanel");
-  expect(await page.evaluate(() => document.querySelector("#tournamentModeButton")?.parentElement?.id)).toBe("settingsMenuPanel");
+
+  const challengeButton = page.locator("#challengeModeButton");
+  await expect(challengeButton).toBeVisible();
+  await expect(challengeButton).toHaveText("🏆 挑戰賽模式");
+  await expect(challengeButton).toHaveAttribute("aria-pressed", "false");
+  expect(await page.evaluate(() => document.querySelector("#challengeModeButton")?.parentElement?.classList.contains("top-bar-actions"))).toBe(true);
+  expect(await page.evaluate(() => document.querySelector("#challengeModeButton")?.previousElementSibling?.id)).toBe("tutorialButton");
+
+  const modeLabel = page.locator("#gameModeLabel");
+  await expect(modeLabel).toBeVisible();
+  await expect(modeLabel).toHaveText("一般模式");
+  await expect(modeLabel).toHaveAttribute("data-mode", "normal");
+  expect(await page.evaluate(() => document.querySelector("#gameModeLabel")?.previousElementSibling?.id)).toBe("handNumber");
 
   await page.getByRole("button", { name: /設定/ }).first().click();
-  const tournamentButton = page.locator("#tournamentModeButton");
-  await expect(tournamentButton).toBeVisible();
-  await expect(tournamentButton).toHaveText("🏆 淘汰賽模式");
+  await expect(page.locator("#tournamentModeButton")).toBeHidden();
 
-  await tournamentButton.click();
+  await challengeButton.click();
   await expect.poll(
     () => page.evaluate(() => window.TournamentMode?.isActive?.()),
   ).toBe(true);
-  await expect(tournamentButton).toHaveText("🏆 結束淘汰賽");
+  await expect(challengeButton).toHaveText("🏆 結束挑戰賽");
+  await expect(challengeButton).toHaveAttribute("aria-pressed", "true");
+  await expect(modeLabel).toHaveText("挑戰賽模式");
+  await expect(modeLabel).toHaveAttribute("data-mode", "challenge");
 
   await page.reload({ waitUntil: "networkidle" });
   await expect.poll(
     () => page.evaluate(() => window.GameModeControlsV2?.version || ""),
   ).toBe("2.0.0");
   await expect.poll(
+    () => page.evaluate(() => window.TournamentModeVisibleEntry?.version || ""),
+  ).toBe("3.0.0");
+  await expect.poll(
     () => page.evaluate(() => window.TournamentMode?.isActive?.()),
   ).toBe(false);
   await expect(page.locator("#coachPanel")).toBeVisible();
+  await expect(page.locator("#challengeModeButton")).toHaveText("🏆 挑戰賽模式");
+  await expect(page.locator("#gameModeLabel")).toHaveText("一般模式");
 });
 
 test("Gemini 挑戰可立即關閉且不重置目前牌局", async ({ page }) => {
