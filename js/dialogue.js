@@ -83,10 +83,14 @@
     const input = document.querySelector("#gameSpeedSlider");
     const output = document.querySelector("#gameSpeedOutput");
     const group = document.querySelector("#gameSpeedControl");
-    if (input) input.value = String(speed);
-    if (output) output.textContent = `×${speed}`;
-    if (group) group.dataset.speed = String(speed);
-    document.documentElement.dataset.gameSpeed = String(speed);
+    const value = String(speed);
+    const label = `×${speed}`;
+    if (input && input.value !== value) input.value = value;
+    if (output && output.textContent !== label) output.textContent = label;
+    if (group && group.dataset.speed !== value) group.dataset.speed = value;
+    if (document.documentElement.dataset.gameSpeed !== value) {
+      document.documentElement.dataset.gameSpeed = value;
+    }
   }
 
   function rescheduleCurrentFlow(previousSpeed) {
