@@ -171,6 +171,16 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.appendChild(statusScript);
   };
 
+  const loadEliteCharacterPresentation = () => {
+    if (document.querySelector('script[data-elite-character-presentation]')) return;
+    const characterScript = document.createElement("script");
+    characterScript.src = "js/elite-character-presentation.js?v=elite-roster-v1";
+    characterScript.async = false;
+    characterScript.dataset.eliteCharacterPresentation = "true";
+    document.body.appendChild(characterScript);
+  };
+
+  loadEliteCharacterPresentation();
   loadTableStatusDock();
   loadTournamentVisibleEntry();
 
