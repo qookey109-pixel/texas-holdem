@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-main-game-speed-controls-published-2026-08-02",
+  "buildId": "desktop-board-safe-status-dock-preview-2026-08-02",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
@@ -23,6 +23,7 @@
     { "path": "js/game-flow.js", "label": "牌局流程" },
     { "path": "js/showdown-actions.js", "label": "攤牌結算" },
     { "path": "js/render-ui.js", "label": "牌桌渲染" },
+    { "path": "js/table-status-dock.js", "label": "公共牌淨空提示區" },
     { "path": "js/gemini-final-boss.js", "label": "Gemini 最終 Boss" },
     { "path": "js/gemini-backend-client-v2.js", "label": "Gemini 安全後端客戶端" },
     { "path": "js/gemini-async-betting-loop.js", "label": "Gemini 非同步下注流程" },
@@ -51,6 +52,11 @@
       "id": "core-game",
       "label": "核心牌桌與牌局",
       "assets": ["index.html", "styles.css", "app.js", "js/config.js", "js/card-engine.js", "js/game-flow.js", "js/render-ui.js", "js/events-boot.js"]
+    },
+    {
+      "id": "table-status-dock",
+      "label": "公共牌淨空與牌局提示",
+      "assets": ["js/table-status-dock.js", "js/config.js", "js/render-ui.js", "styles.css"]
     },
     {
       "id": "tournament-mode",
