@@ -26,6 +26,7 @@
     { "path": "js/table-status-dock.js", "label": "公共牌淨空提示區" },
     { "path": "js/elite-character-presentation.js", "label": "高階角色相容載入器" },
     { "path": "js/elite-character-presentation-v2.js", "label": "高階角色外觀與 Vlad" },
+    { "path": "js/elite-character-progress-fix.js", "label": "17 位挑戰賽進度顯示" },
     { "path": "js/gemini-final-boss.js", "label": "Gemini 最終 Boss" },
     { "path": "js/gemini-backend-client-v2.js", "label": "Gemini 安全後端客戶端" },
     { "path": "js/gemini-async-betting-loop.js", "label": "Gemini 非同步下注流程" },
@@ -63,12 +64,12 @@
     {
       "id": "elite-characters",
       "label": "高階角色外觀、登場提示與 Vlad",
-      "assets": ["js/elite-character-presentation.js", "js/elite-character-presentation-v2.js", "js/config.js", "js/ai-data.js", "js/render-ui.js", "js/tournament-mode.js"]
+      "assets": ["js/elite-character-presentation.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/config.js", "js/ai-data.js", "js/render-ui.js", "js/tournament-mode.js"]
     },
     {
       "id": "tournament-mode",
       "label": "永久淘汰賽與角色輪替",
-      "assets": ["js/tournament-mode.js", "js/tournament-mode-visible-entry.js", "js/game-mode-controls-v2.js", "js/tournament-gemini-bridge.js", "js/replacement-stack-balance.js", "js/elite-character-presentation-v2.js", "js/ai-data.js", "js/game-flow.js", "js/session-summary.js"]
+      "assets": ["js/tournament-mode.js", "js/tournament-mode-visible-entry.js", "js/game-mode-controls-v2.js", "js/tournament-gemini-bridge.js", "js/replacement-stack-balance.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-data.js", "js/game-flow.js", "js/session-summary.js"]
     },
     {
       "id": "replacement-stack-balance",
