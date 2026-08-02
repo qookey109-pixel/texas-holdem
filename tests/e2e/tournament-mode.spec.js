@@ -75,6 +75,9 @@ test("淘汰賽永久淘汰、分層候補與縮桌流程", async ({ page }) => 
   await page.evaluate(() => {
     state.handOver = true;
     state.waitingForHuman = false;
+    if (!state.tournament.eliminated.includes("Vlad")) {
+      state.tournament.eliminated.push("Vlad");
+    }
     state.tournament.queue = [];
     state.players.slice(2).forEach(player => {
       player.stack = 0;
