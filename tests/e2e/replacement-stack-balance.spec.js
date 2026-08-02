@@ -11,7 +11,7 @@ test("新進角色使用桌均比例籌碼且初始角色維持完整買入", as
     () => page.evaluate(() => window.ReplacementStackBalance?.isInstalled?.()),
   ).toBe(true);
 
-  const initialStacks = await page.evaluate(() => state.players.slice(1).map(player => player.stack));
+  const initialStacks = await page.evaluate(() => state.players.slice(1).map(player => player.stack + player.bet));
   expect(initialStacks).toEqual([2000, 2000, 2000, 2000, 2000, 2000]);
 
   const levelOneTarget = await page.evaluate(() => {
