@@ -11,21 +11,27 @@ test("淘汰賽永久淘汰、分層候補與縮桌流程", async ({ page }) => 
     () => page.evaluate(() => Boolean(window.GameModeControlsV2?.version)),
     { timeout: 10_000 },
   ).toBe(true);
+  await expect.poll(
+    () => page.evaluate(() => window.TournamentModeVisibleEntry?.version || ""),
+    { timeout: 10_000 },
+  ).toBe("3.0.0");
 
   expect(await page.evaluate(() => document.querySelector(".side-rail")?.firstElementChild?.id)).toBe("coachPanel");
   await expect(page.locator("#coachPanel")).toBeVisible();
 
-  await page.getByRole("button", { name: /設定/ }).first().click();
-  const modeButton = page.locator("#tournamentModeButton");
+  const modeButton = page.locator("#challengeModeButton");
   await expect(modeButton).toBeVisible();
-  await expect(modeButton).toHaveText("🏆 淘汰賽模式");
-  await expect(modeButton).toHaveClass(/topbar-settings-item/);
-  expect(await page.evaluate(() => document.querySelector("#tournamentModeButton")?.parentElement?.id)).toBe("settingsMenuPanel");
+  await expect(modeButton).toHaveText("🏆 挑戰賽模式");
+  await expect(modeButton).toHaveClass(/tool-button/);
+  expect(await page.evaluate(() => document.querySelector("#challengeModeButton")?.parentElement?.classList.contains("top-bar-actions"))).toBe(true);
+  expect(await page.evaluate(() => document.querySelector("#challengeModeButton")?.previousElementSibling?.id)).toBe("tutorialButton");
+  await expect(page.locator("#gameModeLabel")).toHaveText("一般模式");
 
   await modeButton.click();
 
   await expect(modeButton).toHaveAttribute("aria-pressed", "true");
-  await expect(modeButton).toHaveText("🏆 結束淘汰賽");
+  await expect(modeButton).toHaveText("🏆 結束挑戰賽");
+  await expect(page.locator("#gameModeLabel")).toHaveText("挑戰賽模式");
   await expect(page.locator("#opponents .seat")).toHaveCount(6);
 
   const openingNames = await page.evaluate(() => state.players.slice(1).map(player => player.name));
