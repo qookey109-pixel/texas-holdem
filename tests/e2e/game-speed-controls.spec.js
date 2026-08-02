@@ -1,10 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 test("設定選單可調整一到三倍牌局速度且 Gemini 維持原速", async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.removeItem("texasHoldemGameSpeedV1");
-  });
   await page.goto("/", { waitUntil: "networkidle" });
+  await page.evaluate(() => localStorage.removeItem("texasHoldemGameSpeedV1"));
+  await page.reload({ waitUntil: "networkidle" });
 
   await expect.poll(
     () => page.evaluate(() => window.GameSpeedController?.version || ""),
