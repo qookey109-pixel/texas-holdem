@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-board-safe-status-dock-preview-2026-08-02",
+  "buildId": "desktop-main-board-safe-status-dock-published-2026-08-02",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
