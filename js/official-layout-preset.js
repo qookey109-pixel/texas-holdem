@@ -66,6 +66,11 @@
     actions: { left: 81.6, top: 89.13 },
   });
 
+  const LEGACY_OFFICIAL_LAYOUT = Object.freeze({
+    ...PREVIOUS_OFFICIAL_LAYOUT,
+    heroCards: { left: 50, top: 63.2 },
+  });
+
   const OFFICIAL_SIZES = Object.freeze({
     heroCard: 70,
     boardCard: 68,
@@ -77,6 +82,13 @@
     heroCard: 92,
     boardCard: 86,
     aiCard: 44,
+    aiSeat: 176,
+    aiProfile: 272,
+  });
+  const LEGACY_OFFICIAL_SIZES = Object.freeze({
+    heroCard: 70,
+    boardCard: 65,
+    aiCard: 52,
     aiSeat: 176,
     aiProfile: 272,
   });
@@ -131,7 +143,7 @@
     ));
   }
 
-  function migrateStoredObject(key, previousValue, officialValue) {
+  function migrateStoredObject(key, previousValues, officialValue) {
     const raw = localStorage.getItem(key);
     if (!raw) {
       localStorage.setItem(key, JSON.stringify(officialValue));
@@ -139,7 +151,9 @@
     }
 
     try {
-      if (matchesObject(JSON.parse(raw), previousValue)) {
+      const parsed = JSON.parse(raw);
+      const candidates = Array.isArray(previousValues) ? previousValues : [previousValues];
+      if (candidates.some(expected => matchesObject(parsed, expected))) {
         localStorage.setItem(key, JSON.stringify(officialValue));
       }
     } catch (_) {
@@ -154,7 +168,11 @@
       const rawLayout = localStorage.getItem(LAYOUT_STORAGE_KEY);
       if (rawLayout) {
         try {
-          if (matchesLayout(JSON.parse(rawLayout), PREVIOUS_OFFICIAL_LAYOUT)) {
+          const parsedLayout = JSON.parse(rawLayout);
+          if (
+            matchesLayout(parsedLayout, PREVIOUS_OFFICIAL_LAYOUT)
+            || matchesLayout(parsedLayout, LEGACY_OFFICIAL_LAYOUT)
+          ) {
             localStorage.removeItem(LAYOUT_STORAGE_KEY);
           }
         } catch (_) {
@@ -162,7 +180,11 @@
         }
       }
 
-      migrateStoredObject(SIZE_STORAGE_KEY, PREVIOUS_OFFICIAL_SIZES, OFFICIAL_SIZES);
+      migrateStoredObject(
+        SIZE_STORAGE_KEY,
+        [PREVIOUS_OFFICIAL_SIZES, LEGACY_OFFICIAL_SIZES],
+        OFFICIAL_SIZES,
+      );
 
       const rawPot = localStorage.getItem(POT_STORAGE_KEY);
       if (!rawPot || Number(rawPot) === PREVIOUS_OFFICIAL_POT_SCALE) {
