@@ -142,6 +142,18 @@ npm run test:e2e
 
 GitHub Actions 的 `Browser E2E` 會分別執行 Chromium 與 WebKit。涉及下注流程、AI、淘汰賽、雲端、街道切換或 UI 互動的修改，兩個瀏覽器都必須通過。
 
+## AI 難度校準 V1.6
+
+只執行 Chromium 校準矩陣：
+
+```bash
+npm run test:ai-calibration
+```
+
+校準內容包括完整 169 種起手牌類別、1,326 種實際組合權重、位置開池、面對開池與 3-bet、Squeeze，以及固定翻牌後詐唬、價值下注、Bluff Catch 與多人底池情境。
+
+Playwright 報表會附加 JSON 與 Markdown 結果。校準器位於 `tests/support/`，不由正式網站載入，也不直接修改 AI 參數。詳細設計請看 `docs/ai-calibration-v1-6.md`。
+
 ## 分支與發布流程
 
 1. 重新核對最新 `main`。
