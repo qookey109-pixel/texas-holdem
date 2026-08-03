@@ -28,7 +28,7 @@
   );
   loadOnce(
     'script[data-fair-special-bosses]',
-    "js/fair-special-bosses.js?v=fair-player-model-v1",
+    "js/fair-special-bosses.js?v=public-showdown-range-v2",
     "fairSpecialBosses",
   );
   loadOnce(
