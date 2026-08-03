@@ -1,9 +1,9 @@
-// Keep the visible tournament total aligned with Vlad's 17-character roster.
+// Keep the visible tournament total aligned with the 19-character roster.
 (() => {
   "use strict";
 
   if (window.EliteCharacterProgressFix?.version) return;
-  const TOTAL = 17;
+  const TOTAL = 19;
   let observer = null;
   let frame = 0;
 
@@ -64,7 +64,7 @@
   }
 
   window.EliteCharacterProgressFix = {
-    version: "1.0.0",
+    version: "2.0.0",
     total: TOTAL,
     refresh: sync,
   };
