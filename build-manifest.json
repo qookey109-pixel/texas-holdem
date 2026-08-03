@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-main-public-showdown-range-v2-published-2026-08-03",
+  "buildId": "desktop-main-tournament-seat-balance-v1-2026-08-03",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
@@ -41,6 +41,7 @@
     { "path": "js/ai-provider-client-v1.js", "label": "官方／自訂 Worker 與直接 API AI 引擎" },
     { "path": "js/gemini-async-betting-loop.js", "label": "Gemini 非同步下注流程" },
     { "path": "js/tournament-mode.js", "label": "淘汰賽模式" },
+    { "path": "js/tournament-seat-balance.js", "label": "淘汰賽縮桌座位平均分配" },
     { "path": "js/tournament-mode-visible-entry.js", "label": "淘汰賽入口相容載入器" },
     { "path": "js/game-mode-controls-v2.js", "label": "遊戲模式統一控制" },
     { "path": "js/tournament-gemini-bridge.js", "label": "淘汰賽 Gemini 後端橋接" },
@@ -93,8 +94,8 @@
     },
     {
       "id": "tournament-mode",
-      "label": "19 位永久淘汰賽與分層角色輪替",
-      "assets": ["js/tournament-mode.js", "js/tournament-mode-visible-entry.js", "js/game-mode-controls-v2.js", "js/tournament-gemini-bridge.js", "js/replacement-stack-balance.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/ai-data.js", "js/game-flow.js", "js/session-summary.js"]
+      "label": "19 位永久淘汰賽、分層角色輪替與對稱縮桌",
+      "assets": ["js/tournament-mode.js", "js/tournament-seat-balance.js", "js/tournament-mode-visible-entry.js", "js/game-mode-controls-v2.js", "js/tournament-gemini-bridge.js", "js/replacement-stack-balance.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/ai-data.js", "js/game-flow.js", "js/session-summary.js"]
     },
     {
       "id": "replacement-stack-balance",
@@ -119,7 +120,7 @@
     {
       "id": "layout",
       "label": "版面編輯與尺寸控制",
-      "assets": ["js/layout-ui.js", "js/layout-size-controls.js", "js/positions.js"]
+      "assets": ["js/layout-ui.js", "js/layout-size-controls.js", "js/positions.js", "js/tournament-seat-balance.js"]
     },
     {
       "id": "coach-tutorial",
