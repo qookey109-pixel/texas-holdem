@@ -27,9 +27,24 @@
     "aiTierBossSystem",
   );
   loadOnce(
+    'script[data-ai-action-memory]',
+    "js/ai-action-memory-v1.js?v=multi-street-ai-v1-1",
+    "aiActionMemory",
+  );
+  loadOnce(
+    'script[data-ai-range-tools]',
+    "js/ai-range-tools-v1.js?v=multi-street-ai-v1-1",
+    "aiRangeTools",
+  );
+  loadOnce(
     'script[data-ai-character-strategies]',
     "js/ai-character-strategies-v1.js?v=independent-ai-v1",
     "aiCharacterStrategies",
+  );
+  loadOnce(
+    'script[data-ai-character-strategies-v1-1]',
+    "js/ai-character-strategies-v1-1.js?v=multi-street-ai-v1-1",
+    "aiCharacterStrategiesV11",
   );
   loadOnce(
     'script[data-fair-special-bosses]',
