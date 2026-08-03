@@ -1,4 +1,6 @@
 // Game configuration
+window.GEMINI_BACKEND_ENDPOINT ||= "https://texas-holdem-gemini.q-oo109.workers.dev";
+
 const STARTING_STACK = 2000;
 const SMALL_BLIND = 10;
 const BIG_BLIND = 20;
