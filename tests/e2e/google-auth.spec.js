@@ -45,7 +45,7 @@ async function openAccountFromTopbar(page) {
   const settingsButton = page.locator("#settingsMenuButton");
   await expect(accountButton).toBeVisible();
   await expect(accountButton).toHaveAttribute("data-auth-placement", "topbar");
-  await expect(accountButton.locator("xpath=..")).toHaveClass(/top-bar-actions/);
+  await expect(accountButton.locator("xpath=..")).toHaveAttribute("id", "topbarSettings");
   expect(await accountButton.evaluate((button, settings) => button.previousElementSibling === settings, await settingsButton.elementHandle())).toBe(true);
   await accountButton.click();
   await expect(page.locator("#authAccountOverlay")).toBeVisible();
