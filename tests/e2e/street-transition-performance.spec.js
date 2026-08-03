@@ -54,11 +54,29 @@ test("翻牌先完成輕量繪製，再於後續畫面幀更新完整牌桌", as
 
     window.StreetTransitionPerformance.cancel();
     window.StreetTransitionPerformance.resetMetrics();
+
+    // CI runners can throttle real animation frames under load. Queue the two
+    // frames explicitly so this test verifies ordering rather than wall-clock timing.
+    window.__streetTransitionOriginalRaf = window.requestAnimationFrame;
+    window.__streetTransitionOriginalCancelRaf = window.cancelAnimationFrame;
+    window.__streetTransitionFrameQueue = [];
+    window.__streetTransitionFrameId = 0;
+    window.requestAnimationFrame = callback => {
+      const id = ++window.__streetTransitionFrameId;
+      window.__streetTransitionFrameQueue.push({ id, callback });
+      return id;
+    };
+    window.cancelAnimationFrame = id => {
+      window.__streetTransitionFrameQueue = window.__streetTransitionFrameQueue
+        .filter(frame => frame.id !== id);
+    };
+
     advanceStreet();
     render();
 
     return {
       status: window.StreetTransitionPerformance.status(),
+      queuedFrames: window.__streetTransitionFrameQueue.length,
       boardLength: state.board.length,
       renderedCards: document.querySelectorAll("#boardCards .card:not(.back)").length,
       previewMarker: document.querySelector("#boardCards")?.dataset.streetPreview || "",
@@ -77,13 +95,39 @@ test("翻牌先完成輕量繪製，再於後續畫面幀更新完整牌桌", as
   expect(immediate.status.skippedRenderCount).toBe(1);
   expect(immediate.status.scheduledFullRenderCount).toBe(0);
   expect(immediate.status.pending).toBe(true);
+  expect(immediate.queuedFrames).toBe(1);
 
-  await expect.poll(
-    () => page.evaluate(() => window.StreetTransitionPerformance.status().scheduledFullRenderCount),
-    { timeout: 4_000 },
-  ).toBe(1);
-  await expect(page.locator("#boardCards")).not.toHaveAttribute("data-street-preview", "true");
-  await expect(page.locator("#boardCards .card:not(.back)")).toHaveCount(3);
+  const completed = await page.evaluate(() => {
+    const flushNextFrame = () => {
+      const frame = window.__streetTransitionFrameQueue.shift();
+      if (!frame) throw new Error("expected a queued street transition frame");
+      frame.callback(performance.now());
+    };
+
+    try {
+      flushNextFrame();
+      flushNextFrame();
+      return {
+        status: window.StreetTransitionPerformance.status(),
+        queuedFrames: window.__streetTransitionFrameQueue.length,
+        previewMarker: document.querySelector("#boardCards")?.dataset.streetPreview || "",
+        renderedCards: document.querySelectorAll("#boardCards .card:not(.back)").length,
+      };
+    } finally {
+      window.requestAnimationFrame = window.__streetTransitionOriginalRaf;
+      window.cancelAnimationFrame = window.__streetTransitionOriginalCancelRaf;
+      delete window.__streetTransitionOriginalRaf;
+      delete window.__streetTransitionOriginalCancelRaf;
+      delete window.__streetTransitionFrameQueue;
+      delete window.__streetTransitionFrameId;
+    }
+  });
+
+  expect(completed.status.scheduledFullRenderCount).toBe(1);
+  expect(completed.status.pending).toBe(false);
+  expect(completed.queuedFrames).toBe(0);
+  expect(completed.previewMarker).toBe("");
+  expect(completed.renderedCards).toBe(3);
 
   await page.waitForTimeout(100);
   expect(runtimeIssues, runtimeIssues.join("\n")).toEqual([]);
