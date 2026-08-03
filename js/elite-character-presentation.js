@@ -57,6 +57,16 @@
     "aiCharacterStrategiesV12",
   );
   loadOnce(
+    'script[data-ai-player-model]',
+    "js/ai-player-model-v1.js?v=adaptive-player-model-v1-3",
+    "aiPlayerModel",
+  );
+  loadOnce(
+    'script[data-ai-character-strategies-v1-3]',
+    "js/ai-character-strategies-v1-3.js?v=adaptive-player-model-v1-3",
+    "aiCharacterStrategiesV13",
+  );
+  loadOnce(
     'script[data-fair-special-bosses]',
     "js/fair-special-bosses.js?v=public-showdown-range-v2",
     "fairSpecialBosses",
