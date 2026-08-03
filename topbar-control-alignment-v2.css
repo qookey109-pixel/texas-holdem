@@ -1,0 +1,40 @@
+/* Stable topbar control geometry, loaded directly to avoid stale dynamic auth CSS. */
+.top-bar-actions {
+  align-items: center !important;
+}
+
+.top-bar-actions > #topbarSettings {
+  position: relative;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  align-self: center !important;
+  flex: 0 0 auto;
+  height: 34px !important;
+  min-height: 34px !important;
+  max-height: 34px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+  vertical-align: middle;
+}
+
+.top-bar-actions > #topbarSettings > #settingsMenuButton,
+.top-bar-actions > button:not(#authAccountButton) {
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  align-self: center !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  max-height: 34px !important;
+  margin-block: 0 !important;
+  padding-block: 0 !important;
+  line-height: 1 !important;
+  vertical-align: middle;
+}
+
+.top-bar-actions > #topbarSettings > #settingsMenuButton {
+  margin-inline: 0 !important;
+}
