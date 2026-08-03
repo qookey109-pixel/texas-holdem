@@ -31,7 +31,7 @@
     pot: { left: 50, top: 32.5 },
     stage: { left: 50, top: 37.5 },
     hero: { left: 50, top: 88 },
-    heroCards: { left: 50, top: 66.7 },
+    heroCards: { left: 50, top: 64.57 },
     heroPanel: { left: 50, top: 90.46 },
     heroStack: { left: 33.28, top: 90.48 },
     actions: { left: 81.6, top: 89.13 },
@@ -81,6 +81,7 @@
     aiProfile: 272,
   });
   const OFFICIAL_POT_SCALE = 70;
+  const PREVIOUS_OFFICIAL_POT_SCALE = 100;
   const OFFICIAL_ARROWS = Object.freeze({
     dialogue1: "down",
     dialogue2: "up",
@@ -112,7 +113,10 @@
 
   function matchesObject(raw, expected) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
-    return Object.keys(expected).every(key => String(raw[key]) === String(expected[key]));
+    const rawKeys = Object.keys(raw);
+    const expectedKeys = Object.keys(expected);
+    if (rawKeys.length !== expectedKeys.length) return false;
+    return expectedKeys.every(key => String(raw[key]) === String(expected[key]));
   }
 
   function matchesLayout(raw, expected) {
@@ -127,32 +131,53 @@
     ));
   }
 
+  function migrateStoredObject(key, previousValue, officialValue) {
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+      localStorage.setItem(key, JSON.stringify(officialValue));
+      return;
+    }
+
+    try {
+      if (matchesObject(JSON.parse(raw), previousValue)) {
+        localStorage.setItem(key, JSON.stringify(officialValue));
+      }
+    } catch (_) {
+      // Leave malformed or custom values untouched.
+    }
+  }
+
   function migratePreviousOfficialDefaults() {
     try {
       if (localStorage.getItem(PRESET_MIGRATION_KEY) === "4") return;
 
       const rawLayout = localStorage.getItem(LAYOUT_STORAGE_KEY);
-      const previousLayout = rawLayout && matchesLayout(JSON.parse(rawLayout), PREVIOUS_OFFICIAL_LAYOUT);
-      if (previousLayout) localStorage.removeItem(LAYOUT_STORAGE_KEY);
-
-      const rawSizes = localStorage.getItem(SIZE_STORAGE_KEY);
-      if (!rawSizes || matchesObject(JSON.parse(rawSizes), PREVIOUS_OFFICIAL_SIZES)) {
-        localStorage.setItem(SIZE_STORAGE_KEY, JSON.stringify(OFFICIAL_SIZES));
+      if (rawLayout) {
+        try {
+          if (matchesLayout(JSON.parse(rawLayout), PREVIOUS_OFFICIAL_LAYOUT)) {
+            localStorage.removeItem(LAYOUT_STORAGE_KEY);
+          }
+        } catch (_) {
+          // Leave malformed or custom values untouched.
+        }
       }
 
+      migrateStoredObject(SIZE_STORAGE_KEY, PREVIOUS_OFFICIAL_SIZES, OFFICIAL_SIZES);
+
       const rawPot = localStorage.getItem(POT_STORAGE_KEY);
-      if (!rawPot || rawPot === "100") {
+      if (!rawPot || Number(rawPot) === PREVIOUS_OFFICIAL_POT_SCALE) {
         localStorage.setItem(POT_STORAGE_KEY, String(OFFICIAL_POT_SCALE));
       }
 
-      const rawArrows = localStorage.getItem(LAYOUT_ARROW_STORAGE_KEY);
-      if (!rawArrows || matchesObject(JSON.parse(rawArrows), PREVIOUS_OFFICIAL_ARROWS)) {
-        localStorage.setItem(LAYOUT_ARROW_STORAGE_KEY, JSON.stringify(OFFICIAL_ARROWS));
-      }
+      migrateStoredObject(
+        LAYOUT_ARROW_STORAGE_KEY,
+        PREVIOUS_OFFICIAL_ARROWS,
+        OFFICIAL_ARROWS,
+      );
 
       localStorage.setItem(PRESET_MIGRATION_KEY, "4");
     } catch (_) {
-      // Runtime defaults still work when storage is unavailable or malformed.
+      // Runtime layout defaults still work when storage is unavailable.
     }
   }
 
@@ -163,6 +188,7 @@
         else DEFAULT_LAYOUT[key] = { ...value };
       });
     }
+
     if (typeof DEFAULT_DIALOGUE_ARROWS === "object") {
       Object.assign(DEFAULT_DIALOGUE_ARROWS, OFFICIAL_ARROWS);
     }
@@ -245,6 +271,7 @@
       if (button.id === "resetLayoutButton") {
         applyOfficialLayout({ persist: true, announceResult: false });
       } else {
+        applyOfficialSizes({ persist: true });
         applyOfficialPot({ persist: true });
       }
       labelOfficialResetButton();
