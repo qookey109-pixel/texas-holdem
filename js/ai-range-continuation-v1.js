@@ -219,10 +219,8 @@
     const heroNut = nutBoardScore(heroRange, board);
     const street = decision?.context?.street || window.AiActionMemory?.streetKey?.() || "preflop";
     const actor = player?.name || "";
-    const preflopAggressor = preflopActions().find(event => AGGRESSIVE_ACTIONS.has(event.action))?.actor || "";
-    const actorIsAggressor = actorRange.aggressive && (
-      preflopAggressor === actor || ["three-bettor", "four-bettor", "squeezer"].includes(actorRange.role)
-    );
+    const preflopAggressor = preflopActions().filter(event => AGGRESSIVE_ACTIONS.has(event.action)).at(-1)?.actor || "";
+    const actorIsAggressor = preflopAggressor === actor;
     const flopOwn = actorStreetActions(player, "flop");
     const turnOwn = actorStreetActions(player, "turn");
     const riverOwn = actorStreetActions(player, "river");
