@@ -1,16 +1,15 @@
 import { expect, test } from "@playwright/test";
 
-const AI_STORAGE_KEYS = [
-  "texasHoldemAiProviderModeV1",
-  "texasHoldemAiCustomWorkerEndpointV1",
-  "texasHoldemAiEngineLabelV1",
-  "texasHoldemAiDirectEndpointV1",
-  "texasHoldemAiDirectModelV1",
-  "texasHoldemGeminiEndpointV1",
-];
-
 function clearAiSettings() {
-  AI_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
+  const keys = [
+    "texasHoldemAiProviderModeV1",
+    "texasHoldemAiCustomWorkerEndpointV1",
+    "texasHoldemAiEngineLabelV1",
+    "texasHoldemAiDirectEndpointV1",
+    "texasHoldemAiDirectModelV1",
+    "texasHoldemGeminiEndpointV1",
+  ];
+  keys.forEach(key => localStorage.removeItem(key));
   sessionStorage.removeItem("texasHoldemAiDirectKeySessionV1");
 }
 
@@ -46,7 +45,10 @@ test("AI 引擎預設使用官方 Worker，並可切換自訂 Worker", async ({ 
   await page.route("https://custom-worker.example/health", async route => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
+      headers: {
+        "content-type": "application/json",
+        "access-control-allow-origin": "*",
+      },
       body: JSON.stringify({ ok: true, configured: true, model: "Custom Worker Model" }),
     });
   });
@@ -158,6 +160,10 @@ test("直接 API 模式使用 session-only Key 並支援 OpenAI 相容回傳", a
   });
 
   await page.goto("/", { waitUntil: "networkidle" });
+  await expect.poll(
+    () => page.evaluate(() => window.AIProviderClient?.version || ""),
+    { timeout: 5_000 },
+  ).toBe("1.0.0");
   await page.evaluate(() => AIProviderClient.openSettings());
   await page.locator("#aiProviderMode").selectOption("direct-api");
   await expect(page.locator("#aiProviderDirectSection")).toBeVisible();
