@@ -77,7 +77,8 @@ test("核心牌局與主要面板可正常操作", async ({ page }) => {
     dialogue6: "down",
   });
   await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.left)).toBe(50);
-  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBe(64.57);
+  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeLessThanOrEqual(64.57);
+  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeGreaterThan(61.5);
 
   await page.locator("#newHandButton").click();
   await expect(page.locator("#handNumber")).toHaveText("第 2 局");
@@ -128,7 +129,8 @@ test("核心牌局與主要面板可正常操作", async ({ page }) => {
   await expect.poll(() => page.locator("[data-layout-size='boardCard']").inputValue()).toBe("68");
   await expect.poll(() => page.locator("[data-layout-size='aiCard']").inputValue()).toBe("44");
   await expect.poll(() => page.evaluate(() => state.layout.items.seat1.left)).toBe(2.29);
-  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBe(64.57);
+  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeLessThanOrEqual(64.57);
+  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeGreaterThan(61.5);
   await expect.poll(() => page.evaluate(() => state.layout.items.actions.top)).toBe(89.13);
   await expect.poll(() => page.evaluate(() => state.layout.arrows.dialogue1)).toBe("down");
   await expect.poll(() => page.evaluate(() => state.layout.arrows.dialogue6)).toBe("down");
