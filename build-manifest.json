@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-main-tournament-seat-balance-v1-2026-08-03",
+  "buildId": "desktop-main-ai-v1-5-street-transition-v1-2026-08-04",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
@@ -22,8 +22,19 @@
     { "path": "js/card-engine.js", "label": "牌型引擎" },
     { "path": "js/dialogue.js", "label": "AI 對話與牌局速度" },
     { "path": "js/positions.js", "label": "位置系統" },
-    { "path": "js/ai-logic.js", "label": "AI 決策" },
+    { "path": "js/ai-logic.js", "label": "AI 基礎決策" },
     { "path": "js/ai-tier-boss-system.js", "label": "AI 階級、專屬框線與七星 Boss" },
+    { "path": "js/ai-action-memory-v1.js", "label": "AI 公開行動記憶" },
+    { "path": "js/ai-range-tools-v1.js", "label": "AI 公開牌面、聽牌與阻擋牌工具" },
+    { "path": "js/ai-character-strategies-v1.js", "label": "10 位角色獨立策略" },
+    { "path": "js/ai-character-strategies-v1-1.js", "label": "AI 多街策略 V1.1" },
+    { "path": "js/ai-preflop-range-engine-v1.js", "label": "AI 翻牌前位置化範圍引擎" },
+    { "path": "js/ai-character-strategies-v1-2.js", "label": "AI 翻牌前策略 V1.2" },
+    { "path": "js/ai-player-model-v1.js", "label": "AI 分街玩家模型" },
+    { "path": "js/ai-player-model-memory-v1.js", "label": "AI 長期安全玩家記憶" },
+    { "path": "js/ai-character-strategies-v1-3.js", "label": "AI 自適應剝削策略 V1.3" },
+    { "path": "js/ai-multiway-range-model-v1.js", "label": "AI 多人公開範圍模型" },
+    { "path": "js/ai-character-strategies-v1-5.js", "label": "AI 多人底池策略 V1.5" },
     { "path": "js/fair-special-bosses.js", "label": "特殊 Boss 公開攤牌記憶、範圍推理與機率模擬" },
     { "path": "js/coach.js", "label": "撲克教練" },
     { "path": "js/coach-hand-review-integration.js", "label": "教練牌局復盤整合與開關" },
@@ -32,7 +43,7 @@
     { "path": "js/showdown-actions.js", "label": "攤牌結算" },
     { "path": "js/render-ui.js", "label": "牌桌渲染" },
     { "path": "js/table-status-dock.js", "label": "公共牌淨空提示區" },
-    { "path": "js/elite-character-presentation.js", "label": "高階角色相容載入器" },
+    { "path": "js/elite-character-presentation.js", "label": "高階角色與 AI 策略相容載入器" },
     { "path": "js/elite-character-presentation-v2.js", "label": "高階角色外觀與 Vlad" },
     { "path": "js/elite-character-progress-fix.js", "label": "19 位挑戰賽進度顯示" },
     { "path": "js/gemini-final-boss.js", "label": "Gemini 最終 Boss" },
@@ -43,6 +54,7 @@
     { "path": "js/tournament-mode.js", "label": "淘汰賽模式" },
     { "path": "js/tournament-seat-balance.js", "label": "淘汰賽縮桌座位平均分配" },
     { "path": "js/tournament-mode-visible-entry.js", "label": "淘汰賽入口相容載入器" },
+    { "path": "js/street-transition-performance.js", "label": "Safari 公共牌街道轉場效能" },
     { "path": "js/game-mode-controls-v2.js", "label": "遊戲模式統一控制" },
     { "path": "js/tournament-gemini-bridge.js", "label": "淘汰賽 Gemini 後端橋接" },
     { "path": "js/replacement-stack-balance.js", "label": "新進角色籌碼平衡" },
@@ -65,7 +77,7 @@
     {
       "id": "core-game",
       "label": "核心牌桌與牌局",
-      "assets": ["index.html", "styles.css", "app.js", "js/config.js", "js/card-engine.js", "js/game-flow.js", "js/render-ui.js", "js/events-boot.js"]
+      "assets": ["index.html", "styles.css", "app.js", "js/config.js", "js/card-engine.js", "js/game-flow.js", "js/showdown-actions.js", "js/render-ui.js", "js/events-boot.js"]
     },
     {
       "id": "google-auth",
@@ -78,9 +90,9 @@
       "assets": ["js/tournament-cloud-save.js", "js/tournament-cloud-save.css", "js/tournament-mode.js", "js/tournament-mode-visible-entry.js", "js/google-auth.js", "supabase/migrations/20260803_create_tournament_saves_v1.sql"]
     },
     {
-      "id": "table-status-dock",
-      "label": "公共牌淨空與牌局提示",
-      "assets": ["js/table-status-dock.js", "js/config.js", "js/render-ui.js", "styles.css"]
+      "id": "ai-strategy-stack",
+      "label": "AI V1.1～V1.5 多街、翻牌前、玩家模型、長期記憶與多人範圍",
+      "assets": ["js/ai-data.js", "js/ai-logic.js", "js/ai-action-memory-v1.js", "js/ai-range-tools-v1.js", "js/ai-character-strategies-v1.js", "js/ai-character-strategies-v1-1.js", "js/ai-preflop-range-engine-v1.js", "js/ai-character-strategies-v1-2.js", "js/ai-player-model-v1.js", "js/ai-player-model-memory-v1.js", "js/ai-character-strategies-v1-3.js", "js/ai-multiway-range-model-v1.js", "js/ai-character-strategies-v1-5.js", "js/elite-character-presentation.js"]
     },
     {
       "id": "ai-tier-bosses",
@@ -98,6 +110,16 @@
       "assets": ["js/tournament-mode.js", "js/tournament-seat-balance.js", "js/tournament-mode-visible-entry.js", "js/game-mode-controls-v2.js", "js/tournament-gemini-bridge.js", "js/replacement-stack-balance.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/ai-data.js", "js/game-flow.js", "js/session-summary.js"]
     },
     {
+      "id": "street-transition-performance",
+      "label": "Safari 公共牌先繪製與後續完整牌桌更新",
+      "assets": ["js/street-transition-performance.js", "js/tournament-mode-visible-entry.js", "js/render-ui.js", "js/game-flow.js"]
+    },
+    {
+      "id": "table-status-dock",
+      "label": "公共牌淨空與牌局提示",
+      "assets": ["js/table-status-dock.js", "js/config.js", "js/render-ui.js", "styles.css"]
+    },
+    {
       "id": "replacement-stack-balance",
       "label": "新進角色動態籌碼平衡",
       "assets": ["js/replacement-stack-balance.js", "js/config.js", "js/game-flow.js", "js/tournament-mode.js"]
@@ -109,8 +131,8 @@
     },
     {
       "id": "ai-experience",
-      "label": "AI 決策、表情與節奏",
-      "assets": ["js/ai-data.js", "js/ai-logic.js", "js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/dialogue.js", "js/ai-emotion-face-ui.js", "js/ai-timing.js", "js/ai-turn-indicator.js"]
+      "label": "AI 對話、表情與行動節奏",
+      "assets": ["js/ai-data.js", "js/dialogue.js", "js/ai-emotion-face-ui.js", "js/ai-timing.js", "js/ai-turn-indicator.js"]
     },
     {
       "id": "audio",
