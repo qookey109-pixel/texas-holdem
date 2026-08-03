@@ -57,6 +57,16 @@
     "aiCharacterStrategiesV12",
   );
   loadOnce(
+    'script[data-ai-range-continuation]',
+    "js/ai-range-continuation-v1.js?v=range-continuation-ai-v1-3",
+    "aiRangeContinuation",
+  );
+  loadOnce(
+    'script[data-ai-character-strategies-v1-3]',
+    "js/ai-character-strategies-v1-3.js?v=range-continuation-ai-v1-3",
+    "aiCharacterStrategiesV13",
+  );
+  loadOnce(
     'script[data-fair-special-bosses]',
     "js/fair-special-bosses.js?v=public-showdown-range-v2",
     "fairSpecialBosses",
