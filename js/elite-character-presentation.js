@@ -32,6 +32,11 @@
     "fairSpecialBossStrategyV2",
   );
   loadOnce(
+    'script[data-fair-special-boss-compat-fix]',
+    "js/fair-special-boss-compat-fix.js?v=writable-meta-v1",
+    "fairSpecialBossCompatFix",
+  );
+  loadOnce(
     'script[data-ai-provider-legacy-worker-migration]',
     "js/ai-provider-legacy-worker-migration.js?v=custom-ai-provider-v1",
     "aiProviderLegacyWorkerMigration",
