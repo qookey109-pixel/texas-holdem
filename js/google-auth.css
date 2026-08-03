@@ -1,0 +1,194 @@
+/* Google account UI loaded independently from the game stylesheet. */
+.auth-account-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-width: 0 !important;
+  padding-inline: 10px !important;
+}
+
+.auth-account-button[data-auth-state="signed-in"] {
+  border-color: rgba(112, 216, 201, 0.46);
+  color: var(--cyan);
+}
+
+.auth-account-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-account-avatar,
+.auth-profile-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.auth-account-avatar {
+  width: 24px;
+  height: 24px;
+  font-size: 0.75rem;
+}
+
+.auth-account-avatar img,
+.auth-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.auth-account-overlay {
+  position: fixed;
+  z-index: 150;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(2, 7, 12, 0.76);
+  backdrop-filter: blur(12px);
+}
+
+.auth-account-overlay[hidden] {
+  display: none !important;
+}
+
+.auth-account-modal {
+  width: min(440px, 94vw);
+  padding: 18px;
+  border: 1px solid rgba(112, 216, 201, 0.38);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 0 0, rgba(112, 216, 201, 0.14), transparent 42%),
+    radial-gradient(circle at 100% 100%, rgba(127, 109, 242, 0.18), transparent 46%),
+    rgba(5, 13, 22, 0.98);
+  color: var(--ink);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.56);
+}
+
+.auth-account-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.auth-account-close {
+  min-width: 38px;
+  width: 38px;
+  min-height: 38px;
+  padding: 0;
+  font-size: 1.2rem;
+}
+
+.auth-signed-out-view,
+.auth-signed-in-view {
+  margin-top: 16px;
+}
+
+.auth-signed-out-view p {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.google-sign-in-button {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #fff;
+  color: #202124;
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.google-sign-in-button span {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4285f4 0 25%, #34a853 25% 50%, #fbbc05 50% 75%, #ea4335 75% 100%);
+  color: #fff;
+  font-weight: 950;
+}
+
+.auth-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.auth-profile-avatar {
+  width: 52px;
+  height: 52px;
+  font-size: 1.5rem;
+}
+
+.auth-profile-card div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.auth-profile-card strong,
+.auth-profile-card div > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-profile-card strong {
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.auth-profile-card div > span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.auth-sign-out-button {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.auth-account-status {
+  min-height: 38px;
+  margin: 12px 0 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.auth-account-status[data-tone="success"] { border-left: 3px solid var(--cyan); }
+.auth-account-status[data-tone="pending"] { border-left: 3px solid var(--gold); }
+.auth-account-status[data-tone="error"] {
+  border-left: 3px solid var(--danger);
+  color: var(--danger);
+}
+
+:root[data-theme="light"] .auth-account-modal {
+  background:
+    radial-gradient(circle at 0 0, rgba(23, 140, 123, 0.12), transparent 42%),
+    rgba(255, 252, 244, 0.98);
+}
