@@ -40,7 +40,7 @@ function installSignedInAuthMock(page) {
   }, { session: SIGNED_IN_SESSION });
 }
 
-test("1536px Safari 尺寸下登入名稱不會推歪頂部按鈕列", async ({ page }) => {
+test("1536px Safari 尺寸下頂部按鈕列保持置中", async ({ page }) => {
   await page.setViewportSize({ width: 1536, height: 960 });
   await installSignedInAuthMock(page);
   await page.goto("/", { waitUntil: "networkidle" });
@@ -75,8 +75,11 @@ test("1536px Safari 尺寸下登入名稱不會推歪頂部按鈕列", async ({ 
     };
   });
 
+  const topbarCenter = (layout.topbar.left + layout.topbar.right) / 2;
+  const actionsCenter = (layout.actions.left + layout.actions.right) / 2;
+
   expect(layout.account.width).toBeLessThanOrEqual(40);
-  expect(Math.abs(layout.actions.right - layout.topbar.right)).toBeLessThanOrEqual(4);
+  expect(Math.abs(actionsCenter - topbarCenter)).toBeLessThanOrEqual(4);
   expect(layout.actions.left).toBeGreaterThanOrEqual(layout.brand.right + 8);
 
   const firstTop = layout.buttons[0].top;
