@@ -72,6 +72,16 @@
     "aiCharacterStrategiesV13",
   );
   loadOnce(
+    'script[data-ai-multiway-range-model]',
+    "js/ai-multiway-range-model-v1.js?v=multiway-range-ai-v1-5",
+    "aiMultiwayRangeModel",
+  );
+  loadOnce(
+    'script[data-ai-character-strategies-v1-5]',
+    "js/ai-character-strategies-v1-5.js?v=multiway-range-ai-v1-5",
+    "aiCharacterStrategiesV15",
+  );
+  loadOnce(
     'script[data-fair-special-bosses]',
     "js/fair-special-bosses.js?v=public-showdown-range-v2",
     "fairSpecialBosses",
