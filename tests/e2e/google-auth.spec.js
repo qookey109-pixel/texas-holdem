@@ -40,15 +40,14 @@ function installAuthMock(page, session = null) {
   }, { initialSession: session });
 }
 
-async function openAccountFromSettings(page) {
+async function openAccountFromTopbar(page) {
+  const accountButton = page.locator("#authAccountButton");
   const settingsButton = page.locator("#settingsMenuButton");
-  const settingsPanel = page.locator("#settingsMenuPanel");
-  await settingsButton.click();
-  await expect(settingsPanel).toBeVisible();
-  const accountButton = settingsPanel.locator("#authAccountButton");
   await expect(accountButton).toBeVisible();
+  await expect(accountButton).toHaveAttribute("data-auth-placement", "topbar");
+  await expect(accountButton.locator("xpath=..")).toHaveClass(/top-bar-actions/);
+  expect(await accountButton.evaluate((button, settings) => button.previousElementSibling === settings, await settingsButton.elementHandle())).toBe(true);
   await accountButton.click();
-  await expect(settingsPanel).toBeHidden();
   await expect(page.locator("#authAccountOverlay")).toBeVisible();
   return accountButton;
 }
@@ -62,7 +61,7 @@ test("Google 登入入口使用 Supabase OAuth 與正式返回網址", async ({ 
     { timeout: 10_000 },
   ).toBe("1.1.0");
 
-  const accountButton = await openAccountFromSettings(page);
+  const accountButton = await openAccountFromTopbar(page);
   await expect(accountButton).toContainText("玩家登入");
   await expect(page.locator("#googleSignInButton")).toHaveText(/使用 Google 登入/);
   await page.locator("#googleSignInButton").click();
@@ -79,7 +78,7 @@ test("Google 登入入口使用 Supabase OAuth 與正式返回網址", async ({ 
   await page.keyboard.press("Escape");
   await expect(page.locator("#authAccountOverlay")).toBeHidden();
   await expect(accountButton).toHaveAttribute("aria-expanded", "false");
-  await expect(page.locator("#settingsMenuButton")).toBeFocused();
+  await expect(accountButton).toBeFocused();
 });
 
 test("Google 工作階段更新玩家名稱並只登出目前裝置", async ({ page }) => {
@@ -107,7 +106,7 @@ test("Google 工作階段更新玩家名稱並只登出目前裝置", async ({ p
   await expect(page.locator("#playerName")).toContainText("測試玩家");
   expect(await page.evaluate(() => state.players[0].name)).toBe("測試玩家");
 
-  await openAccountFromSettings(page);
+  await openAccountFromTopbar(page);
   await expect(page.locator("#authSignedInView")).toBeVisible();
   await expect(page.locator("#authProfileName")).toHaveText("測試玩家");
   await expect(page.locator("#authProfileEmail")).toHaveText("poker@example.com");
