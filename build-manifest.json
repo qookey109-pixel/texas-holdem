@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-main-coach-hand-review-published-2026-08-02",
+  "buildId": "desktop-ai-tier-boss-preview-2026-08-03",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
@@ -18,6 +18,7 @@
     { "path": "js/dialogue.js", "label": "AI 對話與牌局速度" },
     { "path": "js/positions.js", "label": "位置系統" },
     { "path": "js/ai-logic.js", "label": "AI 決策" },
+    { "path": "js/ai-tier-boss-system.js", "label": "AI 階級、專屬框線與全知 Boss" },
     { "path": "js/coach.js", "label": "撲克教練" },
     { "path": "js/coach-hand-review-integration.js", "label": "教練牌局復盤整合與開關" },
     { "path": "js/tutorial-ui.js", "label": "教學介面" },
@@ -27,7 +28,7 @@
     { "path": "js/table-status-dock.js", "label": "公共牌淨空提示區" },
     { "path": "js/elite-character-presentation.js", "label": "高階角色相容載入器" },
     { "path": "js/elite-character-presentation-v2.js", "label": "高階角色外觀與 Vlad" },
-    { "path": "js/elite-character-progress-fix.js", "label": "17 位挑戰賽進度顯示" },
+    { "path": "js/elite-character-progress-fix.js", "label": "19 位挑戰賽進度顯示" },
     { "path": "js/gemini-final-boss.js", "label": "Gemini 最終 Boss" },
     { "path": "js/gemini-backend-client-v2.js", "label": "Gemini 安全後端客戶端" },
     { "path": "js/gemini-async-betting-loop.js", "label": "Gemini 非同步下注流程" },
@@ -63,14 +64,19 @@
       "assets": ["js/table-status-dock.js", "js/config.js", "js/render-ui.js", "styles.css"]
     },
     {
+      "id": "ai-tier-bosses",
+      "label": "AI 星等分層、中階框線、高階強化與全知 Boss",
+      "assets": ["js/ai-tier-boss-system.js", "js/elite-character-presentation.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-data.js", "js/ai-logic.js", "js/render-ui.js", "js/tournament-mode.js"]
+    },
+    {
       "id": "elite-characters",
       "label": "高階角色外觀、登場提示與 Vlad",
-      "assets": ["js/elite-character-presentation.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/config.js", "js/ai-data.js", "js/render-ui.js", "js/tournament-mode.js"]
+      "assets": ["js/elite-character-presentation.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-tier-boss-system.js", "js/config.js", "js/ai-data.js", "js/render-ui.js", "js/tournament-mode.js"]
     },
     {
       "id": "tournament-mode",
-      "label": "永久淘汰賽與角色輪替",
-      "assets": ["js/tournament-mode.js", "js/tournament-mode-visible-entry.js", "js/game-mode-controls-v2.js", "js/tournament-gemini-bridge.js", "js/replacement-stack-balance.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-data.js", "js/game-flow.js", "js/session-summary.js"]
+      "label": "19 位永久淘汰賽與分層角色輪替",
+      "assets": ["js/tournament-mode.js", "js/tournament-mode-visible-entry.js", "js/game-mode-controls-v2.js", "js/tournament-gemini-bridge.js", "js/replacement-stack-balance.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-tier-boss-system.js", "js/ai-data.js", "js/game-flow.js", "js/session-summary.js"]
     },
     {
       "id": "replacement-stack-balance",
@@ -85,7 +91,7 @@
     {
       "id": "ai-experience",
       "label": "AI 決策、表情與節奏",
-      "assets": ["js/ai-data.js", "js/ai-logic.js", "js/dialogue.js", "js/ai-emotion-face-ui.js", "js/ai-timing.js", "js/ai-turn-indicator.js"]
+      "assets": ["js/ai-data.js", "js/ai-logic.js", "js/ai-tier-boss-system.js", "js/dialogue.js", "js/ai-emotion-face-ui.js", "js/ai-timing.js", "js/ai-turn-indicator.js"]
     },
     {
       "id": "audio",
