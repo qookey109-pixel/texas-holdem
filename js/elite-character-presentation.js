@@ -27,14 +27,9 @@
     "aiTierBossSystem",
   );
   loadOnce(
-    'script[data-fair-special-boss-strategy-v2]',
-    "js/fair-special-boss-strategy-v2.js?v=public-history-range-ev-v2",
-    "fairSpecialBossStrategyV2",
-  );
-  loadOnce(
-    'script[data-fair-special-boss-compat-fix]',
-    "js/fair-special-boss-compat-fix.js?v=writable-meta-v1",
-    "fairSpecialBossCompatFix",
+    'script[data-fair-special-boss-strategy-v3]',
+    "js/fair-special-boss-strategy-v3.js?v=public-history-range-ev-v3",
+    "fairSpecialBossStrategyV3",
   );
   loadOnce(
     'script[data-ai-provider-legacy-worker-migration]',
