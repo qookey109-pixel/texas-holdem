@@ -22,7 +22,7 @@ test("翻牌先完成輕量繪製，再於後續畫面幀更新完整牌桌", as
     { timeout: 12_000 },
   ).toBe(true);
 
-  const immediate = await page.evaluate(() => {
+  const snapshots = await page.evaluate(() => {
     window.AiTimingController?.clear?.();
     window.GeminiAsyncBettingLoop?.cancelPending?.();
     clearAutoNewHandTimer();
@@ -55,37 +55,60 @@ test("翻牌先完成輕量繪製，再於後續畫面幀更新完整牌桌", as
     window.StreetTransitionPerformance.cancel();
     window.StreetTransitionPerformance.resetMetrics();
 
-    // CI runners can throttle real animation frames under load. Queue the two
-    // frames explicitly so this test verifies ordering rather than wall-clock timing.
-    window.__streetTransitionOriginalRaf = window.requestAnimationFrame;
-    window.__streetTransitionOriginalCancelRaf = window.cancelAnimationFrame;
-    window.__streetTransitionFrameQueue = [];
-    window.__streetTransitionFrameId = 0;
+    // CI runners can throttle real animation frames under load. Queue and flush
+    // the two frames within one event turn so background AI cannot change hands
+    // between the preview snapshot and the full-render assertion.
+    const originalRaf = window.requestAnimationFrame;
+    const originalCancelRaf = window.cancelAnimationFrame;
+    let frameId = 0;
+    let frameQueue = [];
     window.requestAnimationFrame = callback => {
-      const id = ++window.__streetTransitionFrameId;
-      window.__streetTransitionFrameQueue.push({ id, callback });
+      const id = ++frameId;
+      frameQueue.push({ id, callback });
       return id;
     };
     window.cancelAnimationFrame = id => {
-      window.__streetTransitionFrameQueue = window.__streetTransitionFrameQueue
-        .filter(frame => frame.id !== id);
+      frameQueue = frameQueue.filter(frame => frame.id !== id);
     };
 
-    advanceStreet();
-    render();
+    try {
+      advanceStreet();
+      render();
 
-    return {
-      status: window.StreetTransitionPerformance.status(),
-      queuedFrames: window.__streetTransitionFrameQueue.length,
-      boardLength: state.board.length,
-      renderedCards: document.querySelectorAll("#boardCards .card:not(.back)").length,
-      previewMarker: document.querySelector("#boardCards")?.dataset.streetPreview || "",
-      stage: document.querySelector("#boardStageLabel")?.textContent || "",
-      buttonsDisabled: ["foldButton", "callButton", "raiseButton", "allInButton"]
-        .every(id => document.getElementById(id)?.disabled),
-    };
+      const immediate = {
+        status: window.StreetTransitionPerformance.status(),
+        queuedFrames: frameQueue.length,
+        boardLength: state.board.length,
+        renderedCards: document.querySelectorAll("#boardCards .card:not(.back)").length,
+        previewMarker: document.querySelector("#boardCards")?.dataset.streetPreview || "",
+        stage: document.querySelector("#boardStageLabel")?.textContent || "",
+        buttonsDisabled: ["foldButton", "callButton", "raiseButton", "allInButton"]
+          .every(id => document.getElementById(id)?.disabled),
+      };
+
+      const flushNextFrame = () => {
+        const frame = frameQueue.shift();
+        if (!frame) throw new Error("expected a queued street transition frame");
+        frame.callback(performance.now());
+      };
+      flushNextFrame();
+      flushNextFrame();
+
+      const completed = {
+        status: window.StreetTransitionPerformance.status(),
+        queuedFrames: frameQueue.length,
+        previewMarker: document.querySelector("#boardCards")?.dataset.streetPreview || "",
+        renderedCards: document.querySelectorAll("#boardCards .card:not(.back)").length,
+      };
+
+      return { immediate, completed };
+    } finally {
+      window.requestAnimationFrame = originalRaf;
+      window.cancelAnimationFrame = originalCancelRaf;
+    }
   });
 
+  const { immediate, completed } = snapshots;
   expect(immediate.boardLength).toBe(3);
   expect(immediate.renderedCards).toBe(3);
   expect(immediate.previewMarker).toBe("true");
@@ -96,32 +119,6 @@ test("翻牌先完成輕量繪製，再於後續畫面幀更新完整牌桌", as
   expect(immediate.status.scheduledFullRenderCount).toBe(0);
   expect(immediate.status.pending).toBe(true);
   expect(immediate.queuedFrames).toBe(1);
-
-  const completed = await page.evaluate(() => {
-    const flushNextFrame = () => {
-      const frame = window.__streetTransitionFrameQueue.shift();
-      if (!frame) throw new Error("expected a queued street transition frame");
-      frame.callback(performance.now());
-    };
-
-    try {
-      flushNextFrame();
-      flushNextFrame();
-      return {
-        status: window.StreetTransitionPerformance.status(),
-        queuedFrames: window.__streetTransitionFrameQueue.length,
-        previewMarker: document.querySelector("#boardCards")?.dataset.streetPreview || "",
-        renderedCards: document.querySelectorAll("#boardCards .card:not(.back)").length,
-      };
-    } finally {
-      window.requestAnimationFrame = window.__streetTransitionOriginalRaf;
-      window.cancelAnimationFrame = window.__streetTransitionOriginalCancelRaf;
-      delete window.__streetTransitionOriginalRaf;
-      delete window.__streetTransitionOriginalCancelRaf;
-      delete window.__streetTransitionFrameQueue;
-      delete window.__streetTransitionFrameId;
-    }
-  });
 
   expect(completed.status.scheduledFullRenderCount).toBe(1);
   expect(completed.status.pending).toBe(false);
