@@ -87,7 +87,7 @@
       const profile = AI_ROSTER.find(candidate => candidate?.name === name);
       if (!profile) continue;
       Object.assign(profile, {
-        strategyUpgradeVersion: VERSION,
+        preflopStrategyVersion: VERSION,
         preflopRangeEngine: true,
         positionAwareOpening: true,
         blindDefenseAware: true,
@@ -96,7 +96,7 @@
         squeezeAware: true,
       });
       if (typeof AI_PROFILE_META !== "undefined" && AI_PROFILE_META[name]) {
-        AI_PROFILE_META[name].strategyUpgradeVersion = VERSION;
+        AI_PROFILE_META[name].preflopStrategyVersion = VERSION;
       }
     }
     return true;
@@ -130,6 +130,7 @@
     window.AiActionMemory?.refresh?.();
     const profilesReady = registerProfiles();
     const installed = installDecisionLayer();
+    window.FairSpecialBosses?.refresh?.();
     if ((profilesReady && installed) || installAttempts >= 240) {
       window.clearInterval(installTimer);
       installTimer = 0;
@@ -159,5 +160,6 @@
   window.setTimeout(refresh, 0);
   window.setTimeout(refresh, 80);
   window.setTimeout(refresh, 300);
+  window.setTimeout(refresh, 700);
   if (!installTimer) installTimer = window.setInterval(refresh, 25);
 })();
