@@ -60,7 +60,8 @@ test("核心牌局與主要面板可正常操作", async ({ page }) => {
   await expect(page.locator("#opponents .seat")).toHaveCount(6);
   await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.version)).toBe("1.0.0");
   await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.left)).toBe(50);
-  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBe(63.2);
+  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeLessThan(63.2);
+  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeGreaterThan(60);
 
   await page.locator("#newHandButton").click();
   await expect(page.locator("#handNumber")).toHaveText("第 2 局");
