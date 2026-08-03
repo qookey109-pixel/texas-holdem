@@ -37,6 +37,35 @@
     actions: { left: 81.6, top: 89.13 },
   });
 
+  const PREVIOUS_OFFICIAL_LAYOUT = Object.freeze({
+    seat1: { left: 2.29, top: 73.63 },
+    seat2: { left: 1.5, top: 17.5 },
+    seat3: { left: 28.25, top: 2 },
+    seat4: { left: 57.54, top: 1.89 },
+    seat5: { left: 79.66, top: 14.55 },
+    seat6: { left: 82.05, top: 62.81 },
+    seatCards1: { left: 22.88, top: 59.02 },
+    seatCards2: { left: 21.5, top: 37.5 },
+    seatCards3: { left: 38.59, top: 26.36 },
+    seatCards4: { left: 60.94, top: 26.61 },
+    seatCards5: { left: 76.3, top: 35.19 },
+    seatCards6: { left: 77.42, top: 54.77 },
+    dialogue1: { left: 10.87, top: 67.62 },
+    dialogue2: { left: 9, top: 33 },
+    dialogue3: { left: 34.41, top: 18.16 },
+    dialogue4: { left: 66, top: 18 },
+    dialogue5: { left: 90.19, top: 31.6 },
+    dialogue6: { left: 92.35, top: 57.17 },
+    board: { left: 50, top: 47.55 },
+    pot: { left: 50, top: 33.5 },
+    stage: { left: 50, top: 39 },
+    hero: { left: 50, top: 88 },
+    heroCards: { left: 50, top: 63.2 },
+    heroPanel: { left: 50, top: 90.46 },
+    heroStack: { left: 33.28, top: 90.48 },
+    actions: { left: 81.6, top: 89.13 },
+  });
+
   // null means the official preset uses the application's native size defaults.
   const OFFICIAL_SIZES = null;
   const OFFICIAL_POT_SCALE = 100;
@@ -69,6 +98,19 @@
     return JSON.parse(JSON.stringify(OFFICIAL_LAYOUT));
   }
 
+  function matchesLayout(raw, expected) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+    const rawKeys = Object.keys(raw);
+    const expectedKeys = Object.keys(expected);
+    if (rawKeys.length !== expectedKeys.length) return false;
+
+    return expectedKeys.every(key => (
+      raw[key]
+      && Number(raw[key].left) === Number(expected[key].left)
+      && Number(raw[key].top) === Number(expected[key].top)
+    ));
+  }
+
   function matchesPreviousOfficialSizes(raw) {
     if (!raw || typeof raw !== "object") return false;
     return Object.entries(PREVIOUS_OFFICIAL_SIZES)
@@ -77,7 +119,18 @@
 
   function migratePreviousOfficialDefaults() {
     try {
-      if (localStorage.getItem(PRESET_MIGRATION_KEY) === "2") return;
+      if (localStorage.getItem(PRESET_MIGRATION_KEY) === "3") return;
+
+      const rawLayout = localStorage.getItem(LAYOUT_STORAGE_KEY);
+      if (rawLayout) {
+        try {
+          if (matchesLayout(JSON.parse(rawLayout), PREVIOUS_OFFICIAL_LAYOUT)) {
+            localStorage.removeItem(LAYOUT_STORAGE_KEY);
+          }
+        } catch (_) {
+          // Leave malformed or custom values untouched.
+        }
+      }
 
       const rawSizes = localStorage.getItem(SIZE_STORAGE_KEY);
       if (rawSizes) {
@@ -94,7 +147,7 @@
         localStorage.removeItem(POT_STORAGE_KEY);
       }
 
-      localStorage.setItem(PRESET_MIGRATION_KEY, "2");
+      localStorage.setItem(PRESET_MIGRATION_KEY, "3");
     } catch (_) {
       // Runtime defaults still work when storage is unavailable.
     }
@@ -203,7 +256,7 @@
   }, true);
 
   window.OfficialLayoutPreset = Object.freeze({
-    version: "2.0.0",
+    version: "2.1.0",
     layout: cloneLayout(),
     sizes: OFFICIAL_SIZES,
     potScale: OFFICIAL_POT_SCALE,
