@@ -58,13 +58,27 @@ test("核心牌局與主要面板可正常操作", async ({ page }) => {
   await expect(page.locator("#handNumber")).toHaveText("第 1 局");
   await expect(page.locator("#playerCards .card")).toHaveCount(2);
   await expect(page.locator("#opponents .seat")).toHaveCount(6);
-  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.version)).toBe("2.1.0");
-  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.sizes)).toBe(null);
-  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.potScale)).toBe(100);
-  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.layout.heroCards.top)).toBe(65.7);
+  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.version)).toBe("3.0.0");
+  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.sizes)).toEqual({
+    heroCard: 70,
+    boardCard: 68,
+    aiCard: 44,
+    aiSeat: 176,
+    aiProfile: 272,
+  });
+  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.potScale)).toBe(70);
+  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.layout.heroCards.top)).toBe(64.57);
+  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.arrows)).toEqual({
+    dialogue1: "down",
+    dialogue2: "up",
+    dialogue3: "up",
+    dialogue4: "up",
+    dialogue5: "up",
+    dialogue6: "down",
+  });
   await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.left)).toBe(50);
-  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeLessThan(65.7);
-  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeGreaterThan(62);
+  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeLessThanOrEqual(64.57);
+  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeGreaterThan(61.5);
 
   await page.locator("#newHandButton").click();
   await expect(page.locator("#handNumber")).toHaveText("第 2 局");
@@ -83,12 +97,12 @@ test("核心牌局與主要面板可正常操作", async ({ page }) => {
   await expect(page.locator("#layoutSizeControls")).toBeVisible();
   await expect(page.locator("[data-layout-size]")).toHaveCount(6);
   await expect(page.locator("#resetLayoutButton")).toHaveText("⭐ 官方預設");
-  await expect(page.locator("[data-layout-size='heroCard']")).toHaveValue("92");
-  await expect(page.locator("[data-layout-size='boardCard']")).toHaveValue("86");
+  await expect(page.locator("[data-layout-size='heroCard']")).toHaveValue("70");
+  await expect(page.locator("[data-layout-size='boardCard']")).toHaveValue("68");
   await expect(page.locator("[data-layout-size='aiCard']")).toHaveValue("44");
   await expect(page.locator("[data-layout-size='aiSeat']")).toHaveValue("176");
   await expect(page.locator("[data-layout-size='aiProfile']")).toHaveValue("272");
-  await expect(page.locator("[data-layout-size='potScale']")).toHaveValue("100");
+  await expect(page.locator("[data-layout-size='potScale']")).toHaveValue("70");
   await page.locator("[data-layout-size='aiProfile']").scrollIntoViewIfNeeded();
   await expect(page.locator("[data-layout-size='aiProfile']")).toBeInViewport();
 
@@ -106,17 +120,20 @@ test("核心牌局與主要面板可正常操作", async ({ page }) => {
   await page.mouse.move(handleBox.x + handleBox.width / 2 + 36, handleBox.y + handleBox.height / 2 + 20, { steps: 5 });
   await page.mouse.up();
   await expect.poll(() => page.evaluate(() => LayoutCornerResize.getPotScale())).toBeGreaterThan(startPotScale);
-  await expect.poll(() => page.locator("[data-layout-size='potScale']").inputValue()).not.toBe("100");
+  await expect.poll(() => page.locator("[data-layout-size='potScale']").inputValue()).not.toBe("70");
 
   await page.locator("#resetLayoutButton").click();
-  await expect.poll(() => page.evaluate(() => LayoutCornerResize.getPotScale())).toBe(100);
-  await expect.poll(() => page.locator("[data-layout-size='potScale']").inputValue()).toBe("100");
-  await expect.poll(() => page.locator("[data-layout-size='heroCard']").inputValue()).toBe("92");
-  await expect.poll(() => page.locator("[data-layout-size='boardCard']").inputValue()).toBe("86");
+  await expect.poll(() => page.evaluate(() => LayoutCornerResize.getPotScale())).toBe(70);
+  await expect.poll(() => page.locator("[data-layout-size='potScale']").inputValue()).toBe("70");
+  await expect.poll(() => page.locator("[data-layout-size='heroCard']").inputValue()).toBe("70");
+  await expect.poll(() => page.locator("[data-layout-size='boardCard']").inputValue()).toBe("68");
   await expect.poll(() => page.locator("[data-layout-size='aiCard']").inputValue()).toBe("44");
   await expect.poll(() => page.evaluate(() => state.layout.items.seat1.left)).toBe(2.29);
-  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBe(65.7);
+  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeLessThanOrEqual(64.57);
+  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeGreaterThan(61.5);
   await expect.poll(() => page.evaluate(() => state.layout.items.actions.top)).toBe(89.13);
+  await expect.poll(() => page.evaluate(() => state.layout.arrows.dialogue1)).toBe("down");
+  await expect.poll(() => page.evaluate(() => state.layout.arrows.dialogue6)).toBe("down");
 
   await clickLayoutControl(page);
   await expect(page.locator("#layoutEditorPanel")).toBeHidden();
