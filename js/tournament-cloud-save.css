@@ -1,0 +1,157 @@
+/* Tournament cloud save controls inside the signed-in player account dialog. */
+.tournament-cloud-save-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(240, 194, 94, 0.3);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(240, 194, 94, 0.11), transparent 45%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.tournament-cloud-save-panel[hidden] {
+  display: none !important;
+}
+
+.tournament-save-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tournament-save-head > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tournament-save-head span {
+  color: var(--muted);
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.tournament-save-head strong {
+  color: var(--ink);
+  font-size: 0.86rem;
+}
+
+.tournament-save-head em {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.tournament-save-head em[data-source="cloud"] {
+  border-color: rgba(112, 216, 201, 0.36);
+  color: var(--cyan);
+}
+
+.tournament-save-head em[data-source="local"] {
+  border-color: rgba(240, 194, 94, 0.4);
+  color: var(--gold);
+}
+
+.tournament-save-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.67rem;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.tournament-save-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tournament-save-actions button {
+  min-width: 0;
+  min-height: 38px;
+  padding: 7px 8px;
+  font-size: 0.66rem;
+}
+
+#tournamentResumeButton {
+  border-color: rgba(112, 216, 201, 0.45);
+  background: rgba(54, 139, 126, 0.25);
+  color: #c9fff7;
+}
+
+#tournamentPauseSaveButton {
+  border-color: rgba(240, 194, 94, 0.42);
+  background: rgba(111, 67, 25, 0.28);
+  color: #ffe4a5;
+}
+
+#tournamentDeleteSaveButton {
+  grid-column: 1 / -1;
+  color: var(--danger);
+}
+
+.tournament-save-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.tournament-save-status {
+  min-height: 34px;
+  margin: 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.14);
+  color: var(--muted);
+  font-size: 0.63rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.tournament-save-status[data-tone="success"] {
+  border-left: 3px solid var(--cyan);
+}
+
+.tournament-save-status[data-tone="pending"] {
+  border-left: 3px solid var(--gold);
+}
+
+.tournament-save-status[data-tone="error"] {
+  border-left: 3px solid var(--danger);
+  color: var(--danger);
+}
+
+:root[data-theme="light"] .tournament-cloud-save-panel {
+  border-color: rgba(139, 91, 25, 0.24);
+  background:
+    radial-gradient(circle at 100% 0, rgba(220, 164, 66, 0.14), transparent 45%),
+    rgba(236, 245, 242, 0.72);
+}
+
+:root[data-theme="light"] #tournamentResumeButton {
+  color: #155f55;
+}
+
+:root[data-theme="light"] #tournamentPauseSaveButton {
+  color: #684210;
+}
+
+@media (max-width: 520px) {
+  .tournament-save-actions {
+    grid-template-columns: 1fr;
+  }
+
+  #tournamentDeleteSaveButton {
+    grid-column: auto;
+  }
+}

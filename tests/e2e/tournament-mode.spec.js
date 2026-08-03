@@ -14,7 +14,7 @@ test("淘汰賽永久淘汰、分層候補與縮桌流程", async ({ page }) => 
   await expect.poll(
     () => page.evaluate(() => window.TournamentModeVisibleEntry?.version || ""),
     { timeout: 10_000 },
-  ).toBe("3.1.0");
+  ).toBe("3.2.0");
   await expect.poll(
     () => page.evaluate(() => window.EliteCharacterPresentation?.version || ""),
     { timeout: 10_000 },
