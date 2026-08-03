@@ -234,6 +234,18 @@
   flex-wrap: nowrap;
 }
 
+/* Match the settings trigger to the adjacent rectangular controls. */
+#settingsMenuButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding-block: 0 !important;
+  line-height: 1;
+}
+
 @media (max-width: 1700px) {
   #authAccountButton[data-auth-placement="topbar"] {
     width: 38px;

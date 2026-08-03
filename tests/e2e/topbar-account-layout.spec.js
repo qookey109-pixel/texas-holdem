@@ -66,12 +66,28 @@ test("1536px Safari 尺寸下登入名稱不會推歪頂部按鈕列", async ({ 
         const rect = button.getBoundingClientRect();
         return { id: button.id, top: rect.top, bottom: rect.bottom };
       });
+    const alignedControls = [
+      "settingsMenuButton",
+      "tutorialButton",
+      "autoNewHandButton",
+      "newHandButton",
+    ].map(id => {
+      const rect = document.querySelector(`#${id}`).getBoundingClientRect();
+      return {
+        id,
+        top: rect.top,
+        bottom: rect.bottom,
+        height: rect.height,
+        center: rect.top + rect.height / 2,
+      };
+    });
     return {
       topbar: { left: topbar.left, right: topbar.right },
       brand: { right: brand.right },
       actions: { left: actions.left, right: actions.right },
       account: { width: account.width },
       buttons,
+      alignedControls,
     };
   });
 
@@ -82,5 +98,14 @@ test("1536px Safari 尺寸下登入名稱不會推歪頂部按鈕列", async ({ 
   const firstTop = layout.buttons[0].top;
   for (const button of layout.buttons) {
     expect(Math.abs(button.top - firstTop), button.id).toBeLessThanOrEqual(2);
+  }
+
+  const settings = layout.alignedControls.find(control => control.id === "settingsMenuButton");
+  const tutorial = layout.alignedControls.find(control => control.id === "tutorialButton");
+  expect(settings.height).toBe(tutorial.height);
+  for (const control of layout.alignedControls.filter(control => control.id !== settings.id)) {
+    expect(Math.abs(control.top - settings.top), `${control.id} top`).toBeLessThanOrEqual(1);
+    expect(Math.abs(control.bottom - settings.bottom), `${control.id} bottom`).toBeLessThanOrEqual(1);
+    expect(Math.abs(control.center - settings.center), `${control.id} center`).toBeLessThanOrEqual(1);
   }
 });
