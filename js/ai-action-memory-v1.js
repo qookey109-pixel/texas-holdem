@@ -9,7 +9,12 @@
   let installTimer = 0;
   let installAttempts = 0;
 
+  function hasState() {
+    return typeof state !== "undefined" && Boolean(state);
+  }
+
   function streetKey() {
+    if (!hasState()) return "preflop";
     const count = state?.board?.length || 0;
     if (count >= 5) return "river";
     if (count === 4) return "turn";
@@ -17,26 +22,31 @@
     return "preflop";
   }
 
-  function emptyMemory(handNumber = Number(state?.handNumber) || 0) {
+  function emptyMemory(handNumber = null) {
+    const resolvedHandNumber = handNumber == null
+      ? (hasState() ? Number(state.handNumber) || 0 : 0)
+      : Number(handNumber) || 0;
     return {
       version: VERSION,
-      handNumber,
+      handNumber: resolvedHandNumber,
       sequence: 0,
       streets: Object.fromEntries(STREET_KEYS.map(key => [key, []])),
     };
   }
 
   function ensureMemory() {
-    if (!state) return emptyMemory();
+    if (!hasState()) return emptyMemory();
     if (!state.aiActionMemory || state.aiActionMemory.handNumber !== Number(state.handNumber || 0)) {
       state.aiActionMemory = emptyMemory();
     }
     return state.aiActionMemory;
   }
 
-  function reset(handNumber = Number(state?.handNumber) || 0) {
-    if (state) state.aiActionMemory = emptyMemory(handNumber);
-    return state?.aiActionMemory || emptyMemory(handNumber);
+  function reset(handNumber = null) {
+    if (!hasState()) return emptyMemory(handNumber);
+    const resolvedHandNumber = handNumber == null ? Number(state.handNumber) || 0 : handNumber;
+    state.aiActionMemory = emptyMemory(resolvedHandNumber);
+    return state.aiActionMemory;
   }
 
   function normalizeAction(action, player) {
@@ -44,7 +54,7 @@
     if (key.includes("fold") || key.includes("棄牌")) return "fold";
     if (key.includes("all-in raise")) return "allin-raise";
     if (key.includes("all-in call")) return "allin-call";
-    if (key.includes("all-in")) return player?.bet > Number(state?.currentBet || 0) ? "allin-raise" : "allin-call";
+    if (key.includes("all-in")) return player?.bet > Number(hasState() ? state.currentBet : 0) ? "allin-raise" : "allin-call";
     if (key.includes("raise") || key.includes("加注")) return "raise";
     if (key.includes("check") || key.includes("過牌")) return "check";
     if (key.includes("call") || key.includes("跟注")) return "call";
@@ -52,7 +62,7 @@
   }
 
   function recordAction(player, action, amount = 0, note = "") {
-    if (!player || !state) return null;
+    if (!player || !hasState()) return null;
     const memory = ensureMemory();
     const street = streetKey();
     const event = {
