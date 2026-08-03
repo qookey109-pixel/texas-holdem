@@ -25,6 +25,25 @@ function collectRuntimeIssues(page) {
   return issues;
 }
 
+function attachedBetGeometry() {
+  const element = document.querySelector(".seat.has-street-bet .seat-street-bet");
+  const seat = element?.closest(".seat");
+  const header = seat?.querySelector(".seat-header");
+  const betRect = element?.getBoundingClientRect();
+  const headerRect = header?.getBoundingClientRect();
+  const seatRect = seat?.getBoundingClientRect();
+  const styles = element ? getComputedStyle(element) : null;
+
+  return {
+    connected: Boolean(element?.isConnected && seat?.isConnected && header?.isConnected),
+    visible: Boolean(betRect && betRect.width > 0 && betRect.height > 0),
+    verticalGap: betRect && headerRect ? Math.abs(betRect.top - headerRect.bottom) : 999,
+    widthRatio: betRect && seatRect?.width ? betRect.width / seatRect.width : 0,
+    borderTopWidth: Number.parseFloat(styles?.borderTopWidth || "0"),
+    radius: styles?.borderBottomLeftRadius || "0",
+  };
+}
+
 test("頂部設定會收合且本輪下注會貼合玩家資訊卡", async ({ page }) => {
   const runtimeIssues = collectRuntimeIssues(page);
 
@@ -60,24 +79,39 @@ test("頂部設定會收合且本輪下注會貼合玩家資訊卡", async ({ pa
   await page.keyboard.press("Escape");
   await expect(settingsPanel).toBeHidden();
 
-  const attachedBet = page.locator(".seat.has-street-bet .seat-street-bet").first();
-  await expect(attachedBet).toBeVisible({ timeout: 5_000 });
+  // Freeze the table and render one deterministic street bet. The normal game can
+  // replace seat nodes between a visibility assertion and geometry measurement.
+  await page.evaluate(() => {
+    window.AiTimingController?.clear?.();
+    window.GeminiAsyncBettingLoop?.cancelPending?.();
+    clearAutoNewHandTimer?.();
+    clearDialogueTimers?.();
+    state.autoNewHand = false;
+    state.handOver = false;
 
-  const geometry = await attachedBet.evaluate(element => {
-    const seat = element.closest(".seat");
-    const header = seat?.querySelector(".seat-header");
-    const betRect = element.getBoundingClientRect();
-    const headerRect = header?.getBoundingClientRect();
-    const seatRect = seat?.getBoundingClientRect();
-    const styles = getComputedStyle(element);
-
-    return {
-      verticalGap: headerRect ? Math.abs(betRect.top - headerRect.bottom) : 999,
-      widthRatio: seatRect?.width ? betRect.width / seatRect.width : 0,
-      borderTopWidth: Number.parseFloat(styles.borderTopWidth || "0"),
-      radius: styles.borderBottomLeftRadius,
-    };
+    const player = state.players.find(candidate => !candidate?.isHuman) || state.players[1];
+    player.folded = false;
+    player.allIn = false;
+    player.bet = Math.max(20, Number(player.bet) || 0);
+    state.currentBet = Math.max(Number(state.currentBet) || 0, player.bet);
+    render();
+    window.TopbarSeatPolish?.refresh?.();
   });
+
+  await expect.poll(
+    () => page.evaluate(attachedBetGeometry),
+    { timeout: 10_000 },
+  ).toMatchObject({
+    connected: true,
+    visible: true,
+  });
+
+  await expect.poll(
+    () => page.evaluate(attachedBetGeometry).then(geometry => geometry.widthRatio),
+    { timeout: 10_000 },
+  ).toBeGreaterThan(0.82);
+
+  const geometry = await page.evaluate(attachedBetGeometry);
 
   // Chromium and WebKit both render the intended shadow seam at a stable 3px.
   expect(geometry.verticalGap).toBeLessThanOrEqual(3);
