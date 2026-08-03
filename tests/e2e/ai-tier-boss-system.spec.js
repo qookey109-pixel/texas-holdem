@@ -54,11 +54,11 @@ test("中階角色有專屬框線且星等明顯分層", async ({ page }) => {
   await expect(panel.locator(".ai-tier-stars i")).toHaveText("☆☆☆");
 });
 
-test("特殊 Boss 使用全知資料、七星外觀與玩家習慣", async ({ page }) => {
+test("特殊 Boss 只使用公開資訊、自己的底牌與玩家歷史習慣", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
 
   await expect.poll(
-    () => page.evaluate(() => window.AiTierBossSystem?.version || ""),
+    () => page.evaluate(() => window.FairSpecialBosses?.version || ""),
     { timeout: 10_000 },
   ).toBe("1.0.0");
 
@@ -67,26 +67,31 @@ test("特殊 Boss 使用全知資料、七星外觀與玩家習慣", async ({ pa
     chronos: AI_ROSTER.find(profile => profile.name === "Chronos"),
     oracleMeta: AI_PROFILE_META.Oracle,
     chronosMeta: AI_PROFILE_META.Chronos,
-    decisionInstalled: Boolean(window.__aiTierBossDecisionInstalled),
+    decisionInstalled: Boolean(window.__fairSpecialBossDecisionInstalled),
   }));
 
   expect(bossData.oracle).toMatchObject({
     emoji: "🔮",
-    style: "Future Sight",
     isSpecialBoss: true,
-    omniscient: true,
+    fairPlay: true,
+    playerModeling: true,
+    publicInformationOnly: true,
     tierStars: 7,
   });
+  expect(bossData.oracle.omniscient).toBeUndefined();
   expect(bossData.chronos).toMatchObject({
     emoji: "⏳",
-    style: "Timeline Control",
     isSpecialBoss: true,
-    omniscient: true,
+    fairPlay: true,
+    playerModeling: true,
+    publicInformationOnly: true,
     tierStars: 7,
   });
-  expect(bossData.oracleMeta.summary).toContain("未公開底牌");
-  expect(bossData.oracleMeta.summary).toContain("公共牌順序");
-  expect(bossData.chronosMeta.traits.join(" ")).toContain("最終牌型");
+  expect(bossData.chronos.omniscient).toBeUndefined();
+  expect(bossData.oracleMeta.summary).toContain("公開行動紀錄");
+  expect(bossData.oracleMeta.traits.join(" ")).toContain("不讀取玩家隱藏底牌");
+  expect(bossData.chronosMeta.summary).toContain("範圍");
+  expect(bossData.chronosMeta.traits.join(" ")).toContain("不預知任何未發出的牌");
   expect(bossData.decisionInstalled).toBe(true);
 
   const analysis = await page.evaluate(() => {
@@ -109,13 +114,46 @@ test("特殊 Boss 使用全知資料、七星外觀與玩家習慣", async ({ pa
       showdowns: 2,
       wins: 1,
     };
+    const profile = AI_ROSTER.find(candidate => candidate.name === "Oracle");
+    const oracle = {
+      ...state.players[1],
+      ...profile,
+      name: "Oracle",
+      cards: [card("A", 14, "c"), card("K", 13, "c")],
+      stack: 1800,
+      bet: 0,
+      folded: false,
+      allIn: false,
+      raiseLocked: false,
+      position: 1,
+    };
+    const context = FairSpecialBosses.publicContext(oracle);
+    const decision = FairSpecialBosses.chooseDecision(oracle);
     return {
-      board: AiTierBossSystem.projectedBoard().map(cardValue => `${cardValue.label}${cardValue.suit}`),
-      habits: AiTierBossSystem.heroHabits(),
+      projected: AiTierBossSystem.projectedBoard().map(cardValue => `${cardValue.label}${cardValue.suit}`),
+      context,
+      decision: {
+        action: decision.action,
+        hasDeck: Object.hasOwn(decision.context, "deck"),
+        hasOpponentCards: Object.hasOwn(decision.context, "opponentCards"),
+      },
+      habits: FairSpecialBosses.heroHabits(),
     };
   });
 
-  expect(analysis.board).toEqual(["2c", "3d", "4h", "Qd", "Ks"]);
+  expect(analysis.projected).toEqual(["2c", "3d", "4h"]);
+  expect(analysis.context.board).toEqual([
+    { value: 2, suit: "c" },
+    { value: 3, suit: "d" },
+    { value: 4, suit: "h" },
+  ]);
+  expect(analysis.context.ownCards).toEqual([
+    { value: 14, suit: "c" },
+    { value: 13, suit: "c" },
+  ]);
+  expect(analysis.decision.hasDeck).toBe(false);
+  expect(analysis.decision.hasOpponentCards).toBe(false);
+  expect(["fold", "call", "raise"]).toContain(analysis.decision.action);
   expect(analysis.habits).toMatchObject({
     sample: 10,
     foldRate: 0.4,
@@ -137,16 +175,15 @@ test("特殊 Boss 使用全知資料、七星外觀與玩家習慣", async ({ pa
     state.selectedProfilePosition = 1;
     render();
     AiTierBossSystem.refresh();
+    FairSpecialBosses.refresh();
   });
 
   const seat = page.locator('.seat[data-profile-position="1"]');
   const panel = page.locator("#aiProfilePanel");
   await expect(seat).toHaveClass(/is-special-boss-character/);
   await expect(seat).toHaveClass(/special-oracle/);
-  await expect(seat.locator(".ai-tier-seat-badge")).toContainText("OMNISCIENT EYE");
-  await expect(panel).toHaveClass(/is-special-boss-character-profile/);
   await expect(panel.locator(".ai-tier-label")).toHaveText("特殊 BOSS");
   await expect(panel.locator(".ai-tier-stars")).toHaveAttribute("aria-label", "難度 7 / 7 星");
-  await expect(panel.locator(".ai-tier-stars b")).toHaveText("★★★★★★★");
-  await expect(page.locator("#specialBossArrivalBanner")).toContainText("Oracle｜全域預言者");
+  await expect(panel.locator(".ai-profile-summary")).toContainText("公開行動紀錄");
+  await expect(page.locator("#specialBossArrivalBanner")).toContainText("公開紀錄、玩家習慣");
 });
