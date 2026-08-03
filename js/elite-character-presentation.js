@@ -27,6 +27,11 @@
     "aiTierBossSystem",
   );
   loadOnce(
+    'script[data-fair-special-boss-strategy]',
+    "js/fair-special-boss-strategy.js?v=public-history-range-ev-v1",
+    "fairSpecialBossStrategy",
+  );
+  loadOnce(
     'script[data-ai-provider-legacy-worker-migration]',
     "js/ai-provider-legacy-worker-migration.js?v=custom-ai-provider-v1",
     "aiProviderLegacyWorkerMigration",
