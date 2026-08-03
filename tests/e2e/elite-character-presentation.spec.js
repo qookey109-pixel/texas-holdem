@@ -7,6 +7,10 @@ test("高階角色使用專屬外觀、人物卡與登場提示", async ({ page 
     () => page.evaluate(() => window.EliteCharacterPresentation?.version || ""),
     { timeout: 10_000 },
   ).toBe("2.0.0");
+  await expect.poll(
+    () => page.evaluate(() => window.AiTierBossSystem?.version || ""),
+    { timeout: 10_000 },
+  ).toBe("1.0.0");
 
   const vladData = await page.evaluate(() => {
     const vladIndex = AI_ROSTER.findIndex(profile => profile.name === "Vlad");
@@ -27,8 +31,11 @@ test("高階角色使用專屬外觀、人物卡與登場提示", async ({ page 
     emoji: "🧛",
     style: "Night Trap",
     isElite: true,
+    advancedDecision: true,
+    tierStars: 6,
   });
   expect(vladData.meta.title).toBe("午夜獵手");
+  expect(vladData.meta.stars).toBe(6);
   expect(vladData.join).toContain("夜色正好");
 
   await page.evaluate(() => {
@@ -42,6 +49,7 @@ test("高階角色使用專屬外觀、人物卡與登場提示", async ({ page 
     });
     render();
     EliteCharacterPresentation.refresh();
+    AiTierBossSystem.refresh();
   });
 
   const novaSeat = page.locator('.seat[data-profile-position="1"]');
@@ -55,6 +63,7 @@ test("高階角色使用專屬外觀、人物卡與登場提示", async ({ page 
   await expect(page.locator("#aiProfilePanel")).toHaveClass(/elite-nova-profile/);
   await expect(page.locator("#aiProfilePanel .elite-profile-banner")).toContainText("ALIEN MIND");
   await expect(page.locator("#aiProfilePanel .elite-profile-banner")).toContainText("外星讀心者");
+  await expect(page.locator("#aiProfilePanel .ai-tier-stars")).toHaveAttribute("aria-label", "難度 6 / 7 星");
 
   await page.evaluate(() => {
     const profile = AI_ROSTER.find(candidate => candidate.name === "Vlad");
@@ -68,6 +77,7 @@ test("高階角色使用專屬外觀、人物卡與登場提示", async ({ page 
     state.selectedProfilePosition = 1;
     render();
     EliteCharacterPresentation.refresh();
+    AiTierBossSystem.refresh();
   });
 
   await expect(novaSeat).toHaveClass(/elite-vlad/);
@@ -77,7 +87,7 @@ test("高階角色使用專屬外觀、人物卡與登場提示", async ({ page 
   await expect(page.locator("#eliteArrivalBanner")).toContainText("Vlad｜午夜獵手");
 });
 
-test("Vlad 加入挑戰賽高階候補且 Gemini 仍是最後一位", async ({ page }) => {
+test("Vlad 與兩位特殊 Boss 加入挑戰賽且 Gemini 仍是最後一位", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
 
   await expect.poll(
@@ -86,6 +96,10 @@ test("Vlad 加入挑戰賽高階候補且 Gemini 仍是最後一位", async ({ p
   ).toBe("2.0.0");
   await expect.poll(
     () => page.evaluate(() => window.EliteCharacterProgressFix?.version || ""),
+    { timeout: 10_000 },
+  ).toBe("2.0.0");
+  await expect.poll(
+    () => page.evaluate(() => window.AiTierBossSystem?.version || ""),
     { timeout: 10_000 },
   ).toBe("1.0.0");
 
@@ -97,18 +111,22 @@ test("Vlad 加入挑戰賽高階候補且 Gemini 仍是最後一位", async ({ p
   ).toMatchObject({ mode: "tournament" });
 
   const queue = await page.evaluate(() => window.TournamentMode.snapshot().queue);
-  expect(queue).toHaveLength(11);
+  expect(queue).toHaveLength(13);
   expect(queue).toContain("Vlad");
+  expect(queue).toContain("Oracle");
+  expect(queue).toContain("Chronos");
   expect(queue.at(-1)).toBe("Gemini");
-  expect(queue.indexOf("Vlad")).toBeLessThan(queue.indexOf("Gemini"));
+  expect(queue.indexOf("Vlad")).toBeLessThan(queue.indexOf("Oracle"));
+  expect(queue.indexOf("Oracle")).toBeLessThan(queue.indexOf("Chronos"));
+  expect(queue.indexOf("Chronos")).toBeLessThan(queue.indexOf("Gemini"));
 
   await expect.poll(
     () => page.evaluate(() => document.querySelector("#tournamentProgressBadge strong")?.dataset.eliteProgress || ""),
     { timeout: 10_000 },
-  ).toBe("0 / 17");
+  ).toBe("0 / 19");
   const visibleProgress = await page.locator("#tournamentProgressBadge strong").evaluate(
     element => getComputedStyle(element, "::after").content.replaceAll('"', ""),
   );
-  expect(visibleProgress).toBe("0 / 17");
-  expect(await page.evaluate(() => EliteCharacterPresentation.totalTournamentAi)).toBe(17);
+  expect(visibleProgress).toBe("0 / 19");
+  expect(await page.evaluate(() => AiTierBossSystem.totalTournamentAi)).toBe(19);
 });
