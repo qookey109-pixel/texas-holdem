@@ -7,10 +7,6 @@ async function waitForPreflopLayer(page) {
   ).toBe("1.2.0");
 }
 
-function baseCard(label, value, suit) {
-  return { label, value, suit, suitSymbol: { s: "♠", h: "♥", d: "♦", c: "♣" }[suit] };
-}
-
 test("V1.2 載入位置範圍、3-bet、4-bet、Squeeze 與盲位防守能力", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
   await waitForPreflopLayer(page);
@@ -27,6 +23,7 @@ test("V1.2 載入位置範圍、3-bet、4-bet、Squeeze 與盲位防守能力", 
       return {
         name,
         strategyUpgradeVersion: profile?.strategyUpgradeVersion,
+        preflopStrategyVersion: profile?.preflopStrategyVersion,
         preflopRangeEngine: profile?.preflopRangeEngine,
         positionAwareOpening: profile?.positionAwareOpening,
         blindDefenseAware: profile?.blindDefenseAware,
@@ -65,7 +62,8 @@ test("V1.2 載入位置範圍、3-bet、4-bet、Squeeze 與盲位防守能力", 
   });
   for (const profile of result.profiles) {
     expect(profile).toMatchObject({
-      strategyUpgradeVersion: "1.2.0",
+      strategyUpgradeVersion: "1.1.0",
+      preflopStrategyVersion: "1.2.0",
       preflopRangeEngine: true,
       positionAwareOpening: true,
       blindDefenseAware: true,
