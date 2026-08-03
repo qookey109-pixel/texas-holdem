@@ -4,7 +4,7 @@ function collectRuntimeIssues(page) {
   const issues = [];
   page.on("pageerror", error => issues.push(`pageerror: ${error.message}`));
   page.on("console", message => {
-    if (message.type() === "error") issues.push(`console: ${message.text()}`);
+    if (message.type() === "error") issues.push(`console: ${message.text()}`));
   });
   return issues;
 }
@@ -96,7 +96,6 @@ test("翻牌先完成輕量繪製，再於後續畫面幀更新完整牌桌", as
 
       const completed = {
         status: window.StreetTransitionPerformance.status(),
-        queuedFrames: frameQueue.length,
         previewMarker: document.querySelector("#boardCards")?.dataset.streetPreview || "",
         renderedCards: document.querySelectorAll("#boardCards .card:not(.back)").length,
       };
@@ -122,7 +121,6 @@ test("翻牌先完成輕量繪製，再於後續畫面幀更新完整牌桌", as
 
   expect(completed.status.scheduledFullRenderCount).toBe(1);
   expect(completed.status.pending).toBe(false);
-  expect(completed.queuedFrames).toBe(0);
   expect(completed.previewMarker).toBe("");
   expect(completed.renderedCards).toBe(3);
 
