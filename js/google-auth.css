@@ -192,3 +192,32 @@
     radial-gradient(circle at 0 0, rgba(23, 140, 123, 0.12), transparent 42%),
     rgba(255, 252, 244, 0.98);
 }
+
+#authAccountButton[data-auth-placement="topbar"] {
+  width: auto;
+  min-width: 96px !important;
+  max-width: 156px;
+  min-height: 34px;
+  padding: 0 8px !important;
+  justify-content: center;
+  gap: 6px;
+  flex: 0 1 auto;
+}
+
+#authAccountButton[data-auth-placement="topbar"][data-auth-state="signed-in"] {
+  border-color: rgba(112, 216, 201, 0.5);
+  background: rgba(112, 216, 201, 0.1);
+}
+
+@media (max-width: 1180px) {
+  #authAccountButton[data-auth-placement="topbar"] {
+    width: 38px;
+    min-width: 38px !important;
+    max-width: 38px;
+    padding: 0 5px !important;
+  }
+
+  #authAccountButton[data-auth-placement="topbar"] .auth-account-label {
+    display: none;
+  }
+}
