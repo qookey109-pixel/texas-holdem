@@ -25,7 +25,7 @@ function collectRuntimeIssues(page) {
   return issues;
 }
 
-test("Gemini 最終 Boss 可由設定啟動並使用本地備援策略", async ({ page }) => {
+test("Gemini 最終 Boss 預設安全後端並保留本地備援策略", async ({ page }) => {
   const runtimeIssues = collectRuntimeIssues(page);
 
   await page.addInitScript(() => {
@@ -43,6 +43,24 @@ test("Gemini 最終 Boss 可由設定啟動並使用本地備援策略", async (
     () => page.evaluate(() => window.GeminiBackendClient?.version || ""),
     { timeout: 5_000 },
   ).toBe("1.1.0");
+
+  const defaultBackend = await page.evaluate(() => GeminiBackendClient.status());
+  expect(defaultBackend).toMatchObject({
+    configured: true,
+    connected: false,
+    mode: "backend-unverified",
+    endpoint: "https://texas-holdem-gemini.q-oo109.workers.dev",
+  });
+
+  await page.evaluate(() => GeminiBackendClient.openSettings());
+  await expect(page.locator("#geminiBackendEndpoint")).toHaveValue(
+    "https://texas-holdem-gemini.q-oo109.workers.dev",
+  );
+  await expect(page.locator("#geminiBackendStatus")).toContainText("後端網址已設定");
+  await page.evaluate(() => {
+    GeminiBackendClient.closeSettings();
+    GeminiBackendClient.configure("");
+  });
   await expect.poll(
     () => page.evaluate(() => GeminiBackendClient.status().configured),
     { timeout: 5_000 },
