@@ -122,6 +122,8 @@ function setSettledTournamentState(page, handNumber = 7) {
     state.handOver = true;
     state.waitingForHuman = true;
     state.currentActorIndex = 0;
+    state.selectedProfilePosition = null;
+    state.winners = [];
     state.deck = [{ rank: "A", suit: "spades" }];
     state.board = [{ rank: "K", suit: "hearts" }];
     state.autoNewHandTimer = null;
@@ -133,6 +135,16 @@ function setSettledTournamentState(page, handNumber = 7) {
         cards: [{ rank: "A", suit: "clubs" }, { rank: "A", suit: "diamonds" }],
         stack: 3120,
         wins: 3,
+        folded: false,
+        allIn: false,
+        status: "等待續玩",
+        position: 0,
+        bet: 0,
+        totalContribution: 0,
+        hasActed: true,
+        raiseLocked: false,
+        lastAction: "",
+        dialogue: "",
       },
       {
         ...AI_ROSTER.find(profile => profile.name === "Leo"),
@@ -143,6 +155,16 @@ function setSettledTournamentState(page, handNumber = 7) {
         wins: 1,
         emotion: "tilted",
         streak: -2,
+        folded: false,
+        allIn: true,
+        status: "等待續玩",
+        position: 1,
+        bet: 0,
+        totalContribution: 0,
+        hasActed: true,
+        raiseLocked: false,
+        lastAction: "",
+        dialogue: "",
       },
       {
         ...AI_ROSTER.find(profile => profile.name === "Toto"),
@@ -153,6 +175,16 @@ function setSettledTournamentState(page, handNumber = 7) {
         wins: 2,
         emotion: "confident",
         streak: 2,
+        folded: false,
+        allIn: false,
+        status: "等待續玩",
+        position: 2,
+        bet: 0,
+        totalContribution: 0,
+        hasActed: true,
+        raiseLocked: false,
+        lastAction: "",
+        dialogue: "",
       },
     ];
     state.tournament = {
