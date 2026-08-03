@@ -29,10 +29,23 @@ const PREVIOUS_OFFICIAL_LAYOUT = {
   actions: { left: 81.6, top: 89.13 },
 };
 
+const LEGACY_OFFICIAL_LAYOUT = {
+  ...PREVIOUS_OFFICIAL_LAYOUT,
+  heroCards: { left: 50, top: 63.2 },
+};
+
 const PREVIOUS_OFFICIAL_SIZES = {
   heroCard: 92,
   boardCard: 86,
   aiCard: 44,
+  aiSeat: 176,
+  aiProfile: 272,
+};
+
+const LEGACY_OFFICIAL_SIZES = {
+  heroCard: 70,
+  boardCard: 65,
+  aiCard: 52,
   aiSeat: 176,
   aiProfile: 272,
 };
@@ -98,6 +111,37 @@ test("V2 官方預設會自動升級到使用者匯出的 V3", async ({ page }) 
   expect(migrated.pot).toBe("70");
   expect(migrated.arrows).toEqual(OFFICIAL_ARROWS);
   expect(migrated.migration).toBe("4");
+});
+
+test("V1 官方預設可直接升級到 V3，不需要先載入 V2", async ({ page }) => {
+  await page.addInitScript(({ layout, sizes, arrows }) => {
+    localStorage.setItem("texasHoldemTableLayoutV3", JSON.stringify(layout));
+    localStorage.setItem("texasHoldemLayoutSizesV2", JSON.stringify(sizes));
+    localStorage.setItem("texasHoldemPotScaleV1", "70");
+    localStorage.setItem("texasHoldemDialogueArrowsV1", JSON.stringify(arrows));
+    localStorage.setItem("texasHoldemOfficialLayoutPresetVersionV1", "2");
+  }, {
+    layout: LEGACY_OFFICIAL_LAYOUT,
+    sizes: LEGACY_OFFICIAL_SIZES,
+    arrows: PREVIOUS_OFFICIAL_ARROWS,
+  });
+
+  await page.goto("/", { waitUntil: "networkidle" });
+
+  const migrated = await page.evaluate(() => ({
+    layout: localStorage.getItem("texasHoldemTableLayoutV3"),
+    sizes: JSON.parse(localStorage.getItem("texasHoldemLayoutSizesV2") || "null"),
+    pot: localStorage.getItem("texasHoldemPotScaleV1"),
+    arrows: JSON.parse(localStorage.getItem("texasHoldemDialogueArrowsV1") || "null"),
+    migration: localStorage.getItem("texasHoldemOfficialLayoutPresetVersionV1"),
+  }));
+
+  expect(migrated.layout).toBeNull();
+  expect(migrated.sizes).toEqual(OFFICIAL_SIZES);
+  expect(migrated.pot).toBe("70");
+  expect(migrated.arrows).toEqual(OFFICIAL_ARROWS);
+  expect(migrated.migration).toBe("4");
+  await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.layout.heroCards.top)).toBe(64.57);
 });
 
 test("玩家自行修改的位置、尺寸、底池與箭頭不會被官方升級覆蓋", async ({ page }) => {
