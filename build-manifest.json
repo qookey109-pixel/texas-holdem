@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "tournament-cloud-save-v1-custom-ai-provider-2026-08-03",
+  "buildId": "fair-special-bosses-preview-2026-08-03",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
@@ -23,7 +23,8 @@
     { "path": "js/dialogue.js", "label": "AI 對話與牌局速度" },
     { "path": "js/positions.js", "label": "位置系統" },
     { "path": "js/ai-logic.js", "label": "AI 決策" },
-    { "path": "js/ai-tier-boss-system.js", "label": "AI 階級、專屬框線與全知 Boss" },
+    { "path": "js/ai-tier-boss-system.js", "label": "AI 階級、專屬框線與七星 Boss" },
+    { "path": "js/fair-special-bosses.js", "label": "特殊 Boss 公開資訊與玩家建模策略" },
     { "path": "js/coach.js", "label": "撲克教練" },
     { "path": "js/coach-hand-review-integration.js", "label": "教練牌局復盤整合與開關" },
     { "path": "js/tutorial-ui.js", "label": "教學介面" },
@@ -82,18 +83,18 @@
     },
     {
       "id": "ai-tier-bosses",
-      "label": "AI 星等分層、中階框線、高階強化與全知 Boss",
-      "assets": ["js/ai-tier-boss-system.js", "js/elite-character-presentation.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-data.js", "js/ai-logic.js", "js/render-ui.js", "js/tournament-mode.js"]
+      "label": "AI 星等分層、中階框線、高階強化與公平七星 Boss",
+      "assets": ["js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/elite-character-presentation.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-data.js", "js/ai-logic.js", "js/render-ui.js", "js/tournament-mode.js"]
     },
     {
       "id": "elite-characters",
       "label": "高階角色外觀、登場提示與 Vlad",
-      "assets": ["js/elite-character-presentation.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-tier-boss-system.js", "js/config.js", "js/ai-data.js", "js/render-ui.js", "js/tournament-mode.js"]
+      "assets": ["js/elite-character-presentation.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/config.js", "js/ai-data.js", "js/render-ui.js", "js/tournament-mode.js"]
     },
     {
       "id": "tournament-mode",
       "label": "19 位永久淘汰賽與分層角色輪替",
-      "assets": ["js/tournament-mode.js", "js/tournament-mode-visible-entry.js", "js/game-mode-controls-v2.js", "js/tournament-gemini-bridge.js", "js/replacement-stack-balance.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-tier-boss-system.js", "js/ai-data.js", "js/game-flow.js", "js/session-summary.js"]
+      "assets": ["js/tournament-mode.js", "js/tournament-mode-visible-entry.js", "js/game-mode-controls-v2.js", "js/tournament-gemini-bridge.js", "js/replacement-stack-balance.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/ai-data.js", "js/game-flow.js", "js/session-summary.js"]
     },
     {
       "id": "replacement-stack-balance",
@@ -108,7 +109,7 @@
     {
       "id": "ai-experience",
       "label": "AI 決策、表情與節奏",
-      "assets": ["js/ai-data.js", "js/ai-logic.js", "js/ai-tier-boss-system.js", "js/dialogue.js", "js/ai-emotion-face-ui.js", "js/ai-timing.js", "js/ai-turn-indicator.js"]
+      "assets": ["js/ai-data.js", "js/ai-logic.js", "js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/dialogue.js", "js/ai-emotion-face-ui.js", "js/ai-timing.js", "js/ai-turn-indicator.js"]
     },
     {
       "id": "audio",
