@@ -58,7 +58,7 @@ test("核心牌局與主要面板可正常操作", async ({ page }) => {
   await expect(page.locator("#handNumber")).toHaveText("第 1 局");
   await expect(page.locator("#playerCards .card")).toHaveCount(2);
   await expect(page.locator("#opponents .seat")).toHaveCount(6);
-  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.version)).toBe("2.0.0");
+  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.version)).toBe("2.1.0");
   await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.sizes)).toBe(null);
   await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.potScale)).toBe(100);
   await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.layout.heroCards.top)).toBe(65.7);
