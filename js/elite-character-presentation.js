@@ -27,6 +27,11 @@
     "aiTierBossSystem",
   );
   loadOnce(
+    'script[data-ai-provider-legacy-worker-migration]',
+    "js/ai-provider-legacy-worker-migration.js?v=custom-ai-provider-v1",
+    "aiProviderLegacyWorkerMigration",
+  );
+  loadOnce(
     'script[data-ai-provider-client]',
     "js/ai-provider-client-v1.js?v=custom-ai-provider-v1",
     "aiProviderClient",
