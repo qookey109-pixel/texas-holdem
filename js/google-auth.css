@@ -222,16 +222,34 @@
   }
 }
 
-/* Keep the account control from pushing the whole desktop toolbar toward the table centre. */
+/* Keep the desktop toolbar visually centred instead of pinning it to the coach rail. */
 .top-bar {
-  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-columns: minmax(210px, 1fr) auto minmax(210px, 1fr);
+}
+
+.brand-block {
+  grid-column: 1;
 }
 
 .top-bar-actions {
-  width: 100%;
-  justify-self: stretch;
-  justify-content: flex-end;
+  grid-column: 2;
+  width: auto;
+  justify-self: center;
+  justify-content: center;
   flex-wrap: nowrap;
+}
+
+@media (max-width: 1450px) {
+  .top-bar {
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+
+  .top-bar-actions {
+    grid-column: 2;
+    width: 100%;
+    justify-self: stretch;
+    justify-content: flex-end;
+  }
 }
 
 @media (max-width: 1700px) {
