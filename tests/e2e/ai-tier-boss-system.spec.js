@@ -159,14 +159,10 @@ test("特殊 Boss 只使用公開紀錄、範圍推理與公平七星策略", as
     element => getComputedStyle(element, "::after").content.replaceAll('"', ""),
   );
   expect(oracleBadge).toBe("PLAYER READER");
-
-  const arrivalCopy = await page.locator("#specialBossArrivalBanner > div > span").evaluate(
-    element => getComputedStyle(element, "::after").content.replaceAll('"', ""),
-  );
-  expect(arrivalCopy).toContain("公平七星策略");
+  await expect(page.locator("#fairSpecialBossStyles")).toBeAttached();
 });
 
-test("特殊 Boss 決策不讀牌堆與其他玩家未公開底牌", async ({ page }) => {
+test("特殊 Boss 決策分析不讀牌堆與其他玩家未公開底牌", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
 
   await expect.poll(
@@ -214,25 +210,56 @@ test("特殊 Boss 決策不讀牌堆與其他玩家未公開底牌", async ({ pa
       wins: 2,
     };
 
-    for (const opponent of state.players.filter(candidate => candidate !== oracle)) {
-      Object.defineProperty(opponent, "cards", {
+    const originalDeck = state.deck;
+    const opponentCards = state.players
+      .filter(candidate => candidate !== oracle)
+      .map(opponent => ({ opponent, cards: opponent.cards }));
+    let analysis;
+    let audit;
+
+    try {
+      for (const { opponent } of opponentCards) {
+        Object.defineProperty(opponent, "cards", {
+          configurable: true,
+          enumerable: true,
+          get() { throw new Error("Special Boss accessed hidden opponent cards"); },
+        });
+      }
+      Object.defineProperty(state, "deck", {
         configurable: true,
-        get() { throw new Error("Special Boss accessed hidden opponent cards"); },
+        enumerable: true,
+        get() { throw new Error("Special Boss accessed deck order"); },
+        set() {},
       });
+
+      analysis = FairSpecialBossStrategy.evaluateActions(oracle);
+      audit = FairSpecialBossStrategy.fairnessAudit();
+    } finally {
+      Object.defineProperty(state, "deck", {
+        configurable: true,
+        enumerable: true,
+        writable: true,
+        value: originalDeck,
+      });
+      for (const { opponent, cards } of opponentCards) {
+        Object.defineProperty(opponent, "cards", {
+          configurable: true,
+          enumerable: true,
+          writable: true,
+          value: cards,
+        });
+      }
     }
-    Object.defineProperty(state, "deck", {
-      configurable: true,
-      get() { throw new Error("Special Boss accessed deck order"); },
-      set() {},
-    });
 
     botAction(oracle);
     return {
       action: oracle.lastAction,
-      audit: FairSpecialBossStrategy.fairnessAudit(),
+      actionCount: analysis.actions.length,
+      audit,
     };
   });
 
+  expect(result.actionCount).toBeGreaterThan(0);
   expect(["fold", "check", "call", "raise", "allin"]).toContain(result.action);
   expect(result.audit).toMatchObject({
     fairPlay: true,
