@@ -19,6 +19,10 @@ test("淘汰賽永久淘汰、分層候補與縮桌流程", async ({ page }) => 
     () => page.evaluate(() => window.EliteCharacterPresentation?.version || ""),
     { timeout: 10_000 },
   ).toBe("2.0.0");
+  await expect.poll(
+    () => page.evaluate(() => window.AiTierBossSystem?.version || ""),
+    { timeout: 10_000 },
+  ).toBe("1.0.0");
 
   expect(await page.evaluate(() => document.querySelector(".side-rail")?.firstElementChild?.id)).toBe("coachPanel");
   await expect(page.locator("#coachPanel")).toBeVisible();
@@ -42,13 +46,14 @@ test("淘汰賽永久淘汰、分層候補與縮桌流程", async ({ page }) => 
   expect(openingNames).toEqual(["Leo", "Toto", "Foxy", "Wolf", "Pao", "Shark"]);
 
   const initialSnapshot = await page.evaluate(() => TournamentMode.snapshot());
-  expect(initialSnapshot.queue).toHaveLength(11);
+  expect(initialSnapshot.queue).toHaveLength(13);
   expect(new Set(initialSnapshot.queue.slice(0, 6))).toEqual(
     new Set(["Ace", "Momo", "Nori", "Bruno", "Dodo", "Viper"]),
   );
   expect(new Set(initialSnapshot.queue.slice(6, 10))).toEqual(
     new Set(["Nova", "Unit-9", "Merlin", "Vlad"]),
   );
+  expect(initialSnapshot.queue.slice(10, 12)).toEqual(["Oracle", "Chronos"]);
   expect(initialSnapshot.queue.at(-1)).toBe("Gemini");
 
   await page.evaluate(() => {
@@ -70,13 +75,15 @@ test("淘汰賽永久淘汰、分層候補與縮桌流程", async ({ page }) => 
   expect(new Set(middleSnapshot.eliminated)).toEqual(
     new Set(["Leo", "Toto", "Foxy", "Wolf", "Pao", "Shark"]),
   );
-  expect(middleSnapshot.queue.at(-1)).toBe("Gemini");
+  expect(middleSnapshot.queue.slice(-3)).toEqual(["Oracle", "Chronos", "Gemini"]);
 
   await page.evaluate(() => {
     state.handOver = true;
     state.waitingForHuman = false;
-    if (!state.tournament.eliminated.includes("Vlad")) {
-      state.tournament.eliminated.push("Vlad");
+    for (const skipped of ["Vlad", "Oracle", "Chronos", "Gemini"]) {
+      if (!state.tournament.eliminated.includes(skipped)) {
+        state.tournament.eliminated.push(skipped);
+      }
     }
     state.tournament.queue = [];
     state.players.slice(2).forEach(player => {
@@ -104,6 +111,7 @@ test("淘汰賽永久淘汰、分層候補與縮桌流程", async ({ page }) => 
   await expect(page.locator("#sessionSummaryOverlay")).toBeVisible();
   await expect(page.locator("#sessionSummaryContent .session-hero h2")).toHaveText("淘汰賽冠軍");
   await expect(page.locator(".tournament-summary-card")).toContainText("完整通關");
+  await expect(page.locator(".tournament-summary-card")).toContainText("19");
 });
 
 test("淘汰賽 Gemini 登場時立即取得安全後端資格", async ({ page }) => {
