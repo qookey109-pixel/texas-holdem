@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-ai-tier-boss-preview-2026-08-03",
+  "buildId": "desktop-main-ai-tier-boss-published-2026-08-03",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
