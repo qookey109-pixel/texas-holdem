@@ -189,10 +189,20 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.appendChild(reviewScript);
   };
 
+  const loadGoogleAuth = () => {
+    if (document.querySelector('script[data-google-auth]')) return;
+    const authScript = document.createElement("script");
+    authScript.src = "js/google-auth.js?v=google-auth-v1";
+    authScript.async = false;
+    authScript.dataset.googleAuth = "true";
+    document.body.appendChild(authScript);
+  };
+
   loadEliteCharacterPresentation();
   loadTableStatusDock();
   loadTournamentVisibleEntry();
   loadCoachHandReviewIntegration();
+  loadGoogleAuth();
 
   if (!document.querySelector('script[data-tournament-mode]')) {
     const tournamentScript = document.createElement("script");
