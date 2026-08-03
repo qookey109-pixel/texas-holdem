@@ -221,3 +221,29 @@
     display: none;
   }
 }
+
+/* Keep the account control from pushing the whole desktop toolbar toward the table centre. */
+.top-bar {
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+
+.top-bar-actions {
+  width: 100%;
+  justify-self: stretch;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+
+@media (max-width: 1700px) {
+  #authAccountButton[data-auth-placement="topbar"] {
+    width: 38px;
+    min-width: 38px !important;
+    max-width: 38px;
+    padding: 0 5px !important;
+    flex: 0 0 38px;
+  }
+
+  #authAccountButton[data-auth-placement="topbar"] .auth-account-label {
+    display: none;
+  }
+}
