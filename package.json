@@ -9,7 +9,8 @@
   "scripts": {
     "validate": "node scripts/validate-static-site.mjs",
     "test:e2e": "playwright test",
-    "test:e2e:headed": "playwright test --headed"
+    "test:e2e:headed": "playwright test --headed",
+    "test:ai-calibration": "playwright test tests/e2e/ai-calibration-v1-6.spec.js --project=chromium"
   },
   "devDependencies": {
     "@playwright/test": "1.61.0"

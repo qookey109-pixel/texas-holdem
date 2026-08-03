@@ -4,7 +4,7 @@ function collectRuntimeIssues(page) {
   const issues = [];
   page.on("pageerror", error => issues.push(`pageerror: ${error.message}`));
   page.on("console", message => {
-    if (message.type() === "error") issues.push(`console: ${message.text()}`);
+    if (message.type() === "error") issues.push(`console: ${message.text()}`));
   });
   return issues;
 }
@@ -22,7 +22,7 @@ test("翻牌先完成輕量繪製，再於後續畫面幀更新完整牌桌", as
     { timeout: 12_000 },
   ).toBe(true);
 
-  const immediate = await page.evaluate(() => {
+  const snapshots = await page.evaluate(() => {
     window.AiTimingController?.clear?.();
     window.GeminiAsyncBettingLoop?.cancelPending?.();
     clearAutoNewHandTimer();
@@ -54,20 +54,60 @@ test("翻牌先完成輕量繪製，再於後續畫面幀更新完整牌桌", as
 
     window.StreetTransitionPerformance.cancel();
     window.StreetTransitionPerformance.resetMetrics();
-    advanceStreet();
-    render();
 
-    return {
-      status: window.StreetTransitionPerformance.status(),
-      boardLength: state.board.length,
-      renderedCards: document.querySelectorAll("#boardCards .card:not(.back)").length,
-      previewMarker: document.querySelector("#boardCards")?.dataset.streetPreview || "",
-      stage: document.querySelector("#boardStageLabel")?.textContent || "",
-      buttonsDisabled: ["foldButton", "callButton", "raiseButton", "allInButton"]
-        .every(id => document.getElementById(id)?.disabled),
+    // CI runners can throttle real animation frames under load. Queue and flush
+    // the two frames within one event turn so background AI cannot change hands
+    // between the preview snapshot and the full-render assertion.
+    const originalRaf = window.requestAnimationFrame;
+    const originalCancelRaf = window.cancelAnimationFrame;
+    let frameId = 0;
+    let frameQueue = [];
+    window.requestAnimationFrame = callback => {
+      const id = ++frameId;
+      frameQueue.push({ id, callback });
+      return id;
     };
+    window.cancelAnimationFrame = id => {
+      frameQueue = frameQueue.filter(frame => frame.id !== id);
+    };
+
+    try {
+      advanceStreet();
+      render();
+
+      const immediate = {
+        status: window.StreetTransitionPerformance.status(),
+        queuedFrames: frameQueue.length,
+        boardLength: state.board.length,
+        renderedCards: document.querySelectorAll("#boardCards .card:not(.back)").length,
+        previewMarker: document.querySelector("#boardCards")?.dataset.streetPreview || "",
+        stage: document.querySelector("#boardStageLabel")?.textContent || "",
+        buttonsDisabled: ["foldButton", "callButton", "raiseButton", "allInButton"]
+          .every(id => document.getElementById(id)?.disabled),
+      };
+
+      const flushNextFrame = () => {
+        const frame = frameQueue.shift();
+        if (!frame) throw new Error("expected a queued street transition frame");
+        frame.callback(performance.now());
+      };
+      flushNextFrame();
+      flushNextFrame();
+
+      const completed = {
+        status: window.StreetTransitionPerformance.status(),
+        previewMarker: document.querySelector("#boardCards")?.dataset.streetPreview || "",
+        renderedCards: document.querySelectorAll("#boardCards .card:not(.back)").length,
+      };
+
+      return { immediate, completed };
+    } finally {
+      window.requestAnimationFrame = originalRaf;
+      window.cancelAnimationFrame = originalCancelRaf;
+    }
   });
 
+  const { immediate, completed } = snapshots;
   expect(immediate.boardLength).toBe(3);
   expect(immediate.renderedCards).toBe(3);
   expect(immediate.previewMarker).toBe("true");
@@ -77,13 +117,12 @@ test("翻牌先完成輕量繪製，再於後續畫面幀更新完整牌桌", as
   expect(immediate.status.skippedRenderCount).toBe(1);
   expect(immediate.status.scheduledFullRenderCount).toBe(0);
   expect(immediate.status.pending).toBe(true);
+  expect(immediate.queuedFrames).toBe(1);
 
-  await expect.poll(
-    () => page.evaluate(() => window.StreetTransitionPerformance.status().scheduledFullRenderCount),
-    { timeout: 4_000 },
-  ).toBe(1);
-  await expect(page.locator("#boardCards")).not.toHaveAttribute("data-street-preview", "true");
-  await expect(page.locator("#boardCards .card:not(.back)")).toHaveCount(3);
+  expect(completed.status.scheduledFullRenderCount).toBe(1);
+  expect(completed.status.pending).toBe(false);
+  expect(completed.previewMarker).toBe("");
+  expect(completed.renderedCards).toBe(3);
 
   await page.waitForTimeout(100);
   expect(runtimeIssues, runtimeIssues.join("\n")).toEqual([]);
