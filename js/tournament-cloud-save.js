@@ -1,4 +1,4 @@
-// Authenticated tournament cloud save with local fallback.
+// Authenticated tournament cloud save with local fallback and cumulative session statistics.
 (() => {
   "use strict";
 
@@ -10,10 +10,10 @@
     clientModuleUrl: "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm",
     table: "tournament_saves",
     localPrefix: "texasHoldemTournamentSaveV1:",
-    schemaVersion: 1,
+    schemaVersion: 2,
+    acceptedSchemaVersions: new Set([1, 2]),
   });
 
-  const NORMAL_MODE = "normal";
   const TOURNAMENT_MODE = "tournament";
   const MAX_STACK = 1_000_000_000;
   const MAX_HAND_NUMBER = 1_000_000;
@@ -78,9 +78,36 @@
     };
   }
 
+  function normalizeHeroStyle(raw, handNumber, heroStack) {
+    const source = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const hands = Math.max(
+      cleanInteger(source.hands, 0, MAX_HAND_NUMBER),
+      cleanInteger(handNumber, 0, MAX_HAND_NUMBER),
+    );
+    const count = value => cleanInteger(value, 0, hands);
+    return {
+      hands,
+      vpip: count(source.vpip),
+      raises: count(source.raises),
+      calls: count(source.calls),
+      checks: count(source.checks),
+      folds: count(source.folds),
+      allIns: count(source.allIns),
+      showdowns: count(source.showdowns),
+      wins: count(source.wins),
+      maxStack: Math.max(
+        cleanInteger(source.maxStack, 0, MAX_STACK),
+        cleanInteger(heroStack, 0, MAX_STACK),
+      ),
+      biggestPot: cleanInteger(source.biggestPot, 0, MAX_STACK),
+      bestWin: cleanInteger(source.bestWin, 0, MAX_STACK),
+    };
+  }
+
   function normalizePayload(raw) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-    if (Number(raw.schemaVersion) !== CONFIG.schemaVersion) return null;
+    const sourceSchemaVersion = Number(raw.schemaVersion);
+    if (!CONFIG.acceptedSchemaVersions.has(sourceSchemaVersion)) return null;
     if (raw.mode !== TOURNAMENT_MODE) return null;
 
     const allowedNames = knownAiNames();
@@ -98,16 +125,19 @@
     const result = tournamentRaw.result === "win" || tournamentRaw.result === "loss"
       ? tournamentRaw.result
       : null;
+    const handNumber = cleanInteger(raw.handNumber, 0, MAX_HAND_NUMBER);
+    const hero = {
+      stack: cleanInteger(raw.hero?.stack, 0, MAX_STACK),
+      wins: cleanInteger(raw.hero?.wins, 0, MAX_HAND_NUMBER),
+    };
 
     return {
       schemaVersion: CONFIG.schemaVersion,
       mode: TOURNAMENT_MODE,
       savedAt: cleanText(raw.savedAt, 40) || new Date().toISOString(),
-      handNumber: cleanInteger(raw.handNumber, 0, MAX_HAND_NUMBER),
-      hero: {
-        stack: cleanInteger(raw.hero?.stack, 0, MAX_STACK),
-        wins: cleanInteger(raw.hero?.wins, 0, MAX_HAND_NUMBER),
-      },
+      handNumber,
+      hero,
+      heroStyle: normalizeHeroStyle(raw.heroStyle, handNumber, hero.stack),
       seats,
       tournament: {
         active: true,
@@ -145,6 +175,7 @@
         stack: hero.stack,
         wins: hero.wins,
       },
+      heroStyle: state.heroStyle,
       seats: (state.players || [])
         .filter(player => player && !player.isHuman)
         .map(player => ({
@@ -322,7 +353,7 @@
     saveSource = "local";
     remoteUpdatedAt = normalized.savedAt;
     busy = true;
-    statusText = reason === "pause" ? "正在暫停並儲存…" : "正在儲存本手淘汰賽進度…";
+    statusText = reason === "pause" ? "正在暫停並儲存…" : "正在儲存本手淘汰賽進度與統計…";
     statusTone = "pending";
     renderPanel();
 
@@ -336,12 +367,12 @@
       if (error) throw error;
       saveSource = "cloud";
       statusText = reason === "pause"
-        ? "已暫停並同步到雲端。"
-        : "本手進度已同步到雲端。";
+        ? "已暫停並同步進度與統計到雲端。"
+        : "本手進度與累積統計已同步到雲端。";
       statusTone = "success";
       return normalized;
     } catch (error) {
-      statusText = "雲端同步失敗，已保留本機備份。";
+      statusText = "雲端同步失敗，已保留包含統計的本機備份。";
       statusTone = "pending";
       return normalized;
     } finally {
@@ -390,6 +421,14 @@
     };
   }
 
+  function restoreHeroStyle(heroStyle) {
+    state.heroStyle = { ...heroStyle };
+    state.heroCurrentHand = typeof createHeroHandTracker === "function"
+      ? createHeroHandTracker()
+      : {};
+    if (typeof saveHeroStyleStats === "function") saveHeroStyleStats();
+  }
+
   function restoreSave(payload = remoteSave) {
     const normalized = normalizePayload(payload);
     if (!normalized || typeof state !== "object" || typeof startHand !== "function") {
@@ -420,6 +459,7 @@
     state.waitingForHuman = false;
     state.currentActorIndex = 0;
     state.selectedProfilePosition = null;
+    restoreHeroStyle(normalized.heroStyle);
     state.tournament = {
       active: true,
       started: normalized.tournament.started,
@@ -466,12 +506,12 @@
     if (normalized.tournament.finished) {
       render?.();
       maybeShowSessionSummary?.();
-      statusText = "已恢復完成的淘汰賽紀錄。";
+      statusText = "已恢復完成的淘汰賽紀錄與累積統計。";
       statusTone = "success";
       return true;
     }
 
-    statusText = `已恢復第 ${normalized.handNumber} 手結束時的進度，正在發下一手。`;
+    statusText = `已恢復第 ${normalized.handNumber} 手結束時的進度與統計，正在發下一手。`;
     statusTone = "success";
     startHand();
     window.TexasHoldemAuth?.refresh?.();
@@ -578,7 +618,7 @@
           <div><span>TOURNAMENT SAVE</span><strong>淘汰賽雲端存檔</strong></div>
           <em id="tournamentSaveSource">尚無存檔</em>
         </div>
-        <p id="tournamentSaveMeta" class="tournament-save-meta">每手結束後自動儲存，不保存進行中的底牌。</p>
+        <p id="tournamentSaveMeta" class="tournament-save-meta">每手結束後自動儲存進度與累積統計，不保存進行中的底牌。</p>
         <div class="tournament-save-actions">
           <button id="tournamentResumeButton" type="button">▶ 繼續淘汰賽</button>
           <button id="tournamentPauseSaveButton" type="button">⏸ 暫停並儲存</button>
@@ -616,8 +656,8 @@
     }
     if (meta) {
       meta.textContent = remoteSave
-        ? `第 ${remoteSave.handNumber} 手結束 · 已淘汰 ${remoteSave.tournament.eliminated.length} 位 · ${formatDate(remoteUpdatedAt || remoteSave.savedAt)}`
-        : "每手結束後自動儲存，不保存進行中的底牌。";
+        ? `第 ${remoteSave.handNumber} 手結束 · 統計 ${remoteSave.heroStyle.hands} 手 · 已淘汰 ${remoteSave.tournament.eliminated.length} 位 · ${formatDate(remoteUpdatedAt || remoteSave.savedAt)}`
+        : "每手結束後自動儲存進度與累積統計，不保存進行中的底牌。";
     }
     if (status) {
       status.textContent = statusText;
@@ -716,7 +756,7 @@
   }, 250);
 
   window.TournamentCloudSave = {
-    version: "1.0.0",
+    version: "2.0.0",
     exportCurrentSave,
     normalizePayload,
     load: loadAvailableSave,
@@ -732,6 +772,7 @@
         busy,
         pauseRequested,
         handNumber: remoteSave?.handNumber || 0,
+        statsHands: remoteSave?.heroStyle?.hands || 0,
         lastMessage: statusText,
       };
     },
