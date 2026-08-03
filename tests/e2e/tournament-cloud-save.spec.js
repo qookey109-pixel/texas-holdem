@@ -366,7 +366,7 @@ test("V2 存檔可恢復下一手、完整累積統計並刪除重開", async ({
   expect(await page.evaluate(() => state.players[0].name)).toBe("雲端玩家");
   expect(await page.evaluate(() => state.autoNewHand)).toBe(false);
   expect(await page.evaluate(() => state.heroStyle)).toEqual(payload.heroStyle);
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("texasHoldemHeroStyleV1")))).toEqual(payload.heroStyle);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem(HERO_STYLE_STORAGE_KEY)))).toEqual(payload.heroStyle);
 
   await page.locator("#authAccountButton").click();
   await page.locator("#tournamentDeleteSaveButton").click();
