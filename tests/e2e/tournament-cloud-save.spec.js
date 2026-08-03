@@ -2,6 +2,21 @@ import { expect, test } from "@playwright/test";
 
 const USER_ID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 
+const HERO_STYLE = {
+  hands: 7,
+  vpip: 5,
+  raises: 2,
+  calls: 4,
+  checks: 1,
+  folds: 2,
+  allIns: 1,
+  showdowns: 3,
+  wins: 2,
+  maxStack: 6400,
+  biggestPot: 5200,
+  bestWin: 3100,
+};
+
 function testSession() {
   return {
     access_token: "cloud-save-access-token",
@@ -103,7 +118,8 @@ async function waitForCloudSave(page) {
   await expect.poll(
     () => page.evaluate(() => window.TournamentCloudSave?.version || ""),
     { timeout: 12_000 },
-  ).toBe("1.0.0");
+  ).toBe("2.0.0");
+  await expect(page.locator('script[src="js/tournament-cloud-save.js?v=tournament-cloud-save-v2"]')).toHaveCount(1);
   await expect.poll(
     () => page.evaluate(() => window.TexasHoldemAuth?.status().signedIn || false),
     { timeout: 12_000 },
@@ -111,7 +127,7 @@ async function waitForCloudSave(page) {
 }
 
 function setSettledTournamentState(page, handNumber = 7) {
-  return page.evaluate(number => {
+  return page.evaluate(({ number, heroStyle }) => {
     window.AiTimingController?.clear?.();
     window.GeminiAsyncBettingLoop?.cancelPending?.();
     clearAutoNewHandTimer();
@@ -127,6 +143,9 @@ function setSettledTournamentState(page, handNumber = 7) {
     state.deck = [{ rank: "A", suit: "spades" }];
     state.board = [{ rank: "K", suit: "hearts" }];
     state.autoNewHandTimer = null;
+    state.heroStyle = { ...heroStyle, hands: number };
+    state.heroCurrentHand = createHeroHandTracker();
+    saveHeroStyleStats();
     state.players = [
       {
         name: "雲端玩家",
@@ -199,10 +218,10 @@ function setSettledTournamentState(page, handNumber = 7) {
       lastOpponent: "",
       dealerCursor: 1,
     };
-  }, handNumber);
+  }, { number: handNumber, heroStyle: HERO_STYLE });
 }
 
-test("每手結束自動儲存且快照不包含底牌與執行期物件", async ({ page }) => {
+test("每手結束自動儲存進度與累積統計，且快照不包含底牌與執行期物件", async ({ page }) => {
   await installCloudMock(page);
   await page.goto("/", { waitUntil: "networkidle" });
   await waitForCloudSave(page);
@@ -215,11 +234,12 @@ test("每手結束自動儲存且快照不包含底牌與執行期物件", async
 
   const record = await page.evaluate(() => window.__CLOUD_SAVE_TEST__.upserts[0].value);
   expect(record.user_id).toBe(USER_ID);
-  expect(record.save_version).toBe(1);
-  expect(record.payload.schemaVersion).toBe(1);
+  expect(record.save_version).toBe(2);
+  expect(record.payload.schemaVersion).toBe(2);
   expect(record.payload.mode).toBe("tournament");
   expect(record.payload.handNumber).toBe(7);
   expect(record.payload.hero).toEqual({ stack: 3120, wins: 3 });
+  expect(record.payload.heroStyle).toEqual(HERO_STYLE);
   expect(record.payload.seats.map(seat => seat.name)).toEqual(["Leo", "Toto"]);
 
   const serialized = JSON.stringify(record.payload);
@@ -228,11 +248,13 @@ test("每手結束自動儲存且快照不包含底牌與執行期物件", async
   expect(serialized).not.toContain("board");
   expect(serialized).not.toContain("autoNewHandTimer");
   expect(serialized).not.toContain("dialogueTimers");
+  expect(serialized).not.toContain("heroCurrentHand");
 
   const localBackup = await page.evaluate(userId => (
     JSON.parse(localStorage.getItem(`texasHoldemTournamentSaveV1:${userId}`))
   ), USER_ID);
   expect(localBackup.handNumber).toBe(7);
+  expect(localBackup.heroStyle).toEqual(HERO_STYLE);
 });
 
 test("進行中的淘汰賽只安排結束後暫停並儲存", async ({ page }) => {
@@ -282,13 +304,27 @@ test("進行中的淘汰賽只安排結束後暫停並儲存", async ({ page }) 
   expect(await page.evaluate(() => window.TournamentCloudSave.status().lastMessage)).toContain("暫停");
 });
 
-test("登入後可恢復下一手並刪除存檔重新開始", async ({ page }) => {
+test("V2 存檔可恢復下一手、完整累積統計並刪除重開", async ({ page }) => {
   const payload = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     mode: "tournament",
     savedAt: "2026-08-03T04:30:00.000Z",
     handNumber: 12,
     hero: { stack: 2400, wins: 4 },
+    heroStyle: {
+      hands: 12,
+      vpip: 8,
+      raises: 4,
+      calls: 6,
+      checks: 3,
+      folds: 4,
+      allIns: 2,
+      showdowns: 5,
+      wins: 4,
+      maxStack: 9200,
+      biggestPot: 7600,
+      bestWin: 4400,
+    },
     seats: [
       { name: "Leo", stack: 1600, wins: 1, emotion: "calm", streak: 0 },
       { name: "Toto", stack: 0, wins: 0, emotion: "tilted", streak: -2 },
@@ -307,7 +343,7 @@ test("登入後可恢復下一手並刪除存檔重新開始", async ({ page }) 
     },
   };
   await installCloudMock(page, {
-    save_version: 1,
+    save_version: 2,
     payload,
     updated_at: payload.savedAt,
   });
@@ -316,6 +352,7 @@ test("登入後可恢復下一手並刪除存檔重新開始", async ({ page }) 
 
   await page.locator("#authAccountButton").click();
   await expect(page.locator("#tournamentCloudSavePanel")).toBeVisible();
+  await expect(page.locator("#tournamentSaveMeta")).toContainText("統計 12 手");
   await expect(page.locator("#tournamentResumeButton")).toBeEnabled();
   await page.locator("#tournamentResumeButton").click();
 
@@ -328,6 +365,8 @@ test("登入後可恢復下一手並刪除存檔重新開始", async ({ page }) 
   expect(await page.evaluate(() => state.board.length)).toBe(0);
   expect(await page.evaluate(() => state.players[0].name)).toBe("雲端玩家");
   expect(await page.evaluate(() => state.autoNewHand)).toBe(false);
+  expect(await page.evaluate(() => state.heroStyle)).toEqual(payload.heroStyle);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("texasHoldemHeroStyleV1")))).toEqual(payload.heroStyle);
 
   await page.locator("#authAccountButton").click();
   await page.locator("#tournamentDeleteSaveButton").click();
@@ -340,4 +379,52 @@ test("登入後可恢復下一手並刪除存檔重新開始", async ({ page }) 
   ).toBe(1);
   expect(await page.evaluate(userId => localStorage.getItem(`texasHoldemTournamentSaveV1:${userId}`), USER_ID)).toBeNull();
   expect(await page.evaluate(() => window.TournamentCloudSave.status().hasSave)).toBe(false);
+});
+
+test("舊 V1 存檔會保留挑戰進度並以手數修復缺少的累積統計", async ({ page }) => {
+  const legacyPayload = {
+    schemaVersion: 1,
+    mode: "tournament",
+    savedAt: "2026-08-03T04:40:00.000Z",
+    handNumber: 17,
+    hero: { stack: 28640, wins: 8 },
+    seats: [
+      { name: "Gemini", stack: 4670, wins: 1, emotion: "calm", streak: 0 },
+      { name: "Oracle", stack: 1100, wins: 1, emotion: "calm", streak: 0 },
+    ],
+    tournament: {
+      active: true,
+      started: true,
+      queue: [],
+      appeared: ["Gemini", "Oracle"],
+      eliminated: ["Leo", "Toto", "Foxy"],
+      finished: false,
+      result: null,
+      lastEliminated: "Foxy",
+      lastOpponent: "",
+      dealerCursor: 1,
+    },
+  };
+  await installCloudMock(page, {
+    save_version: 1,
+    payload: legacyPayload,
+    updated_at: legacyPayload.savedAt,
+  });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await waitForCloudSave(page);
+
+  await page.locator("#authAccountButton").click();
+  await expect(page.locator("#tournamentSaveMeta")).toContainText("統計 17 手");
+  await page.locator("#tournamentResumeButton").click();
+
+  await expect.poll(() => page.evaluate(() => state.handNumber)).toBe(18);
+  expect(await page.evaluate(() => state.heroStyle.hands)).toBe(17);
+  expect(await page.evaluate(() => state.heroStyle.maxStack)).toBe(28640);
+  expect(await page.evaluate(() => state.tournament.eliminated)).toEqual(["Leo", "Toto", "Foxy"]);
+
+  const migratedLocal = await page.evaluate(userId => (
+    JSON.parse(localStorage.getItem(`texasHoldemTournamentSaveV1:${userId}`))
+  ), USER_ID);
+  expect(migratedLocal.schemaVersion).toBe(2);
+  expect(migratedLocal.heroStyle.hands).toBe(17);
 });
