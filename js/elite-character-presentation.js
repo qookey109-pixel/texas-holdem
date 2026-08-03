@@ -27,6 +27,11 @@
     "aiTierBossSystem",
   );
   loadOnce(
+    'script[data-ai-character-strategies]',
+    "js/ai-character-strategies-v1.js?v=independent-ai-v1",
+    "aiCharacterStrategies",
+  );
+  loadOnce(
     'script[data-fair-special-bosses]',
     "js/fair-special-bosses.js?v=public-showdown-range-v2",
     "fairSpecialBosses",
