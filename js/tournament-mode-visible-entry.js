@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  if (window.TournamentModeVisibleEntry?.version === "3.2.0") return;
+  if (window.TournamentModeVisibleEntry?.version === "3.3.0") return;
 
   const NORMAL_MODE = "normal";
   const TOURNAMENT_MODE = "tournament";
@@ -34,10 +34,25 @@
     if (document.querySelector('script[data-tournament-cloud-save]')) return false;
 
     const script = document.createElement("script");
-    script.src = "js/tournament-cloud-save.js?v=tournament-cloud-save-v1";
+    script.src = "js/tournament-cloud-save.js?v=tournament-cloud-save-v2";
     script.async = false;
     script.dataset.tournamentCloudSave = "true";
     script.addEventListener("load", scheduleSync, { once: true });
+    document.body.appendChild(script);
+    return true;
+  }
+
+  function loadStreetTransitionPerformance() {
+    if (window.StreetTransitionPerformance?.version) {
+      window.StreetTransitionPerformance.install?.();
+      return true;
+    }
+    if (document.querySelector('script[data-street-transition-performance]')) return false;
+
+    const script = document.createElement("script");
+    script.src = "js/street-transition-performance.js?v=street-paint-v1";
+    script.async = false;
+    script.dataset.streetTransitionPerformance = "true";
     document.body.appendChild(script);
     return true;
   }
@@ -190,6 +205,7 @@
   function syncUi() {
     applyDefaultAutoNewHand();
     installStyles();
+    loadStreetTransitionPerformance();
     loadUnifiedControls();
     loadTournamentCloudSave();
     mountChallengeButton();
@@ -212,7 +228,7 @@
   });
 
   window.TournamentModeVisibleEntry = {
-    version: "3.2.0",
+    version: "3.3.0",
     refresh: syncUi,
     stop() {
       observer?.disconnect();
