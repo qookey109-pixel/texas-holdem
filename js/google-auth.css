@@ -234,14 +234,14 @@
   flex-wrap: nowrap;
 }
 
-/* Match the settings trigger to the 38px topbar control row. */
+/* Match the settings trigger to the adjacent rectangular controls. */
 #settingsMenuButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   align-self: center;
-  height: 38px !important;
-  min-height: 38px !important;
+  height: 34px !important;
+  min-height: 34px !important;
   padding-block: 0 !important;
   line-height: 1;
 }
