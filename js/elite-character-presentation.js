@@ -47,6 +47,16 @@
     "aiCharacterStrategiesV11",
   );
   loadOnce(
+    'script[data-ai-preflop-range-engine]',
+    "js/ai-preflop-range-engine-v1.js?v=preflop-range-ai-v1-2",
+    "aiPreflopRangeEngine",
+  );
+  loadOnce(
+    'script[data-ai-character-strategies-v1-2]',
+    "js/ai-character-strategies-v1-2.js?v=preflop-range-ai-v1-2",
+    "aiCharacterStrategiesV12",
+  );
+  loadOnce(
     'script[data-fair-special-bosses]',
     "js/fair-special-bosses.js?v=public-showdown-range-v2",
     "fairSpecialBosses",
