@@ -13,6 +13,7 @@
 
   let installed = false;
   let originalRender = null;
+  let wrappedRender = null;
   let visibleHandNumber = -1;
   let visibleCardSignature = "";
   let visibleChildCount = 0;
@@ -170,6 +171,13 @@
     pendingDeal = false;
     clearPreviewMarker();
     deferredFullRenderCount += 1;
+
+    // Re-enter the current public render entry so wrappers installed after this
+    // module (seat balance, street transitions, mode UI) still run normally.
+    const currentRenderEntry = window.render;
+    if (typeof currentRenderEntry === "function" && currentRenderEntry !== originalRender) {
+      return currentRenderEntry.apply(pendingContext, pendingArgs);
+    }
     return withStableVisibleCards(() => originalRender.apply(pendingContext, pendingArgs));
   }
 
@@ -191,7 +199,7 @@
 
     installMotionStyle();
     originalRender = window.render;
-    window.render = function renderWithStableHeroCards(...args) {
+    wrappedRender = function renderWithStableHeroCards(...args) {
       pendingContext = this;
       pendingArgs = args;
 
@@ -205,6 +213,7 @@
 
       return withStableVisibleCards(() => originalRender.apply(this, args));
     };
+    window.render = wrappedRender;
 
     installed = true;
     rememberVisibleCards();
