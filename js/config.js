@@ -189,13 +189,99 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.appendChild(reviewScript);
   };
 
+  const installGoogleAuthTopbarPlacement = () => {
+    if (document.documentElement.dataset.googleAuthTopbarPlacement === "true") return;
+    document.documentElement.dataset.googleAuthTopbarPlacement = "true";
+
+    if (!document.querySelector("#googleAuthTopbarPlacementStyles")) {
+      const style = document.createElement("style");
+      style.id = "googleAuthTopbarPlacementStyles";
+      style.textContent = `
+        .top-bar-actions > #authAccountButton {
+          width: auto !important;
+          min-width: 96px !important;
+          max-width: 156px;
+          min-height: 34px;
+          padding: 0 8px !important;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          flex: 0 1 auto;
+        }
+        .top-bar-actions > #authAccountButton .auth-account-label {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .top-bar-actions > #authAccountButton[data-auth-state="signed-in"] {
+          border-color: rgba(112,216,201,.5);
+          background: rgba(112,216,201,.1);
+        }
+        @media (max-width: 1180px) {
+          .top-bar-actions > #authAccountButton {
+            width: 38px !important;
+            min-width: 38px !important;
+            max-width: 38px;
+            padding: 0 5px !important;
+          }
+          .top-bar-actions > #authAccountButton .auth-account-label {
+            display: none;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    const placeButton = () => {
+      const actions = document.querySelector(".top-bar-actions");
+      const button = document.querySelector("#authAccountButton");
+      if (!actions || !button) return false;
+
+      const settingsButton = document.querySelector("#settingsMenuButton");
+      button.classList.remove("topbar-settings-item");
+      button.classList.add("tool-button", "auth-account-topbar-button");
+      button.dataset.authPlacement = "topbar";
+      button.setAttribute("aria-label", "玩家帳號與 Google 登入");
+      button.title = "玩家帳號與 Google 登入";
+
+      if (button.parentElement !== actions || (settingsButton && button.nextElementSibling !== settingsButton)) {
+        actions.insertBefore(button, settingsButton || null);
+      }
+
+      const overlay = document.querySelector("#authAccountOverlay");
+      if (overlay && overlay.dataset.topbarFocusGuard !== "true") {
+        overlay.dataset.topbarFocusGuard = "true";
+        const focusObserver = new MutationObserver(() => {
+          if (overlay.hidden) window.setTimeout(() => button.focus({ preventScroll: true }), 0);
+        });
+        focusObserver.observe(overlay, { attributes: true, attributeFilter: ["hidden"] });
+      }
+      return true;
+    };
+
+    if (placeButton()) return;
+    const observer = new MutationObserver(() => {
+      if (!placeButton()) return;
+      observer.disconnect();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    window.setTimeout(() => observer.disconnect(), 15000);
+  };
+
   const loadGoogleAuth = () => {
-    if (document.querySelector('script[data-google-auth]')) return;
+    if (document.querySelector('script[data-google-auth]')) {
+      installGoogleAuthTopbarPlacement();
+      return;
+    }
     const authScript = document.createElement("script");
     authScript.src = "js/google-auth.js?v=google-auth-v1";
     authScript.async = false;
     authScript.dataset.googleAuth = "true";
+    authScript.addEventListener("load", installGoogleAuthTopbarPlacement, { once: true });
     document.body.appendChild(authScript);
+    installGoogleAuthTopbarPlacement();
   };
 
   loadEliteCharacterPresentation();
