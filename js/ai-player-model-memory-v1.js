@@ -18,6 +18,7 @@
   ];
   const MAX_COUNT = 100_000;
   const MAX_HANDS = 20_000;
+  const CLOUD_POLL_MS = 30_000;
   const CLOUD_CONFIG = Object.freeze({
     projectUrl: "https://iphhyjutbrahvfnsvdfn.supabase.co",
     publishableKey: "sb_publishable_MbNQVDLJkB-_1Z05aQ1FRA_V3XCNfMx",
@@ -32,9 +33,11 @@
   let saveTimer = 0;
   let cloudTimer = 0;
   let cloudBusy = false;
-  let lastCloudFingerprint = "";
+  let cloudDirty = false;
   let lastIdentityCheckAt = 0;
   let lastCloudSyncAt = 0;
+  let lastModelUpdatedAt = 0;
+  let lastTournamentSaveMarker = "";
 
   function clampInteger(value, maximum = MAX_COUNT) {
     const number = Math.trunc(Number(value));
@@ -105,7 +108,7 @@
     }
 
     const streetActions = STREET_KEYS.reduce((total, street) => total + snapshot.byStreet[street].actions, 0);
-    snapshot.actionsObserved = Math.max(snapshot.actionsObserved, streetActions);
+    snapshot.actionsObserved = Math.min(MAX_COUNT, Math.max(snapshot.actionsObserved, streetActions));
     return snapshot;
   }
 
@@ -114,12 +117,18 @@
     return sanitizeSnapshot({
       schemaVersion: SNAPSHOT_VERSION,
       modelVersion: MODEL_VERSION,
-      updatedAt: Date.now(),
+      updatedAt: lastModelUpdatedAt,
       handsObserved: source.handsObserved,
       actionsObserved: source.actionsObserved,
       byStreet: source.byStreet,
       byPosition: source.byPosition,
     });
+  }
+
+  function snapshotFingerprint(raw) {
+    const snapshot = sanitizeSnapshot(raw);
+    snapshot.updatedAt = 0;
+    return JSON.stringify(snapshot);
   }
 
   function mergeBuckets(left, right) {
@@ -134,7 +143,7 @@
     const first = sanitizeSnapshot(left);
     const second = sanitizeSnapshot(right);
     const merged = emptySnapshot();
-    merged.updatedAt = Math.max(first.updatedAt, second.updatedAt, Date.now());
+    merged.updatedAt = Math.max(first.updatedAt, second.updatedAt);
     merged.handsObserved = Math.max(first.handsObserved, second.handsObserved);
     merged.actionsObserved = Math.max(first.actionsObserved, second.actionsObserved);
     for (const street of STREET_KEYS) merged.byStreet[street] = mergeBuckets(first.byStreet[street], second.byStreet[street]);
@@ -149,6 +158,7 @@
     if (typeof state !== "object" || !window.AiPlayerModel?.ensureModel) return null;
     const incoming = sanitizeSnapshot(raw);
     const resolved = merge ? mergeSnapshots(exportSnapshot(), incoming) : incoming;
+    lastModelUpdatedAt = resolved.updatedAt;
     state.aiPlayerModel = {
       version: MODEL_VERSION,
       handsObserved: resolved.handsObserved,
@@ -185,18 +195,26 @@
     }
   }
 
-  function persistNow() {
+  function markDirty() {
+    lastModelUpdatedAt = Date.now();
+    cloudDirty = true;
+  }
+
+  function persistNow({ sync = true } = {}) {
     window.clearTimeout(saveTimer);
     saveTimer = 0;
+    if (!lastModelUpdatedAt && (state?.aiPlayerModel?.actionsObserved || state?.aiPlayerModel?.handsObserved)) {
+      lastModelUpdatedAt = Date.now();
+    }
     const snapshot = exportSnapshot();
     writeLocal(snapshot);
-    scheduleCloudSync();
+    if (sync) scheduleCloudSync(900, true);
     return snapshot;
   }
 
   function schedulePersist(delay = 120) {
     window.clearTimeout(saveTimer);
-    saveTimer = window.setTimeout(persistNow, Math.max(0, Number(delay) || 0));
+    saveTimer = window.setTimeout(() => persistNow(), Math.max(0, Number(delay) || 0));
   }
 
   async function createCloudClient() {
@@ -228,8 +246,8 @@
     return user?.id ? { client, user } : null;
   }
 
-  async function switchIdentity() {
-    if (Date.now() - lastIdentityCheckAt < 500) return identity;
+  async function switchIdentity(force = false) {
+    if (!force && Date.now() - lastIdentityCheckAt < 500) return identity;
     lastIdentityCheckAt = Date.now();
     let context = null;
     try {
@@ -240,17 +258,19 @@
     const nextIdentity = context?.user?.id ? `user:${context.user.id}` : "guest";
     if (nextIdentity === identity) return identity;
 
-    writeLocal(exportSnapshot(), identity);
+    const currentSnapshot = exportSnapshot();
+    writeLocal(currentSnapshot, identity);
     const previousIdentity = identity;
     identity = nextIdentity;
     const stored = readLocal(identity);
     if (identity === "guest") {
       applySnapshot(stored || emptySnapshot());
     } else {
-      const current = previousIdentity === "guest" ? exportSnapshot() : emptySnapshot();
-      applySnapshot(mergeSnapshots(current, stored || emptySnapshot()));
+      const transferable = previousIdentity === "guest" ? currentSnapshot : emptySnapshot();
+      applySnapshot(mergeSnapshots(transferable, stored || emptySnapshot()));
       writeLocal(exportSnapshot(), identity);
     }
+    cloudDirty = true;
     return identity;
   }
 
@@ -264,7 +284,7 @@
     try {
       const context = await authenticatedContext();
       if (!context) return false;
-      await switchIdentity();
+      await switchIdentity(true);
       const { data, error } = await context.client
         .from(CLOUD_CONFIG.table)
         .select("save_version,payload,updated_at")
@@ -276,35 +296,36 @@
       const localSnapshot = exportSnapshot();
       const cloudSnapshot = sanitizeSnapshot(data.payload.aiPlayerModel);
       const merged = mergeSnapshots(localSnapshot, cloudSnapshot);
+      const mergedFingerprint = snapshotFingerprint(merged);
+      const cloudFingerprint = snapshotFingerprint(cloudSnapshot);
+
       applySnapshot(merged);
       writeLocal(merged);
 
-      const fingerprint = JSON.stringify(merged);
-      if (fingerprint === JSON.stringify(cloudSnapshot) || fingerprint === lastCloudFingerprint) {
-        lastCloudSyncAt = Date.now();
-        return true;
+      if (mergedFingerprint !== cloudFingerprint) {
+        const payload = { ...data.payload, aiPlayerModel: merged };
+        const { error: upsertError } = await context.client.from(CLOUD_CONFIG.table).upsert({
+          user_id: context.user.id,
+          save_version: Math.max(1, clampInteger(data.save_version, 100)),
+          payload,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id" });
+        if (upsertError) throw upsertError;
       }
 
-      const payload = { ...data.payload, aiPlayerModel: merged };
-      const { error: upsertError } = await context.client.from(CLOUD_CONFIG.table).upsert({
-        user_id: context.user.id,
-        save_version: Math.max(1, clampInteger(data.save_version, 100)),
-        payload,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id" });
-      if (upsertError) throw upsertError;
-      lastCloudFingerprint = fingerprint;
+      cloudDirty = false;
       lastCloudSyncAt = Date.now();
       return true;
-    } catch (error) {
+    } catch (_) {
       return false;
     } finally {
       cloudBusy = false;
     }
   }
 
-  function scheduleCloudSync(delay = 900) {
+  function scheduleCloudSync(delay = 900, force = false) {
     if (!window.TournamentCloudSave?.status?.().hasSave) return;
+    if (!force && !cloudDirty && Date.now() - lastCloudSyncAt < CLOUD_POLL_MS) return;
     window.clearTimeout(cloudTimer);
     cloudTimer = window.setTimeout(syncCloud, Math.max(100, Number(delay) || 0));
   }
@@ -315,7 +336,10 @@
     } catch (_) {
       // The in-memory reset still works when browser storage is unavailable.
     }
+    lastModelUpdatedAt = Date.now();
     applySnapshot(emptySnapshot());
+    writeLocal(exportSnapshot());
+    cloudDirty = cloud;
     if (cloud) {
       try {
         const context = await authenticatedContext();
@@ -339,6 +363,8 @@
       } catch (_) {
         // Local reset remains valid if cloud storage is unavailable.
       }
+      cloudDirty = false;
+      lastCloudSyncAt = Date.now();
     }
     return exportSnapshot();
   }
@@ -353,7 +379,10 @@
         const previousLogAction = logAction;
         logAction = function logActionWithLongTermAiMemory(player, action, amount = 0) {
           const result = previousLogAction.apply(this, arguments);
-          if (player?.isHuman) schedulePersist();
+          if (player?.isHuman) {
+            markDirty();
+            schedulePersist();
+          }
           return result;
         };
         window.__aiPlayerModelMemoryLogInstalled = true;
@@ -367,6 +396,7 @@
         const previousStartHand = startHand;
         startHand = function startHandWithLongTermAiMemory(...args) {
           const result = previousStartHand.apply(this, args);
+          markDirty();
           schedulePersist(250);
           return result;
         };
@@ -379,8 +409,8 @@
 
   function refresh() {
     if (!window.AiPlayerModel?.version || typeof state !== "object") return false;
-    const stored = readLocal(identity);
     if (!window.__aiPlayerModelMemoryRestored) {
+      const stored = readLocal(identity);
       applySnapshot(stored || emptySnapshot());
       window.__aiPlayerModelMemoryRestored = true;
     }
@@ -410,31 +440,46 @@
     mergeSnapshots,
     restoreSnapshot: (snapshot, options = {}) => {
       const restored = applySnapshot(snapshot, options);
-      if (restored) writeLocal(restored);
-      return restored;
+      if (restored) {
+        lastModelUpdatedAt = Math.max(lastModelUpdatedAt, restored.updatedAt, Date.now());
+        writeLocal(exportSnapshot());
+        cloudDirty = true;
+      }
+      return exportSnapshot();
     },
     persist: persistNow,
     syncCloud,
     clear,
     refresh,
-    status: () => ({
-      identity,
-      localKey: storageKey(identity),
-      actionsObserved: exportSnapshot().actionsObserved,
-      handsObserved: exportSnapshot().handsObserved,
-      cloudBusy,
-      lastCloudSyncAt,
-    }),
+    status: () => {
+      const snapshot = exportSnapshot();
+      return {
+        identity,
+        localKey: storageKey(identity),
+        actionsObserved: snapshot.actionsObserved,
+        handsObserved: snapshot.handsObserved,
+        cloudBusy,
+        cloudDirty,
+        lastCloudSyncAt,
+      };
+    },
   };
 
   refresh();
   if (!installTimer) installTimer = window.setInterval(refresh, 25);
-  window.addEventListener("pagehide", persistNow);
+  window.addEventListener("pagehide", () => persistNow({ sync: false }));
   window.setInterval(() => {
     switchIdentity().then(() => {
-      if (window.TournamentCloudSave?.status?.().hasSave && !window.TournamentCloudSave?.status?.().busy) {
-        scheduleCloudSync(250);
+      const status = window.TournamentCloudSave?.status?.();
+      if (!status?.hasSave || status.busy) return;
+      const marker = `${status.handNumber}:${status.statsHands}:${status.source}`;
+      if (marker !== lastTournamentSaveMarker) {
+        lastTournamentSaveMarker = marker;
+        cloudDirty = true;
+        scheduleCloudSync(250, true);
+        return;
       }
+      scheduleCloudSync(250, false);
     });
   }, 1000);
 })();
