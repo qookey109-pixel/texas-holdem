@@ -1,0 +1,93 @@
+/* Keep normal and tournament session reports in document flow at short desktop heights. */
+.session-summary-modal {
+  width: min(1120px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+}
+
+#sessionSummaryContent {
+  min-height: 0;
+  max-height: calc(100dvh - 24px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+#sessionSummaryContent > .session-hero,
+#sessionSummaryContent > .session-grid,
+#sessionSummaryContent > .session-restart-button {
+  flex: 0 0 auto;
+}
+
+.session-grid {
+  grid-template-rows: none;
+  grid-auto-rows: max-content;
+  align-items: start;
+  min-height: max-content;
+}
+
+.session-card {
+  min-height: max-content;
+}
+
+.tournament-summary-card .session-key-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.session-radar-card,
+.session-chart-card {
+  align-self: stretch;
+}
+
+.style-radar-wrap {
+  min-height: 232px;
+  align-content: center;
+}
+
+.style-radar {
+  display: block;
+  max-height: 232px;
+}
+
+.session-review-card {
+  position: relative;
+  padding-bottom: 34px;
+}
+
+@media (max-height: 820px) and (min-width: 901px) {
+  #sessionSummaryContent {
+    gap: 8px;
+    padding-block: 12px;
+  }
+
+  .session-hero {
+    padding-bottom: 8px;
+  }
+
+  .session-card {
+    padding-block: 10px;
+  }
+
+  .style-radar-wrap {
+    min-height: 210px;
+  }
+
+  .style-radar {
+    max-height: 210px;
+  }
+}
+
+@media (max-width: 900px) {
+  .session-summary-modal {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+
+  #sessionSummaryContent {
+    max-height: calc(100dvh - 16px);
+  }
+
+  .tournament-summary-card .session-key-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
