@@ -1,4 +1,4 @@
-// Compatibility loader for the stable elite-character presentation.
+// Compatibility loader for stable presentation and optional feature modules.
 (() => {
   "use strict";
 
@@ -25,5 +25,10 @@
     'script[data-ai-tier-boss-system]',
     "js/ai-tier-boss-system.js?v=tier-boss-v1",
     "aiTierBossSystem",
+  );
+  loadOnce(
+    'script[data-ai-provider-client]',
+    "js/ai-provider-client-v1.js?v=custom-ai-provider-v1",
+    "aiProviderClient",
   );
 })();
