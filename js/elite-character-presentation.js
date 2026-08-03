@@ -27,6 +27,11 @@
     "aiTierBossSystem",
   );
   loadOnce(
+    'script[data-fair-special-bosses]',
+    "js/fair-special-bosses.js?v=fair-player-model-v1",
+    "fairSpecialBosses",
+  );
+  loadOnce(
     'script[data-ai-provider-legacy-worker-migration]',
     "js/ai-provider-legacy-worker-migration.js?v=custom-ai-provider-v1",
     "aiProviderLegacyWorkerMigration",
