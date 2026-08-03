@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-google-auth-v1-ai-tier-boss-2026-08-03",
+  "buildId": "custom-ai-provider-v1-2026-08-03",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
@@ -33,6 +33,8 @@
     { "path": "js/elite-character-progress-fix.js", "label": "19 位挑戰賽進度顯示" },
     { "path": "js/gemini-final-boss.js", "label": "Gemini 最終 Boss" },
     { "path": "js/gemini-backend-client-v2.js", "label": "Gemini 安全後端客戶端" },
+    { "path": "js/ai-provider-legacy-worker-migration.js", "label": "舊版自訂 Worker 設定遷移" },
+    { "path": "js/ai-provider-client-v1.js", "label": "官方／自訂 Worker 與直接 API AI 引擎" },
     { "path": "js/gemini-async-betting-loop.js", "label": "Gemini 非同步下注流程" },
     { "path": "js/tournament-mode.js", "label": "淘汰賽模式" },
     { "path": "js/tournament-mode-visible-entry.js", "label": "淘汰賽入口相容載入器" },
@@ -122,8 +124,8 @@
     },
     {
       "id": "gemini-boss",
-      "label": "Gemini 最終 Boss 安全後端",
-      "assets": ["js/gemini-final-boss.js", "js/gemini-backend-client-v2.js", "js/gemini-async-betting-loop.js", "js/game-mode-controls-v2.js", "js/tournament-gemini-bridge.js"]
+      "label": "Gemini 最終 Boss 與可切換 AI 引擎",
+      "assets": ["js/gemini-final-boss.js", "js/gemini-backend-client-v2.js", "js/ai-provider-legacy-worker-migration.js", "js/ai-provider-client-v1.js", "js/gemini-async-betting-loop.js", "js/game-mode-controls-v2.js", "js/tournament-gemini-bridge.js"]
     },
     {
       "id": "card-collection",
