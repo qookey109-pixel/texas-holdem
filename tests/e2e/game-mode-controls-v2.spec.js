@@ -14,7 +14,7 @@ test("挑戰賽入口固定在新手教學旁、模式標籤同步且重新整�
   await expect.poll(
     () => page.evaluate(() => window.TournamentModeVisibleEntry?.version || ""),
     { timeout: 10_000 },
-  ).toBe("3.2.0");
+  ).toBe("3.3.0");
 
   await expect.poll(
     () => page.evaluate(() => window.TournamentMode?.isActive?.()),
@@ -66,7 +66,7 @@ test("挑戰賽入口固定在新手教學旁、模式標籤同步且重新整�
   ).toBe("2.0.0");
   await expect.poll(
     () => page.evaluate(() => window.TournamentModeVisibleEntry?.version || ""),
-  ).toBe("3.2.0");
+  ).toBe("3.3.0");
   await expect.poll(
     () => page.evaluate(() => window.TournamentMode?.isActive?.()),
   ).toBe(false);
