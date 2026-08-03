@@ -60,7 +60,7 @@ test("特殊 Boss 只使用公開紀錄、範圍推理與公平七星策略", as
   await expect.poll(
     () => page.evaluate(() => window.FairSpecialBossStrategy?.version || ""),
     { timeout: 10_000 },
-  ).toBe("2.0.0");
+  ).toBe("3.0.0");
 
   const bossData = await page.evaluate(() => ({
     oracle: AI_ROSTER.find(profile => profile.name === "Oracle"),
@@ -70,7 +70,7 @@ test("特殊 Boss 只使用公開紀錄、範圍推理與公平七星策略", as
     fairAudit: FairSpecialBossStrategy.fairnessAudit(),
     projectedBoardType: typeof AiTierBossSystem.projectedBoard,
     decisionInstalled: Boolean(window.__fairSpecialBossDecisionInstalled),
-    fairStyleCount: document.querySelectorAll("#fairSpecialBossStylesV2").length,
+    fairStyleCount: document.querySelectorAll("#fairSpecialBossStylesV3").length,
   }));
 
   expect(bossData.oracle).toMatchObject({
