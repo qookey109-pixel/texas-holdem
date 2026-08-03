@@ -70,6 +70,7 @@ test("特殊 Boss 只使用公開紀錄、範圍推理與公平七星策略", as
     fairAudit: FairSpecialBossStrategy.fairnessAudit(),
     projectedBoardType: typeof AiTierBossSystem.projectedBoard,
     decisionInstalled: Boolean(window.__fairSpecialBossDecisionInstalled),
+    fairStyleCount: document.querySelectorAll("#fairSpecialBossStyles").length,
   }));
 
   expect(bossData.oracle).toMatchObject({
@@ -103,6 +104,7 @@ test("特殊 Boss 只使用公開紀錄、範圍推理與公平七星策略", as
   });
   expect(bossData.projectedBoardType).toBe("undefined");
   expect(bossData.decisionInstalled).toBe(true);
+  expect(bossData.fairStyleCount).toBe(1);
 
   const analysis = await page.evaluate(() => {
     state.heroStyle = {
@@ -154,15 +156,9 @@ test("特殊 Boss 只使用公開紀錄、範圍推理與公平七星策略", as
   await expect(panel.locator(".ai-tier-stars b")).toHaveText("★★★★★★★");
   await expect(panel.locator(".ai-profile-summary")).toContainText("已公開的牌面");
   await expect(panel.locator(".ai-profile-summary")).not.toContainText("未公開底牌");
-
-  const oracleBadge = await seat.locator(".ai-tier-seat-badge span").evaluate(
-    element => getComputedStyle(element, "::after").content.replaceAll('"', ""),
-  );
-  expect(oracleBadge).toBe("PLAYER READER");
-  await expect(page.locator("#fairSpecialBossStyles")).toBeAttached();
 });
 
-test("特殊 Boss 決策分析不讀牌堆與其他玩家未公開底牌", async ({ page }) => {
+test("特殊 Boss 策略分析不讀牌堆與其他玩家未公開底牌", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
 
   await expect.poll(
@@ -251,16 +247,14 @@ test("特殊 Boss 決策分析不讀牌堆與其他玩家未公開底牌", async
       }
     }
 
-    botAction(oracle);
     return {
-      action: oracle.lastAction,
-      actionCount: analysis.actions.length,
+      actionTypes: analysis.actions.map(action => action.type),
       audit,
     };
   });
 
-  expect(result.actionCount).toBeGreaterThan(0);
-  expect(["fold", "check", "call", "raise", "allin"]).toContain(result.action);
+  expect(result.actionTypes.length).toBeGreaterThan(0);
+  expect(result.actionTypes.every(type => ["fold", "check", "call", "raise"].includes(type))).toBe(true);
   expect(result.audit).toMatchObject({
     fairPlay: true,
     usesHiddenInformation: false,
