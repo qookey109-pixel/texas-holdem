@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  if (window.TournamentModeVisibleEntry?.version === "3.1.0") return;
+  if (window.TournamentModeVisibleEntry?.version === "3.2.0") return;
 
   const NORMAL_MODE = "normal";
   const TOURNAMENT_MODE = "tournament";
@@ -21,6 +21,22 @@
     script.src = "js/game-mode-controls-v2.js?v=normal-default-gemini-instant-off-v1";
     script.async = false;
     script.dataset.gameModeControlsV2 = "true";
+    script.addEventListener("load", scheduleSync, { once: true });
+    document.body.appendChild(script);
+    return true;
+  }
+
+  function loadTournamentCloudSave() {
+    if (window.TournamentCloudSave?.version) {
+      window.TournamentCloudSave.refresh?.();
+      return true;
+    }
+    if (document.querySelector('script[data-tournament-cloud-save]')) return false;
+
+    const script = document.createElement("script");
+    script.src = "js/tournament-cloud-save.js?v=tournament-cloud-save-v1";
+    script.async = false;
+    script.dataset.tournamentCloudSave = "true";
     script.addEventListener("load", scheduleSync, { once: true });
     document.body.appendChild(script);
     return true;
@@ -175,6 +191,7 @@
     applyDefaultAutoNewHand();
     installStyles();
     loadUnifiedControls();
+    loadTournamentCloudSave();
     mountChallengeButton();
     mountModeLabel();
   }
@@ -195,7 +212,7 @@
   });
 
   window.TournamentModeVisibleEntry = {
-    version: "3.1.0",
+    version: "3.2.0",
     refresh: syncUi,
     stop() {
       observer?.disconnect();
