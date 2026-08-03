@@ -18,7 +18,12 @@
   );
   loadOnce(
     'script[data-elite-character-progress-fix]',
-    "js/elite-character-progress-fix.js?v=seventeen-roster-v1",
+    "js/elite-character-progress-fix.js?v=nineteen-roster-v1",
     "eliteCharacterProgressFix",
+  );
+  loadOnce(
+    'script[data-ai-tier-boss-system]',
+    "js/ai-tier-boss-system.js?v=tier-boss-v1",
+    "aiTierBossSystem",
   );
 })();
