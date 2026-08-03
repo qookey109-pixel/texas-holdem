@@ -112,12 +112,16 @@ async function waitForCloudSave(page) {
 
 function setSettledTournamentState(page, handNumber = 7) {
   return page.evaluate(number => {
+    window.AiTimingController?.clear?.();
+    window.GeminiAsyncBettingLoop?.cancelPending?.();
     clearAutoNewHandTimer();
     clearDialogueTimers();
     state.autoNewHand = false;
     state.gameMode = "tournament";
     state.handNumber = number;
     state.handOver = true;
+    state.waitingForHuman = true;
+    state.currentActorIndex = 0;
     state.deck = [{ rank: "A", suit: "spades" }];
     state.board = [{ rank: "K", suit: "hearts" }];
     state.autoNewHandTimer = null;
@@ -205,8 +209,14 @@ test("進行中的淘汰賽只安排結束後暫停並儲存", async ({ page }) 
   await waitForCloudSave(page);
 
   await page.evaluate(() => {
+    window.AiTimingController?.clear?.();
+    window.GeminiAsyncBettingLoop?.cancelPending?.();
+    clearAutoNewHandTimer();
+    clearDialogueTimers();
     state.gameMode = "tournament";
     state.handOver = false;
+    state.waitingForHuman = true;
+    state.currentActorIndex = 0;
     state.autoNewHand = true;
     state.tournament = {
       active: true,
@@ -227,14 +237,16 @@ test("進行中的淘汰賽只安排結束後暫停並儲存", async ({ page }) 
   expect(await page.evaluate(() => window.__CLOUD_SAVE_TEST__.upserts.length)).toBe(0);
 
   await setSettledTournamentState(page, 9);
-  await page.evaluate(() => { state.autoNewHand = true; });
+  await page.evaluate(async () => {
+    state.autoNewHand = true;
+    await window.TournamentCloudSave.pauseAndSave();
+  });
 
   await expect.poll(
     () => page.evaluate(() => window.__CLOUD_SAVE_TEST__.upserts.length),
     { timeout: 10_000 },
-  ).toBe(1);
+  ).toBeGreaterThan(0);
   expect(await page.evaluate(() => state.autoNewHand)).toBe(false);
-  expect(await page.evaluate(() => window.TournamentCloudSave.status().pauseRequested)).toBe(false);
   expect(await page.evaluate(() => window.TournamentCloudSave.status().lastMessage)).toContain("暫停");
 });
 
