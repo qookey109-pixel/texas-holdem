@@ -62,6 +62,11 @@
     "aiPlayerModel",
   );
   loadOnce(
+    'script[data-ai-player-model-memory]',
+    "js/ai-player-model-memory-v1.js?v=long-term-ai-memory-v1-4",
+    "aiPlayerModelMemory",
+  );
+  loadOnce(
     'script[data-ai-character-strategies-v1-3]',
     "js/ai-character-strategies-v1-3.js?v=adaptive-player-model-v1-3",
     "aiCharacterStrategiesV13",
