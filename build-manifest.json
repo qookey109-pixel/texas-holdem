@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-main-ai-tier-boss-published-2026-08-03",
+  "buildId": "desktop-google-auth-v1-ai-tier-boss-2026-08-03",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
@@ -12,6 +12,8 @@
     { "path": "js/cards-data.js", "label": "撲克牌資料" },
     { "path": "js/ai-data.js", "label": "AI 人物資料" },
     { "path": "js/config.js", "label": "遊戲設定" },
+    { "path": "js/google-auth.js", "label": "Google 登入與玩家身分" },
+    { "path": "js/google-auth.css", "label": "Google 登入介面樣式" },
     { "path": "js/tutorial-data.js", "label": "教學資料" },
     { "path": "js/layout-ui.js", "label": "版面介面" },
     { "path": "js/card-engine.js", "label": "牌型引擎" },
@@ -57,6 +59,11 @@
       "id": "core-game",
       "label": "核心牌桌與牌局",
       "assets": ["index.html", "styles.css", "app.js", "js/config.js", "js/card-engine.js", "js/game-flow.js", "js/render-ui.js", "js/events-boot.js"]
+    },
+    {
+      "id": "google-auth",
+      "label": "Google 第三方登入與玩家身分",
+      "assets": ["js/google-auth.js", "js/google-auth.css", "js/config.js"]
     },
     {
       "id": "table-status-dock",
