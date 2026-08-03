@@ -108,12 +108,18 @@
       && visibleCardSignature === currentCardSignature();
   }
 
+  function isSubsequentNewHand() {
+    const handNumber = currentHandNumber();
+    return visibleHandNumber > 0
+      && handNumber > visibleHandNumber
+      && currentCards().length === 2;
+  }
+
   function canEarlyPaint() {
     return typeof els === "object"
       && Boolean(els.playerCards)
       && typeof renderCard === "function"
-      && currentHandNumber() > 0
-      && currentCards().length === 2;
+      && isSubsequentNewHand();
   }
 
   function paintHeroCardsEarly() {
