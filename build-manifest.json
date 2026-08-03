@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-google-auth-v1-ai-tier-boss-2026-08-03",
+  "buildId": "desktop-tournament-cloud-save-v1-2026-08-03",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
@@ -14,6 +14,9 @@
     { "path": "js/config.js", "label": "遊戲設定" },
     { "path": "js/google-auth.js", "label": "Google 登入與玩家身分" },
     { "path": "js/google-auth.css", "label": "Google 登入介面樣式" },
+    { "path": "js/tournament-cloud-save.js", "label": "淘汰賽雲端存檔與恢復" },
+    { "path": "js/tournament-cloud-save.css", "label": "淘汰賽雲端存檔介面" },
+    { "path": "supabase/migrations/20260803_create_tournament_saves_v1.sql", "label": "淘汰賽存檔資料表與 RLS" },
     { "path": "js/tutorial-data.js", "label": "教學資料" },
     { "path": "js/layout-ui.js", "label": "版面介面" },
     { "path": "js/card-engine.js", "label": "牌型引擎" },
@@ -64,6 +67,11 @@
       "id": "google-auth",
       "label": "Google 第三方登入與玩家身分",
       "assets": ["js/google-auth.js", "js/google-auth.css", "js/config.js"]
+    },
+    {
+      "id": "tournament-cloud-save",
+      "label": "登入玩家的淘汰賽自動存檔、暫停、恢復與刪除",
+      "assets": ["js/tournament-cloud-save.js", "js/tournament-cloud-save.css", "js/tournament-mode.js", "js/tournament-mode-visible-entry.js", "js/google-auth.js", "supabase/migrations/20260803_create_tournament_saves_v1.sql"]
     },
     {
       "id": "table-status-dock",
