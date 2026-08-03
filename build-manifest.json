@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-main-fair-special-bosses-published-2026-08-03",
+  "buildId": "desktop-main-public-showdown-range-v2-published-2026-08-03",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
@@ -24,7 +24,7 @@
     { "path": "js/positions.js", "label": "位置系統" },
     { "path": "js/ai-logic.js", "label": "AI 決策" },
     { "path": "js/ai-tier-boss-system.js", "label": "AI 階級、專屬框線與七星 Boss" },
-    { "path": "js/fair-special-bosses.js", "label": "特殊 Boss 公開資訊與玩家建模策略" },
+    { "path": "js/fair-special-bosses.js", "label": "特殊 Boss 公開攤牌記憶、範圍推理與機率模擬" },
     { "path": "js/coach.js", "label": "撲克教練" },
     { "path": "js/coach-hand-review-integration.js", "label": "教練牌局復盤整合與開關" },
     { "path": "js/tutorial-ui.js", "label": "教學介面" },
@@ -83,7 +83,7 @@
     },
     {
       "id": "ai-tier-bosses",
-      "label": "AI 星等分層、中階框線、高階強化與公平七星 Boss",
+      "label": "AI 星等分層、中階框線、高階強化與公平七星 Boss V2",
       "assets": ["js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/elite-character-presentation.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-data.js", "js/ai-logic.js", "js/render-ui.js", "js/tournament-mode.js"]
     },
     {
