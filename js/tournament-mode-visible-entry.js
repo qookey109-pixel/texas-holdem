@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  if (window.TournamentModeVisibleEntry?.version === "3.3.0") return;
+  if (window.TournamentModeVisibleEntry?.version === "3.4.0") return;
 
   const NORMAL_MODE = "normal";
   const TOURNAMENT_MODE = "tournament";
@@ -43,14 +43,14 @@
   }
 
   function loadStreetTransitionPerformance() {
-    if (window.StreetTransitionPerformance?.version) {
+    if (window.StreetTransitionPerformance?.version === "2.0.0") {
       window.StreetTransitionPerformance.install?.();
       return true;
     }
     if (document.querySelector('script[data-street-transition-performance]')) return false;
 
     const script = document.createElement("script");
-    script.src = "js/street-transition-performance.js?v=street-paint-v1";
+    script.src = "js/street-transition-performance.js?v=street-paint-v2";
     script.async = false;
     script.dataset.streetTransitionPerformance = "true";
     document.body.appendChild(script);
@@ -228,7 +228,7 @@
   });
 
   window.TournamentModeVisibleEntry = {
-    version: "3.3.0",
+    version: "3.4.0",
     refresh: syncUi,
     stop() {
       observer?.disconnect();
