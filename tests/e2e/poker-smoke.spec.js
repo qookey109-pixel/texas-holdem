@@ -58,10 +58,13 @@ test("核心牌局與主要面板可正常操作", async ({ page }) => {
   await expect(page.locator("#handNumber")).toHaveText("第 1 局");
   await expect(page.locator("#playerCards .card")).toHaveCount(2);
   await expect(page.locator("#opponents .seat")).toHaveCount(6);
-  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.version)).toBe("1.0.0");
+  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.version)).toBe("2.0.0");
+  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.sizes)).toBe(null);
+  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.potScale)).toBe(100);
+  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.layout.heroCards.top)).toBe(65.7);
   await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.left)).toBe(50);
-  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeLessThan(63.2);
-  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeGreaterThan(60);
+  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeLessThan(65.7);
+  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeGreaterThan(62);
 
   await page.locator("#newHandButton").click();
   await expect(page.locator("#handNumber")).toHaveText("第 2 局");
@@ -80,12 +83,12 @@ test("核心牌局與主要面板可正常操作", async ({ page }) => {
   await expect(page.locator("#layoutSizeControls")).toBeVisible();
   await expect(page.locator("[data-layout-size]")).toHaveCount(6);
   await expect(page.locator("#resetLayoutButton")).toHaveText("⭐ 官方預設");
-  await expect(page.locator("[data-layout-size='heroCard']")).toHaveValue("70");
-  await expect(page.locator("[data-layout-size='boardCard']")).toHaveValue("65");
-  await expect(page.locator("[data-layout-size='aiCard']")).toHaveValue("52");
+  await expect(page.locator("[data-layout-size='heroCard']")).toHaveValue("92");
+  await expect(page.locator("[data-layout-size='boardCard']")).toHaveValue("86");
+  await expect(page.locator("[data-layout-size='aiCard']")).toHaveValue("44");
   await expect(page.locator("[data-layout-size='aiSeat']")).toHaveValue("176");
   await expect(page.locator("[data-layout-size='aiProfile']")).toHaveValue("272");
-  await expect(page.locator("[data-layout-size='potScale']")).toHaveValue("70");
+  await expect(page.locator("[data-layout-size='potScale']")).toHaveValue("100");
   await page.locator("[data-layout-size='aiProfile']").scrollIntoViewIfNeeded();
   await expect(page.locator("[data-layout-size='aiProfile']")).toBeInViewport();
 
@@ -103,12 +106,16 @@ test("核心牌局與主要面板可正常操作", async ({ page }) => {
   await page.mouse.move(handleBox.x + handleBox.width / 2 + 36, handleBox.y + handleBox.height / 2 + 20, { steps: 5 });
   await page.mouse.up();
   await expect.poll(() => page.evaluate(() => LayoutCornerResize.getPotScale())).toBeGreaterThan(startPotScale);
-  await expect.poll(() => page.locator("[data-layout-size='potScale']").inputValue()).not.toBe("70");
+  await expect.poll(() => page.locator("[data-layout-size='potScale']").inputValue()).not.toBe("100");
 
   await page.locator("#resetLayoutButton").click();
-  await expect.poll(() => page.evaluate(() => LayoutCornerResize.getPotScale())).toBe(70);
-  await expect.poll(() => page.locator("[data-layout-size='potScale']").inputValue()).toBe("70");
+  await expect.poll(() => page.evaluate(() => LayoutCornerResize.getPotScale())).toBe(100);
+  await expect.poll(() => page.locator("[data-layout-size='potScale']").inputValue()).toBe("100");
+  await expect.poll(() => page.locator("[data-layout-size='heroCard']").inputValue()).toBe("92");
+  await expect.poll(() => page.locator("[data-layout-size='boardCard']").inputValue()).toBe("86");
+  await expect.poll(() => page.locator("[data-layout-size='aiCard']").inputValue()).toBe("44");
   await expect.poll(() => page.evaluate(() => state.layout.items.seat1.left)).toBe(2.29);
+  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBe(65.7);
   await expect.poll(() => page.evaluate(() => state.layout.items.actions.top)).toBe(89.13);
 
   await clickLayoutControl(page);

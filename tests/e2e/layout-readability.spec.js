@@ -73,8 +73,8 @@ test("可讀性試驗會微調手牌並放大重要狀態", async ({ page }) => 
   expect(layout.liftedFlag).toBe("true");
   expect(layout.heroCardsLifted).toBe(true);
   expect(layout.liftPixels).toBe(14);
-  expect(layout.heroCardsTop).toBeLessThan(63.2);
-  expect(layout.heroCardsTop).toBeGreaterThan(60);
+  expect(layout.heroCardsTop).toBeLessThan(65.7);
+  expect(layout.heroCardsTop).toBeGreaterThan(62);
   expect(layout.statusFontSize).toBeGreaterThanOrEqual(10);
   expect(layout.statusHeight).toBeGreaterThanOrEqual(20);
   expect(layout.meterHeight).toBeGreaterThanOrEqual(10);

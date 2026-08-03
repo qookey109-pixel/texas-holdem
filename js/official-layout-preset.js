@@ -6,6 +6,7 @@
 
   const SIZE_STORAGE_KEY = "texasHoldemLayoutSizesV2";
   const POT_STORAGE_KEY = "texasHoldemPotScaleV1";
+  const PRESET_MIGRATION_KEY = "texasHoldemOfficialLayoutPresetVersionV1";
 
   const OFFICIAL_LAYOUT = Object.freeze({
     seat1: { left: 2.29, top: 73.63 },
@@ -30,21 +31,15 @@
     pot: { left: 50, top: 33.5 },
     stage: { left: 50, top: 39 },
     hero: { left: 50, top: 88 },
-    heroCards: { left: 50, top: 63.2 },
+    heroCards: { left: 50, top: 65.7 },
     heroPanel: { left: 50, top: 90.46 },
     heroStack: { left: 33.28, top: 90.48 },
     actions: { left: 81.6, top: 89.13 },
   });
 
-  const OFFICIAL_SIZES = Object.freeze({
-    heroCard: 70,
-    boardCard: 65,
-    aiCard: 52,
-    aiSeat: 176,
-    aiProfile: 272,
-  });
-
-  const OFFICIAL_POT_SCALE = 70;
+  // null means the official preset uses the application's native size defaults.
+  const OFFICIAL_SIZES = null;
+  const OFFICIAL_POT_SCALE = 100;
   const OFFICIAL_ARROWS = Object.freeze({
     dialogue1: "left",
     dialogue2: "left",
@@ -54,16 +49,55 @@
     dialogue6: "right",
   });
 
-  const SIZE_CSS_VARS = Object.freeze({
-    heroCard: "--layout-hero-card-width",
-    boardCard: "--layout-board-card-width",
-    aiCard: "--layout-ai-card-width",
-    aiSeat: "--layout-ai-seat-width",
-    aiProfile: "--layout-ai-profile-width",
+  const PREVIOUS_OFFICIAL_SIZES = Object.freeze({
+    heroCard: 70,
+    boardCard: 65,
+    aiCard: 52,
+    aiSeat: 176,
+    aiProfile: 272,
   });
+
+  const SIZE_CSS_VARS = Object.freeze([
+    "--layout-hero-card-width",
+    "--layout-board-card-width",
+    "--layout-ai-card-width",
+    "--layout-ai-seat-width",
+    "--layout-ai-profile-width",
+  ]);
 
   function cloneLayout() {
     return JSON.parse(JSON.stringify(OFFICIAL_LAYOUT));
+  }
+
+  function matchesPreviousOfficialSizes(raw) {
+    if (!raw || typeof raw !== "object") return false;
+    return Object.entries(PREVIOUS_OFFICIAL_SIZES)
+      .every(([key, value]) => Number(raw[key]) === value);
+  }
+
+  function migratePreviousOfficialDefaults() {
+    try {
+      if (localStorage.getItem(PRESET_MIGRATION_KEY) === "2") return;
+
+      const rawSizes = localStorage.getItem(SIZE_STORAGE_KEY);
+      if (rawSizes) {
+        try {
+          if (matchesPreviousOfficialSizes(JSON.parse(rawSizes))) {
+            localStorage.removeItem(SIZE_STORAGE_KEY);
+          }
+        } catch (_) {
+          // Leave malformed or custom values untouched.
+        }
+      }
+
+      if (localStorage.getItem(POT_STORAGE_KEY) === "70") {
+        localStorage.removeItem(POT_STORAGE_KEY);
+      }
+
+      localStorage.setItem(PRESET_MIGRATION_KEY, "2");
+    } catch (_) {
+      // Runtime defaults still work when storage is unavailable.
+    }
   }
 
   function applyOfficialConstants() {
@@ -79,33 +113,17 @@
     }
   }
 
-  function seedNewBrowserDefaults() {
-    try {
-      if (!localStorage.getItem(SIZE_STORAGE_KEY)) {
-        localStorage.setItem(SIZE_STORAGE_KEY, JSON.stringify(OFFICIAL_SIZES));
-      }
-      if (!localStorage.getItem(POT_STORAGE_KEY)) {
-        localStorage.setItem(POT_STORAGE_KEY, String(OFFICIAL_POT_SCALE));
-      }
-    } catch (_) {
-      // Private browsing may block storage; runtime defaults still apply where possible.
-    }
-  }
+  function applyOfficialSizes() {
+    try { localStorage.removeItem(SIZE_STORAGE_KEY); } catch (_) {}
 
-  function applyOfficialSizes({ persist = false } = {}) {
-    Object.entries(OFFICIAL_SIZES).forEach(([key, value]) => {
-      if (window.LayoutSizeController?.setSize) {
-        window.LayoutSizeController.setSize(key, value, { persist });
-      } else {
-        document.documentElement.style.setProperty(SIZE_CSS_VARS[key], `${value}px`);
-      }
+    if (window.LayoutSizeController?.reset) {
+      window.LayoutSizeController.reset();
+      return;
+    }
+
+    SIZE_CSS_VARS.forEach(property => {
+      document.documentElement.style.removeProperty(property);
     });
-
-    if (persist) {
-      try {
-        localStorage.setItem(SIZE_STORAGE_KEY, JSON.stringify(OFFICIAL_SIZES));
-      } catch (_) {}
-    }
   }
 
   function applyOfficialPot({ persist = false } = {}) {
@@ -122,7 +140,11 @@
     }
   }
 
-  function applyOfficialLayout({ persist = true, announceResult = true } = {}) {
+  function applyOfficialLayout({
+    persist = true,
+    announceResult = true,
+    resetSizes = true,
+  } = {}) {
     if (typeof state === "object" && state.layout) {
       state.layout.items = cloneLayout();
       state.layout.arrows = { ...OFFICIAL_ARROWS };
@@ -132,7 +154,7 @@
       if (typeof applyLayout === "function") applyLayout();
     }
 
-    applyOfficialSizes({ persist });
+    if (resetSizes) applyOfficialSizes();
     applyOfficialPot({ persist });
 
     if (persist && typeof state === "object" && state.layout) {
@@ -153,12 +175,12 @@
     const button = document.querySelector("#resetLayoutButton");
     if (!button) return;
     button.textContent = "⭐ 官方預設";
-    button.title = "套用網站官方版面、牌卡大小與底池大小";
+    button.title = "套用網站官方版面、預設牌卡大小與 100% 底池大小";
     button.setAttribute("aria-label", "套用官方預設版面");
   }
 
+  migratePreviousOfficialDefaults();
   applyOfficialConstants();
-  seedNewBrowserDefaults();
   labelOfficialResetButton();
 
   document.addEventListener("click", event => {
@@ -167,9 +189,13 @@
 
     window.setTimeout(() => {
       if (button.id === "resetLayoutButton") {
-        applyOfficialLayout({ persist: false, announceResult: false });
+        // The native reset handlers already restore the application's default sizes.
+        applyOfficialLayout({
+          persist: false,
+          announceResult: false,
+          resetSizes: false,
+        });
       } else {
-        applyOfficialSizes({ persist: false });
         applyOfficialPot({ persist: false });
       }
       labelOfficialResetButton();
@@ -177,9 +203,9 @@
   }, true);
 
   window.OfficialLayoutPreset = Object.freeze({
-    version: "1.0.0",
+    version: "2.0.0",
     layout: cloneLayout(),
-    sizes: { ...OFFICIAL_SIZES },
+    sizes: OFFICIAL_SIZES,
     potScale: OFFICIAL_POT_SCALE,
     arrows: { ...OFFICIAL_ARROWS },
     apply: applyOfficialLayout,
