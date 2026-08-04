@@ -115,6 +115,8 @@ test.describe("AI V1.9 fixed-seed Boss calibration", () => {
 
       const topPair = scenarios["river-top-pair-bluff-catch"];
       expect(topPair.averageEquity).toBeLessThan(0.8);
+      expect(topPair.rates.raise).toBeLessThanOrEqual(0.25);
+      expect(topPair.rates.call + topPair.rates.fold).toBeGreaterThanOrEqual(0.75);
     }
 
     expect(result.first.performance.totalMs).toBeGreaterThan(0);
