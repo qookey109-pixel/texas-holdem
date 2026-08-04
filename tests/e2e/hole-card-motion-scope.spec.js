@@ -56,6 +56,7 @@ test("翻牌轉牌河牌只發公共牌，所有玩家底牌不再重播動畫",
       card.getAnimations().forEach(animation => animation.cancel());
     });
 
+    const originalHeroNodes = [...document.querySelectorAll("#playerCards .card")];
     let holeAnimationStarts = 0;
     const onAnimationStart = event => {
       if (event.target?.closest?.("#playerCards, .seat-card-zone")) holeAnimationStarts += 1;
@@ -81,9 +82,9 @@ test("翻牌轉牌河牌只發公共牌，所有玩家底牌不再重播動畫",
           boardCount: boardCards.length,
           phase: scopeStatus.phase,
           observerInstalled: scopeStatus.observerInstalled,
+          heroNodesStable: originalHeroNodes.every((node, index) => heroCards[index] === node),
           heroAnimationNames: heroCards.map(card => getComputedStyle(card).animationName),
           opponentAnimationNames: opponentCards.map(card => getComputedStyle(card).animationName),
-          heroStaticFlags: heroCards.map(card => card.classList.contains("is-static")),
           opponentStaticFlags: opponentCards.map(card => card.classList.contains("is-static")),
           latestBoardAnimationName: latestBoardCard ? getComputedStyle(latestBoardCard).animationName : "none",
           latestBoardStatic: latestBoardCard?.classList.contains("is-static") ?? true,
@@ -112,9 +113,9 @@ test("翻牌轉牌河牌只發公共牌，所有玩家底牌不再重播動畫",
     expect(snapshot.boardCount).toBe(snapshot.expectedBoardCount);
     expect(snapshot.phase).toBe("locked");
     expect(snapshot.observerInstalled).toBe(true);
+    expect(snapshot.heroNodesStable).toBe(true);
     expect(snapshot.heroAnimationNames.length).toBe(2);
     expect(snapshot.heroAnimationNames.every(name => name === "none")).toBe(true);
-    expect(snapshot.heroStaticFlags).toEqual([true, true]);
     expect(snapshot.opponentAnimationNames.length).toBeGreaterThan(0);
     expect(snapshot.opponentAnimationNames.every(name => name === "none")).toBe(true);
     expect(snapshot.opponentStaticFlags.every(Boolean)).toBe(true);
