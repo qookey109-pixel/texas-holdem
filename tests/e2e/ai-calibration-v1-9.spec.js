@@ -6,13 +6,17 @@ const CALIBRATION_SCRIPT = "/tests/support/ai-calibration-lab-v1-9.js";
 async function loadCalibrationLab(page) {
   await page.goto("/", { waitUntil: "networkidle" });
   await expect.poll(
-    () => page.evaluate(() => window.BossEquityIntegrationV1?.version || ""),
+    () => page.evaluate(() => window.BossPublicRangeModelV1?.version || ""),
     { timeout: 15_000 },
   ).toBe("1.0.0");
   await expect.poll(
+    () => page.evaluate(() => window.BossEquityIntegrationV1?.version || ""),
+    { timeout: 15_000 },
+  ).toBe("1.1.0");
+  await expect.poll(
     () => page.evaluate(() => window.BossEquityEngineV1?.version || ""),
     { timeout: 15_000 },
-  ).toBe("1.0.1");
+  ).toBe("1.1.0");
   await page.addScriptTag({ url: CALIBRATION_SCRIPT });
   await expect.poll(
     () => page.evaluate(() => window.AiCalibrationLabV19?.version || ""),
@@ -59,8 +63,8 @@ test.describe("AI V1.9 fixed-seed Boss calibration", () => {
       seed: 1904,
       iterations: 4,
       versions: {
-        integration: "1.0.0",
-        equityEngine: "1.0.1",
+        integration: "1.1.0",
+        equityEngine: "1.1.0",
         evAccounting: "1.0.1",
       },
     });
@@ -108,6 +112,11 @@ test.describe("AI V1.9 fixed-seed Boss calibration", () => {
       const nutValue = scenarios["river-nuts-facing-bet"];
       expect(nutValue.rates.raise).toBeGreaterThanOrEqual(0.75);
       expect(nutValue.rates.call).toBeLessThanOrEqual(0.25);
+
+      const topPair = scenarios["river-top-pair-bluff-catch"];
+      expect(topPair.averageEquity).toBeLessThan(0.8);
+      expect(topPair.rates.raise).toBeLessThanOrEqual(0.25);
+      expect(topPair.rates.call + topPair.rates.fold).toBeGreaterThanOrEqual(0.75);
     }
 
     expect(result.first.performance.totalMs).toBeGreaterThan(0);

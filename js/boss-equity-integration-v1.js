@@ -2,9 +2,9 @@
 (() => {
   "use strict";
 
-  if (window.BossEquityIntegrationV1?.version === "1.0.0") return;
+  if (window.BossEquityIntegrationV1?.version === "1.1.0") return;
 
-  const VERSION = "1.0.0";
+  const VERSION = "1.1.0";
   const SPECIAL_NAMES = new Set(["Oracle", "Chronos"]);
   let installTimer = 0;
   let installAttempts = 0;
@@ -23,16 +23,17 @@
     return fallback;
   }
 
-  function estimate(player) {
+  function estimate(player, options = {}) {
     const engine = window.BossEquityEngineV1;
     if (!engine?.estimate) throw new Error("BossEquityEngineV1 unavailable");
-    const opponents = engine.activeOpponentCount(player);
-    const boardCards = Array.isArray(state?.board) ? state.board.length : 0;
-    const samples = player?.name === "Chronos" ? 480 : 360;
+    const opponents = options.opponentCount ?? engine.activeOpponentCount(player);
+    const boardCards = Array.isArray(options.board || state?.board) ? (options.board || state.board).length : 0;
+    const samples = options.samples ?? (player?.name === "Chronos" ? 480 : 360);
     return engine.estimate(player, {
+      ...options,
       opponentCount: opponents,
       samples,
-      exactRiverHeadsUp: boardCards === 5 && opponents === 1,
+      exactRiverHeadsUp: boardCards === 5 && Number(opponents) === 1,
     });
   }
 
@@ -40,8 +41,7 @@
     try {
       const context = window.FairSpecialBosses?.publicContext?.(player);
       if (!context) throw new Error("FairSpecialBosses context unavailable");
-      const result = estimate(player);
-      const equity = clamp(result.equity, 0.001, 0.999);
+
       const needed = Math.max(0, Number(context.needed) || 0);
       const pot = Math.max(0, Number(context.pot) || 0);
       const bigBlind = Math.max(1, typeof currentBigBlind === "function" ? currentBigBlind() : 1);
@@ -49,29 +49,51 @@
       const availableRaise = Math.max(0, stack - needed);
       const minRaise = Math.max(1, typeof minimumRaiseBy === "function" ? minimumRaiseBy() : bigBlind);
       const canRaise = !player?.raiseLocked && availableRaise >= minRaise;
-      const potOdds = needed / Math.max(1, pot + needed);
-      const habits = context.habits || {};
-      const sampleWeight = clamp((Number(habits.sample) || 0) / 20, 0, 1);
-      const foldExploit = ((Number(habits.foldRate) || 0) - 0.3) * 0.24 * sampleWeight;
-      const callPenalty = Math.max(0, (Number(habits.callRate) || 0) - 0.36) * 0.18 * sampleWeight;
-      let foldEquity = clamp(0.24 + foldExploit - callPenalty, 0.08, 0.62);
-      if (player?.name === "Chronos") foldEquity = foldEquity * 0.7 + 0.1;
-
-      const callEv = window.AiEvAccountingV1?.callEv
-        ? window.AiEvAccountingV1.callEv({ equity, pot, callAmount: needed })
-        : equity * (pot + needed) - needed;
       const raiseFactor = player?.name === "Chronos" ? 0.72 : 0.62;
       const raiseBy = canRaise
         ? Math.min(availableRaise, Math.max(minRaise, Math.round((pot * raiseFactor + bigBlind) / 10) * 10))
         : 0;
+      const raisePressure = canRaise ? raiseBy / Math.max(1, pot + needed) : 0.65;
+      const result = estimate(player, { raisePressure });
+      const equity = clamp(result.equity, 0.001, 0.999);
+      const raiseCalledEquity = clamp(result.raiseCalledEquity ?? equity, 0.001, 0.999);
+      const potOdds = needed / Math.max(1, pot + needed);
+
+      const habits = context.habits || {};
+      const sampleWeight = clamp((Number(habits.sample) || 0) / 20, 0, 1);
+      const foldExploit = ((Number(habits.foldRate) || 0) - 0.3) * 0.24 * sampleWeight;
+      const callPenalty = Math.max(0, (Number(habits.callRate) || 0) - 0.36) * 0.18 * sampleWeight;
+      let heuristicFoldEquity = clamp(0.24 + foldExploit - callPenalty, 0.08, 0.62);
+      if (player?.name === "Chronos") heuristicFoldEquity = heuristicFoldEquity * 0.7 + 0.1;
+
+      const rangeFoldEquity = Number.isFinite(Number(result.rangeFoldEquity))
+        ? clamp(result.rangeFoldEquity, 0.01, 0.95)
+        : null;
+      const foldEquity = rangeFoldEquity == null
+        ? heuristicFoldEquity
+        : clamp(rangeFoldEquity * 0.72 + heuristicFoldEquity * 0.28, 0.04, 0.88);
+
+      const callEv = window.AiEvAccountingV1?.callEv
+        ? window.AiEvAccountingV1.callEv({ equity, pot, callAmount: needed })
+        : equity * (pot + needed) - needed;
       const raiseEv = canRaise
         ? (window.AiEvAccountingV1?.raiseEv
-          ? window.AiEvAccountingV1.raiseEv({ equity, pot, callAmount: needed, raiseBy, foldEquity })
-          : foldEquity * pot + (1 - foldEquity) * (equity * (pot + needed + raiseBy) - (needed + raiseBy)))
+          ? window.AiEvAccountingV1.raiseEv({
+            equity: raiseCalledEquity,
+            pot,
+            callAmount: needed,
+            raiseBy,
+            foldEquity,
+          })
+          : foldEquity * pot + (1 - foldEquity) * (
+            raiseCalledEquity * (pot + needed + raiseBy * 2) - (needed + raiseBy)
+          ))
         : Number.NEGATIVE_INFINITY;
 
-      const strongValue = equity >= ((state?.board?.length || 0) >= 3 ? 0.57 : 0.7);
-      const premiumValue = equity >= ((state?.board?.length || 0) >= 3 ? 0.74 : 0.84);
+      const postflop = (state?.board?.length || 0) >= 3;
+      const currentStrongValue = equity >= (postflop ? 0.57 : 0.7);
+      const raiseValue = raiseCalledEquity >= (postflop ? 0.57 : 0.7);
+      const premiumValue = raiseCalledEquity >= (postflop ? 0.74 : 0.84);
       const stackBb = stack / bigBlind;
       const bluffFrequency = clamp(
         (player?.name === "Oracle" ? 0.17 : 0.12) + foldExploit - callPenalty,
@@ -84,7 +106,7 @@
         && stackBb > 18
         && Math.random() < bluffFrequency;
       const trap = needed === 0
-        && strongValue
+        && currentStrongValue
         && player?.name === "Chronos"
         && Math.random() < 0.2;
       const jam = canRaise && premiumValue && stackBb <= 13 && Math.random() < 0.72;
@@ -93,7 +115,7 @@
       let chosenRaiseBy = 0;
       if (needed > 0 && callEv < -(bigBlind * 0.08) && !mixedBluff) {
         action = "fold";
-      } else if (!trap && canRaise && (jam || mixedBluff || (strongValue && raiseEv > callEv))) {
+      } else if (!trap && canRaise && (jam || mixedBluff || (raiseValue && raiseEv > callEv))) {
         action = "raise";
         chosenRaiseBy = jam ? availableRaise : raiseBy;
       }
@@ -104,15 +126,25 @@
         raiseBy: chosenRaiseBy,
         equity,
         rawEquity: result.equity,
+        unweightedEquity: result.unweightedEquity,
+        raiseCalledEquity,
+        raiseValue,
         equityMethod: result.method,
         equitySamples: result.samples,
         opponentCount: result.opponentCount,
+        rangeConditioned: Boolean(result.rangeConditioned),
+        rangeModelVersion: result.rangeModelVersion || "uniform",
+        rangeSummaries: Array.isArray(result.rangeSummaries) ? result.rangeSummaries : [],
+        rangeFoldEquity,
+        raisePressure: result.raisePressure ?? raisePressure,
         potOdds,
+        heuristicFoldEquity,
         foldEquity,
         callEv,
         raiseEv,
         context,
         equityEngine: VERSION,
+        equityEngineVersion: window.BossEquityEngineV1?.version || "unavailable",
         fairPublicInformationOnly: true,
       };
       return lastDecision;
@@ -180,6 +212,8 @@
       ownHoleCards: true,
       publicBoard: true,
       publicActiveSeats: true,
+      publicActions: true,
+      publicBetSizes: true,
       hiddenOpponentCards: false,
       actualDeckOrder: false,
       futureBoardAnswer: false,

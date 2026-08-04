@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-main-ai-v1-6-cloud-save-v2-render-stability-v3-2026-08-04",
+  "buildId": "desktop-main-ai-v2-public-range-equity-2026-08-05",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
@@ -39,7 +39,13 @@
     { "path": "js/ai-character-strategies-v1-3.js", "label": "AI 自適應剝削策略 V1.3" },
     { "path": "js/ai-multiway-range-model-v1.js", "label": "AI 多人公開範圍模型" },
     { "path": "js/ai-character-strategies-v1-5.js", "label": "AI 多人底池策略 V1.5" },
+    { "path": "js/ai-repeated-allin-counter-v1.js", "label": "AI 連續 All-in 公開行為調整" },
+    { "path": "js/ai-ev-accounting-v1.js", "label": "AI Call／Raise 淨 EV 會計" },
+    { "path": "js/ai-effective-stack-spr-v1.js", "label": "AI 有效籌碼與 SPR 決策" },
     { "path": "js/fair-special-bosses.js", "label": "特殊 Boss 公開攤牌記憶、範圍推理與機率模擬" },
+    { "path": "js/boss-public-range-model-v1.js", "label": "Boss 公開行動條件化對手範圍" },
+    { "path": "js/boss-equity-engine-v1.js", "label": "Boss 精確河牌與多人聯合 Equity 引擎" },
+    { "path": "js/boss-equity-integration-v1.js", "label": "Oracle／Chronos 公平 Equity 決策整合" },
     { "path": "js/coach.js", "label": "撲克教練" },
     { "path": "js/coach-hand-review-integration.js", "label": "教練牌局復盤整合與開關" },
     { "path": "js/tutorial-ui.js", "label": "教學介面" },
@@ -103,9 +109,14 @@
       "assets": ["js/ai-data.js", "js/ai-logic.js", "js/ai-action-memory-v1.js", "js/ai-range-tools-v1.js", "js/ai-character-strategies-v1.js", "js/ai-character-strategies-v1-1.js", "js/ai-preflop-range-engine-v1.js", "js/ai-character-strategies-v1-2.js", "js/ai-player-model-v1.js", "js/ai-player-model-memory-v1.js", "js/ai-character-strategies-v1-3.js", "js/ai-multiway-range-model-v1.js", "js/ai-character-strategies-v1-5.js", "js/elite-character-presentation.js"]
     },
     {
+      "id": "ai-decision-core-v2",
+      "label": "AI V1.7～V2 淨 EV、有效籌碼、連續 All-in 與公開範圍 Boss Equity",
+      "assets": ["js/elite-character-presentation.js", "js/ai-repeated-allin-counter-v1.js", "js/ai-ev-accounting-v1.js", "js/ai-effective-stack-spr-v1.js", "js/fair-special-bosses.js", "js/boss-public-range-model-v1.js", "js/boss-equity-engine-v1.js", "js/boss-equity-integration-v1.js"]
+    },
+    {
       "id": "ai-tier-bosses",
       "label": "AI 星等分層、中階框線、高階強化與公平七星 Boss V2",
-      "assets": ["js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/elite-character-presentation.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-data.js", "js/ai-logic.js", "js/render-ui.js", "js/tournament-mode.js"]
+      "assets": ["js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/boss-public-range-model-v1.js", "js/boss-equity-engine-v1.js", "js/boss-equity-integration-v1.js", "js/elite-character-presentation.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-data.js", "js/ai-logic.js", "js/render-ui.js", "js/tournament-mode.js"]
     },
     {
       "id": "elite-characters",

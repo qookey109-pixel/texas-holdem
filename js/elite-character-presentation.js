@@ -107,13 +107,18 @@
     "aiEffectiveStackSpr",
   );
   loadOnce(
+    'script[data-boss-public-range-model]',
+    "js/boss-public-range-model-v1.js?v=boss-public-range-v1",
+    "bossPublicRangeModel",
+  );
+  loadOnce(
     'script[data-boss-equity-engine]',
-    "js/boss-equity-engine-v1.js?v=fair-boss-equity-v1",
+    "js/boss-equity-engine-v1.js?v=public-range-equity-v1-1",
     "bossEquityEngine",
   );
   loadOnce(
     'script[data-boss-equity-integration]',
-    "js/boss-equity-integration-v1.js?v=fair-boss-equity-integration-v1",
+    "js/boss-equity-integration-v1.js?v=public-range-equity-integration-v1-1",
     "bossEquityIntegration",
   );
   loadOnce(
