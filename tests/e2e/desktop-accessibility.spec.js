@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 async function waitForAccessibility(page) {
-  await expect.poll(() => page.evaluate(() => window.DesktopAccessibilityFocus?.version || "")).toBe("2.0.0");
+  await expect.poll(() => page.evaluate(() => window.DesktopAccessibilityFocus?.version || "")).toBe("2.0.1");
 }
 
 async function expectFocusInside(page, containerSelector) {
