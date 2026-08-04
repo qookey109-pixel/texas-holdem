@@ -98,7 +98,7 @@
   );
   loadOnce(
     'script[data-ai-ev-accounting]',
-    "js/ai-ev-accounting-v1.js?v=net-ev-accounting-v1",
+    "js/ai-ev-accounting-v1.js?v=net-ev-accounting-v1-0-1",
     "aiEvAccounting",
   );
   loadOnce(
