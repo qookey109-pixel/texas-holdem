@@ -22,9 +22,7 @@ test.describe("固定種子牌局核心壓力測試", () => {
       if (typeof clearAutoNewHandTimer === "function") clearAutoNewHandTimer();
       if (typeof clearDialogueTimers === "function") clearDialogueTimers();
 
-      if (typeof buildPots !== "function") {
-        throw new Error("buildPots is unavailable");
-      }
+      if (typeof buildPots !== "function") throw new Error("buildPots is unavailable");
 
       let seed = 0x7f4a7c15;
       const next = () => {
@@ -54,10 +52,6 @@ test.describe("固定種子牌局核心壓力測試", () => {
         const maximum = Math.max(...contributions, 20);
         const activeMaximumIndex = [...activeIndexes][integer(0, activeIndexes.size - 1)];
         contributions[activeMaximumIndex] = maximum;
-
-        if (contributions.every(value => value === 0)) {
-          contributions[activeMaximumIndex] = 20;
-        }
 
         state.players = contributions.map((totalContribution, index) => ({
           position: index,
@@ -142,9 +136,7 @@ test.describe("固定種子牌局核心壓力測試", () => {
         "say",
         "tableTalk",
       ];
-      const originals = Object.fromEntries(
-        sideEffectNames.map(name => [name, window[name]]),
-      );
+      const originals = Object.fromEntries(sideEffectNames.map(name => [name, window[name]]));
       const originalMaybeShowSessionSummary = window.maybeShowSessionSummary;
       const originalCompleteHeroStyleHand = window.completeHeroStyleHand;
 
@@ -177,7 +169,6 @@ test.describe("固定種子牌局核心壓力測試", () => {
       const cardId = card => `${card.rank}-${card.suit}`;
 
       let splitPotScenarios = 0;
-      let tieScenarios = 0;
       let maximumPot = 0;
       let maximumWinnerCount = 0;
 
@@ -199,13 +190,14 @@ test.describe("固定種子牌局核心壓力測試", () => {
             activeIndexes.add(integer(0, playerCount - 1));
           }
 
-          const maximumContribution = Math.max(...contributions, 20);
-          const activeMaximumIndex = [...activeIndexes][integer(0, activeIndexes.size - 1)];
-          contributions[activeMaximumIndex] = Math.min(bankrolls[activeMaximumIndex], maximumContribution);
-
-          if (contributions.every(value => value === 0)) {
-            contributions[activeMaximumIndex] = Math.min(bankrolls[activeMaximumIndex], 20);
+          const activeMaximumIndex = [...activeIndexes].reduce((best, index) => (
+            bankrolls[index] > bankrolls[best] ? index : best
+          ));
+          const activeMaximumBankroll = bankrolls[activeMaximumIndex];
+          for (let index = 0; index < contributions.length; index += 1) {
+            contributions[index] = Math.min(contributions[index], activeMaximumBankroll);
           }
+          contributions[activeMaximumIndex] = Math.max(...contributions, 20);
 
           const players = bankrolls.map((bankroll, index) => ({
             position: index,
@@ -226,8 +218,7 @@ test.describe("固定種子牌局核心壓力測試", () => {
           }));
 
           const allCards = [...board, ...players.flatMap(player => player.cards)];
-          const uniqueCardCount = new Set(allCards.map(cardId)).size;
-          if (uniqueCardCount !== allCards.length) {
+          if (new Set(allCards.map(cardId)).size !== allCards.length) {
             throw new Error(`scenario ${scenario}: duplicate cards before showdown`);
           }
 
@@ -245,6 +236,9 @@ test.describe("固定種子牌局核心壓力測試", () => {
           state.winAmount = 0;
 
           const potsBefore = buildPots();
+          if (potsBefore.reduce((sum, pot) => sum + pot.amount, 0) !== state.pot) {
+            throw new Error(`scenario ${scenario}: generated an unmatched contribution`);
+          }
           if (potsBefore.length > 1) splitPotScenarios += 1;
           maximumPot = Math.max(maximumPot, state.pot);
 
@@ -257,12 +251,8 @@ test.describe("固定種子牌局核心壓力測試", () => {
               + `contributions=${JSON.stringify(contributions)}`,
             );
           }
-          if (state.pot !== 0) {
-            throw new Error(`scenario ${scenario}: pot was not cleared (${state.pot})`);
-          }
-          if (!state.handOver) {
-            throw new Error(`scenario ${scenario}: showdown did not finish the hand`);
-          }
+          if (state.pot !== 0) throw new Error(`scenario ${scenario}: pot was not cleared`);
+          if (!state.handOver) throw new Error(`scenario ${scenario}: showdown did not finish`);
           if (!Array.isArray(state.winners) || state.winners.length === 0) {
             throw new Error(`scenario ${scenario}: showdown produced no winner`);
           }
@@ -270,9 +260,10 @@ test.describe("固定種子牌局核心壓力測試", () => {
             throw new Error(`scenario ${scenario}: invalid player stack after showdown`);
           }
 
-          const awardedPlayers = state.players.filter(player => player.stack > bankrolls[player.position] - contributions[player.position]);
+          const awardedPlayers = state.players.filter(player => (
+            player.stack > bankrolls[player.position] - contributions[player.position]
+          ));
           maximumWinnerCount = Math.max(maximumWinnerCount, awardedPlayers.length);
-          if (awardedPlayers.length > potsBefore.length) tieScenarios += 1;
         }
       } finally {
         for (const [name, original] of Object.entries(originals)) window[name] = original;
@@ -284,7 +275,6 @@ test.describe("固定種子牌局核心壓力測試", () => {
         seed: "0x51de5eed",
         scenarios,
         splitPotScenarios,
-        tieScenarios,
         maximumPot,
         maximumWinnerCount,
       };
