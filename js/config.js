@@ -313,10 +313,19 @@ document.addEventListener("DOMContentLoaded", () => {
     loadReplacementStackBalance();
   }
 
-  if (document.querySelector('script[data-ai-profile-position]')) return;
-  const script = document.createElement("script");
-  script.src = "js/ai-profile-position.js?v=nearby-seat-v1";
-  script.async = false;
-  script.dataset.aiProfilePosition = "true";
-  document.body.appendChild(script);
+  if (!document.querySelector('script[data-ai-profile-position]')) {
+    const profileScript = document.createElement("script");
+    profileScript.src = "js/ai-profile-position.js?v=nearby-seat-v1";
+    profileScript.async = false;
+    profileScript.dataset.aiProfilePosition = "true";
+    document.body.appendChild(profileScript);
+  }
+
+  if (!document.querySelector('script[data-accessibility-focus]')) {
+    const accessibilityScript = document.createElement("script");
+    accessibilityScript.src = "js/accessibility-focus.js?v=desktop-a11y-v2";
+    accessibilityScript.async = false;
+    accessibilityScript.dataset.accessibilityFocus = "true";
+    document.body.appendChild(accessibilityScript);
+  }
 }, { once: true });
