@@ -43,16 +43,17 @@ qoo109/texas-holdem
 ### 牌局與介面
 
 - 六人德州撲克牌桌
-- 合法下注、加注、All-in、攤牌與籌碼結算
+- 合法下注、加注、All-in、主池／邊池、攤牌與籌碼結算
 - 新手教學、撲克教練、牌局覆盤與本輪結算
-- 牌桌版面編輯與尺寸控制
+- 牌桌版面編輯、官方預設版面與尺寸控制
 - 童趣手繪／午夜牌組收藏
 - AI 情緒表情、座位發光、BGM 與音效分離控制
 - Safari 音訊恢復與公共牌街道轉場效能優化
+- 同一手牌中，玩家底牌只建立與發牌一次；FLOP／TURN／RIVER 只處理公共牌
 
 ### AI 難度主線
 
-目前中階與高階 10 位角色載入：
+目前中階與高階角色載入：
 
 ```text
 獨立角色策略 V1
@@ -61,6 +62,7 @@ qoo109/texas-holdem
 → 分街玩家模型 V1.3
 → 長期安全記憶 V1.4
 → 多人公開範圍與決策 V1.5
+→ 固定種子校準工具 V1.6
 → Oracle／Chronos 公平 Boss
 → Gemini
 ```
@@ -86,7 +88,16 @@ AI 不得使用：
 - 分層候補、替換與對稱縮桌
 - Google 登入
 - Supabase 淘汰賽自動存檔、暫停、恢復與刪除
+- 雲端存檔 V2 保存累積 session 統計，並相容 V1 舊存檔
 - AI 公開玩家模型可隨既有淘汰賽存檔安全恢復
+- 存檔不包含底牌、牌堆、未來公共牌或完整逐步牌局紀錄
+
+Supabase migrations：
+
+```text
+supabase/migrations/20260803_create_tournament_saves_v1.sql
+supabase/migrations/20260804_allow_tournament_save_v2.sql
+```
 
 ## 開始工作前
 
@@ -111,10 +122,10 @@ https://github.com/qookey109-pixel/texas-holdem.git
 
 任何聊天紀錄、Handoff 或舊 PR 若與最新 GitHub `main` 衝突，以最新 Repository 為準。
 
-## 靜態檢查
+## 靜態與部署契約檢查
 
 ```bash
-node scripts/validate-static-site.mjs
+npm run validate
 ```
 
 檢查內容包括：
@@ -123,7 +134,15 @@ node scripts/validate-static-site.mjs
 - HTML、CSS 與動態 JavaScript 引用是否缺檔
 - 是否誤用不適合 GitHub Project Pages 的 `/` 絕對路徑
 - JavaScript 語法
-- Build Manifest 資產路徑
+- Build Manifest 結構與資產路徑
+- 首頁及正式動態載入資產是否都受診斷頁覆蓋
+- 淘汰賽雲端存檔前端 schemaVersion 與 Supabase migration 是否一致
+
+只執行部署契約檢查：
+
+```bash
+npm run validate:deployment
+```
 
 ## 瀏覽器 E2E
 
@@ -159,12 +178,12 @@ Playwright 報表會附加 JSON 與 Markdown 結果。校準器位於 `tests/sup
 1. 重新核對最新 `main`。
 2. 從最新 `main` 建立新分支。
 3. 只修改本次需求需要的檔案。
-4. 執行靜態檢查與必要 E2E。
+4. 執行 `npm run validate` 與必要 E2E。
 5. 建立 Pull Request。
 6. 確認 PR head 未變且分支沒有落後。
 7. 確認 Static、Chromium、WebKit 全綠。
 8. 合併後重新核對正式 `main`。
-9. 正式網站更新後強制重新整理，檢查 Console、Network、診斷頁與核心流程。
+9. 正式網站更新後檢查 Console、Network、診斷頁、雲端存檔與核心流程。
 
 ## 過時 PR 注意事項
 
