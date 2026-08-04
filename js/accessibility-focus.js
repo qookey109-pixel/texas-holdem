@@ -16,6 +16,7 @@
   const dialogState = new WeakMap();
   let aiReturnPosition = null;
   let restoreAiOnClose = false;
+  let aiFocusRequestId = 0;
 
   function visible(element) {
     if (!(element instanceof HTMLElement) || element.hidden) return false;
@@ -36,6 +37,30 @@
 
   function nextFrame(callback) {
     requestAnimationFrame(() => requestAnimationFrame(callback));
+  }
+
+  function focusAiWhenReady(resolveTarget, shouldContinue) {
+    const requestId = ++aiFocusRequestId;
+    let attemptsRemaining = 40;
+    let stableFrames = 0;
+
+    const attempt = () => {
+      if (requestId !== aiFocusRequestId || !shouldContinue()) return;
+
+      const target = resolveTarget();
+      if (safeFocus(target)) {
+        stableFrames += 1;
+        if (stableFrames >= 2) return;
+      } else {
+        stableFrames = 0;
+      }
+
+      attemptsRemaining -= 1;
+      if (attemptsRemaining <= 0) return;
+      requestAnimationFrame(() => window.setTimeout(attempt, 16));
+    };
+
+    requestAnimationFrame(attempt);
   }
 
   function activeElementOr(fallback) {
@@ -206,13 +231,20 @@
 
       if (isVisible && !wasVisible) {
         aiReturnPosition = String(selectedAiPosition() ?? aiReturnPosition ?? "");
-        nextFrame(() => safeFocus(panel.querySelector("[data-profile-close]")));
+        focusAiWhenReady(
+          () => panel.querySelector("[data-profile-close]"),
+          () => visible(panel),
+        );
       }
 
       if (!isVisible && wasVisible) {
         const position = aiReturnPosition;
+        aiFocusRequestId += 1;
         if (restoreAiOnClose && position !== null && position !== "") {
-          nextFrame(() => safeFocus(aiSeat(position)));
+          focusAiWhenReady(
+            () => aiSeat(position),
+            () => !visible(panel),
+          );
         }
         restoreAiOnClose = false;
       }
@@ -277,7 +309,7 @@
   installGlobalKeyboardHandling();
 
   window.DesktopAccessibilityFocus = Object.freeze({
-    version: "2.0.0",
+    version: "2.0.1",
     focusableElements,
     trapTab,
     syncAiSemantics,
