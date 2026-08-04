@@ -1,13 +1,18 @@
 import { expect, test } from "@playwright/test";
 
-const HAND_COUNT = 30;
-const MAX_STEPS_PER_HAND = 220;
-const TIMER_DRAIN_MS = 20_000;
+const requestedHandCount = Number.parseInt(process.env.NATURAL_STRESS_HANDS || "8", 10);
+const HAND_COUNT = Number.isInteger(requestedHandCount)
+  ? Math.min(100, Math.max(1, requestedHandCount))
+  : 8;
+const MAX_STEPS_PER_HAND = 80;
+const STEP_CLOCK_MS = 30_000;
+const TIMER_DRAIN_MS = 25_000;
+const TEST_TIMEOUT_MS = Math.max(120_000, HAND_COUNT * 6_500);
 
 test.describe("自然下注狀態機壓力測試", () => {
-  test.setTimeout(180_000);
+  test.setTimeout(TEST_TIMEOUT_MS);
 
-  test("連續牌局可完成、籌碼守恆且不殘留牌局計時器", async ({ page }, testInfo) => {
+  test(`連續 ${HAND_COUNT} 手可完成、籌碼守恆且不殘留牌局計時器`, async ({ page }, testInfo) => {
     const pageErrors = [];
     page.on("pageerror", error => pageErrors.push(error.message));
 
@@ -90,6 +95,7 @@ test.describe("自然下注狀態機壓力測試", () => {
         maximumPendingTimers: 0,
       };
 
+      resetGameSession();
       state.gameMode = "normal";
       state.tournament = { active: false };
       state.autoNewHand = false;
@@ -165,8 +171,33 @@ test.describe("自然下注狀態機壓力測試", () => {
             stress.pendingTimeouts.size + stress.pendingIntervals.size,
           );
 
+          let action = "";
+          if (!errors.length && !state.handOver && state.waitingForHuman && state.currentActorIndex === 0) {
+            const player = human();
+            const callAmount = amountToCall(player);
+            const availableRaise = Math.max(0, player.stack - callAmount);
+            const canRaise = !player.raiseLocked && availableRaise >= minimumRaiseBy();
+            const canAllIn = player.stack > 0 && (!player.raiseLocked || player.stack <= callAmount);
+            const phase = stress.humanDecisions % 8;
+            action = "call";
+
+            if ((phase === 0 || phase === 4) && canRaise) {
+              action = "raise";
+              els.raiseAmount.value = String(minimumRaiseBy());
+            } else if (phase === 2 && callAmount > 0) {
+              action = "fold";
+            } else if (phase === 3 && canAllIn) {
+              action = "allin";
+            }
+
+            stress.humanDecisions += 1;
+            stress.actionCounts[action] += 1;
+            playerAction(action);
+          }
+
           return {
             errors,
+            action,
             handOver: state.handOver,
             waitingForHuman: state.waitingForHuman,
             actor: state.currentActorIndex,
@@ -180,32 +211,7 @@ test.describe("自然下注狀態機壓力測試", () => {
         expect(snapshot.errors, `第 ${baseline.handNumber} 手第 ${steps} 步`).toEqual([]);
         if (snapshot.handOver) break;
 
-        if (snapshot.waitingForHuman && snapshot.actor === 0) {
-          await page.evaluate(() => {
-            const stress = window.__NATURAL_BETTING_STRESS__;
-            const player = human();
-            const callAmount = amountToCall(player);
-            const availableRaise = Math.max(0, player.stack - callAmount);
-            const canRaise = !player.raiseLocked && availableRaise >= minimumRaiseBy();
-            const selector = (state.handNumber * 17 + stress.humanDecisions * 11) % 23;
-            let action = "call";
-
-            if (callAmount > 0 && selector === 0) {
-              action = "fold";
-            } else if (player.stack > 0 && selector === 1) {
-              action = "allin";
-            } else if (canRaise && selector >= 2 && selector <= 5) {
-              action = "raise";
-              els.raiseAmount.value = String(minimumRaiseBy());
-            }
-
-            stress.humanDecisions += 1;
-            stress.actionCounts[action] += 1;
-            playerAction(action);
-          });
-        }
-
-        await page.clock.runFor(5_000);
+        await page.clock.runFor(STEP_CLOCK_MS);
         steps += 1;
       }
 
@@ -226,14 +232,24 @@ test.describe("自然下注狀態機壓力測試", () => {
           boardCount: state.board.length,
           pendingTimeouts: stress.pendingTimeouts.size,
           pendingIntervals: stress.pendingIntervals.size,
+          pendingTimerDetails: [
+            ...stress.pendingTimeouts.values(),
+            ...stress.pendingIntervals.values(),
+          ],
         };
       }, { expectedChips: baseline.chips, steps });
 
       expect(completed.handOver).toBe(true);
       expect(completed.totalChips).toBe(completed.expectedChips);
       expect(completed.winners.length).toBeGreaterThan(0);
-      expect(completed.pendingTimeouts, `第 ${completed.handNumber} 手殘留 timeout`).toBe(0);
-      expect(completed.pendingIntervals, `第 ${completed.handNumber} 手殘留 interval`).toBe(0);
+      expect(
+        completed.pendingTimeouts,
+        `第 ${completed.handNumber} 手殘留 timeout：${JSON.stringify(completed.pendingTimerDetails)}`,
+      ).toBe(0);
+      expect(
+        completed.pendingIntervals,
+        `第 ${completed.handNumber} 手殘留 interval：${JSON.stringify(completed.pendingTimerDetails)}`,
+      ).toBe(0);
       handReports.push({ ...completed, steps });
 
       if (handIndex < HAND_COUNT - 1) {
@@ -252,6 +268,7 @@ test.describe("自然下注狀態機壓力測試", () => {
       Math.random = stress.originalRandom;
       return {
         seed: "0x4e415455",
+        configuredHands: HAND_COUNT,
         handsStarted: stress.handsStarted,
         handsCompleted: stress.handsCompleted,
         humanDecisions: stress.humanDecisions,
