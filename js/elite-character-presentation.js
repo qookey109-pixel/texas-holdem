@@ -82,6 +82,11 @@
     "aiCharacterStrategiesV15",
   );
   loadOnce(
+    'script[data-ai-repeated-allin-counter]',
+    "js/ai-repeated-allin-counter-v1.js?v=repeated-allin-counter-v1-6-1",
+    "aiRepeatedAllinCounter",
+  );
+  loadOnce(
     'script[data-fair-special-bosses]',
     "js/fair-special-bosses.js?v=public-showdown-range-v2",
     "fairSpecialBosses",
