@@ -118,7 +118,7 @@
   );
   loadOnce(
     'script[data-boss-equity-integration]',
-    "js/boss-equity-integration-v1.js?v=fair-boss-equity-integration-v1",
+    "js/boss-equity-integration-v1.js?v=public-range-equity-integration-v1-1",
     "bossEquityIntegration",
   );
   loadOnce(
