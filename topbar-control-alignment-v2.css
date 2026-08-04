@@ -1,6 +1,8 @@
 /* Stable topbar control geometry, loaded directly to avoid stale dynamic auth CSS. */
 .top-bar-actions {
+  --topbar-control-gap: 8px;
   align-items: center !important;
+  gap: var(--topbar-control-gap) !important;
 }
 
 .top-bar-actions > #topbarSettings {
@@ -9,6 +11,7 @@
   align-items: center !important;
   justify-content: center !important;
   align-self: center !important;
+  gap: var(--topbar-control-gap) !important;
   flex: 0 0 auto;
   height: 34px !important;
   min-height: 34px !important;
@@ -36,5 +39,57 @@
 }
 
 .top-bar-actions > #topbarSettings > #settingsMenuButton {
+  order: 0;
   margin-inline: 0 !important;
+}
+
+/* Account comes immediately before Settings and keeps the same visual gap as every other topbar control. */
+.top-bar-actions > #topbarSettings > #authAccountButton[data-auth-placement="topbar"] {
+  order: -1;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  align-self: center !important;
+  width: auto !important;
+  min-width: 126px !important;
+  max-width: 210px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  max-height: 34px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  gap: 7px !important;
+  flex: 0 0 auto !important;
+  line-height: 1 !important;
+}
+
+.top-bar-actions > #topbarSettings > #authAccountButton[data-auth-placement="topbar"][data-auth-state="signed-in"] {
+  min-width: 168px !important;
+  max-width: 220px !important;
+}
+
+.top-bar-actions > #topbarSettings > #authAccountButton[data-auth-placement="topbar"] .auth-account-label {
+  display: block !important;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Only compact the account control when the usable desktop width is genuinely tight. */
+@media (max-width: 1300px) {
+  .top-bar-actions > #topbarSettings > #authAccountButton[data-auth-placement="topbar"],
+  .top-bar-actions > #topbarSettings > #authAccountButton[data-auth-placement="topbar"][data-auth-state="signed-in"] {
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    padding: 0 5px !important;
+    justify-content: center !important;
+    flex: 0 0 38px !important;
+  }
+
+  .top-bar-actions > #topbarSettings > #authAccountButton[data-auth-placement="topbar"] .auth-account-label {
+    display: none !important;
+  }
 }
