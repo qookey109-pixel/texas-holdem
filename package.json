@@ -7,7 +7,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "validate": "node scripts/validate-static-site.mjs",
+    "validate": "node scripts/validate-static-site.mjs && node scripts/validate-deployment-contracts.mjs",
+    "validate:deployment": "node scripts/validate-deployment-contracts.mjs",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:ai-calibration": "playwright test tests/e2e/ai-calibration-v1-6.spec.js --project=chromium"
