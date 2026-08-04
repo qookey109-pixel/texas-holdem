@@ -97,6 +97,11 @@
     "fairSpecialBosses",
   );
   loadOnce(
+    'script[data-ai-ev-accounting]',
+    "js/ai-ev-accounting-v1.js?v=net-ev-accounting-v1",
+    "aiEvAccounting",
+  );
+  loadOnce(
     'script[data-tournament-observation-memory]',
     "js/tournament-observation-memory-v1.js?v=shared-public-observation-v1",
     "tournamentObservationMemory",
