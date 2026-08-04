@@ -116,7 +116,8 @@ test.describe("Boss public range-conditioned equity V1", () => {
     expect(result.conditioned.rangeFoldEquity).toBeLessThan(0.95);
     expect(result.decision.action).toBe("call");
     expect(result.decision.raiseCalledEquity).toBeLessThan(result.decision.equity);
-    expect(result.decision.raiseEv).toBeLessThan(result.decision.callEv);
+    expect(result.decision.raiseValue).toBe(false);
+    expect(result.decision.raiseBy).toBe(0);
   });
 
   test("joint weighted sampling is reproducible and keeps all opponents in one deal", async ({ page }) => {
