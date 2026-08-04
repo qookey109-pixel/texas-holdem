@@ -2,9 +2,9 @@
 (() => {
   "use strict";
 
-  if (window.BossEquityIntegrationV1?.version === "1.0.0") return;
+  if (window.BossEquityIntegrationV1?.version === "1.1.0") return;
 
-  const VERSION = "1.0.0";
+  const VERSION = "1.1.0";
   const SPECIAL_NAMES = new Set(["Oracle", "Chronos"]);
   let installTimer = 0;
   let installAttempts = 0;
@@ -67,7 +67,7 @@
       const raiseEv = canRaise
         ? (window.AiEvAccountingV1?.raiseEv
           ? window.AiEvAccountingV1.raiseEv({ equity, pot, callAmount: needed, raiseBy, foldEquity })
-          : foldEquity * pot + (1 - foldEquity) * (equity * (pot + needed + raiseBy) - (needed + raiseBy)))
+          : foldEquity * pot + (1 - foldEquity) * (equity * (pot + needed + raiseBy * 2) - (needed + raiseBy)))
         : Number.NEGATIVE_INFINITY;
 
       const strongValue = equity >= ((state?.board?.length || 0) >= 3 ? 0.57 : 0.7);
@@ -104,15 +104,20 @@
         raiseBy: chosenRaiseBy,
         equity,
         rawEquity: result.equity,
+        unweightedEquity: result.unweightedEquity,
         equityMethod: result.method,
         equitySamples: result.samples,
         opponentCount: result.opponentCount,
+        rangeConditioned: Boolean(result.rangeConditioned),
+        rangeModelVersion: result.rangeModelVersion || "uniform",
+        rangeSummaries: Array.isArray(result.rangeSummaries) ? result.rangeSummaries : [],
         potOdds,
         foldEquity,
         callEv,
         raiseEv,
         context,
         equityEngine: VERSION,
+        equityEngineVersion: window.BossEquityEngineV1?.version || "unavailable",
         fairPublicInformationOnly: true,
       };
       return lastDecision;
@@ -180,6 +185,8 @@
       ownHoleCards: true,
       publicBoard: true,
       publicActiveSeats: true,
+      publicActions: true,
+      publicBetSizes: true,
       hiddenOpponentCards: false,
       actualDeckOrder: false,
       futureBoardAnswer: false,
