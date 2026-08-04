@@ -1,0 +1,55 @@
+name: AI calibration
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "app.js"
+      - "js/ai-*.js"
+      - "js/boss-*.js"
+      - "js/fair-special-bosses.js"
+      - "tests/support/ai-calibration-*.js"
+      - "tests/e2e/ai-calibration-*.spec.js"
+      - "docs/ai-calibration-*.md"
+      - "docs/calibration-results/*.md"
+      - "package.json"
+      - ".github/workflows/ai-calibration.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  calibration:
+    name: fixed-seed calibration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run AI V1.6 and V1.9 calibration
+        run: npm run test:ai-calibration
+
+      - name: Upload calibration report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-calibration-report-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14
