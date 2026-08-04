@@ -58,6 +58,42 @@
     return tied > 0 ? 1 / (tied + 1) : 1;
   }
 
+  function expectedRaiseResponse(playerCards, opponentHands, board, continueProbabilities) {
+    const ownResult = evaluateBestHand([...playerCards, ...board]);
+    const comparisons = opponentHands.map(cards => (
+      compareResults(ownResult, evaluateBestHand([...cards, ...board]))
+    ));
+    const probabilities = continueProbabilities.map(value => clamp(Number(value) || 0, 0.001, 0.999));
+    const subsetCount = 1 << comparisons.length;
+    let foldProbability = 1;
+    for (const probability of probabilities) foldProbability *= 1 - probability;
+
+    let callProbability = 0;
+    let calledEquityMass = 0;
+    for (let mask = 1; mask < subsetCount; mask += 1) {
+      let probability = 1;
+      let lost = false;
+      let tied = 0;
+      for (let index = 0; index < comparisons.length; index += 1) {
+        const continues = Boolean(mask & (1 << index));
+        probability *= continues ? probabilities[index] : (1 - probabilities[index]);
+        if (!continues) continue;
+        if (comparisons[index] < 0) lost = true;
+        else if (comparisons[index] === 0) tied += 1;
+      }
+      if (probability <= 0) continue;
+      callProbability += probability;
+      if (!lost) calledEquityMass += probability * (tied > 0 ? 1 / (tied + 1) : 1);
+    }
+
+    return {
+      foldProbability,
+      callProbability,
+      calledEquityMass,
+      equityGivenCall: callProbability > 0 ? calledEquityMass / callProbability : 0.5,
+    };
+  }
+
   function exactRiverHeadsUp(player, board = state?.board || [], options = {}) {
     if (!player?.cards || player.cards.length !== 2 || board.length !== 5) return null;
     const deck = beliefDeck(player, board);
@@ -66,10 +102,14 @@
       || model?.profilesFor?.(player, 1, board)
       || [];
     const profile = profiles[0] || null;
+    const raisePressure = clamp(Number(options.raisePressure) || 0.65, 0.15, 2.5);
 
     let weightedEquity = 0;
     let totalWeight = 0;
     let unweightedEquity = 0;
+    let raiseCallWeight = 0;
+    let raiseCalledEquityMass = 0;
+    let foldWeight = 0;
     let combinations = 0;
     let records = null;
 
@@ -78,9 +118,13 @@
       for (const record of records) {
         const outcome = compareAgainstField(player.cards, [record.cards], board);
         const weight = model.comboWeight(record, profile);
+        const continueProbability = model.raiseContinueProbability(record, profile, raisePressure);
         weightedEquity += outcome * weight;
         totalWeight += weight;
         unweightedEquity += outcome;
+        raiseCallWeight += weight * continueProbability;
+        raiseCalledEquityMass += outcome * weight * continueProbability;
+        foldWeight += weight * (1 - continueProbability);
         combinations += 1;
       }
     } else {
@@ -90,21 +134,27 @@
           weightedEquity += outcome;
           totalWeight += 1;
           unweightedEquity += outcome;
+          raiseCallWeight += 1;
+          raiseCalledEquityMass += outcome;
           combinations += 1;
         }
       }
     }
 
+    const equity = totalWeight > 0 ? weightedEquity / totalWeight : 0.5;
     return {
-      equity: totalWeight > 0 ? weightedEquity / totalWeight : 0.5,
+      equity,
       unweightedEquity: combinations > 0 ? unweightedEquity / combinations : 0.5,
+      raiseCalledEquity: raiseCallWeight > 0 ? raiseCalledEquityMass / raiseCallWeight : equity,
+      rangeFoldEquity: totalWeight > 0 ? foldWeight / totalWeight : 0,
+      raisePressure,
       combinations,
       method: "exact-river-heads-up",
       opponentCount: 1,
       rangeConditioned: Boolean(model && profile),
       rangeModelVersion: model?.version || "uniform",
       rangeSummaries: model && profile && records
-        ? [model.distributionSummary(records, profile)]
+        ? [model.distributionSummary(records, profile, raisePressure)]
         : [],
     };
   }
@@ -129,6 +179,7 @@
     }
     return {
       opponentHands,
+      opponentRecords: [],
       futureCards: order.slice(cursor).map(index => deck[index]),
     };
   }
@@ -136,11 +187,13 @@
   function weightedOpponentHands(deck, records, profiles, opponents, futureCount, random, model) {
     const usedKeys = new Set();
     const opponentHands = [];
+    const opponentRecords = [];
     for (let opponent = 0; opponent < opponents; opponent += 1) {
       const profile = profiles[opponent] || profiles[profiles.length - 1];
       const record = model.chooseWeightedRecord(records, profile, random, usedKeys);
       if (!record) return null;
       opponentHands.push(record.cards);
+      opponentRecords.push(record);
       record.keys.forEach(key => usedKeys.add(key));
     }
 
@@ -149,6 +202,7 @@
     const order = shuffledIndices(remaining.length, random).slice(0, futureCount);
     return {
       opponentHands,
+      opponentRecords,
       futureCards: order.map(index => remaining[index]),
     };
   }
@@ -160,6 +214,7 @@
     random = Math.random,
     opponentProfiles = null,
     rangeModel = true,
+    raisePressure = 0.65,
   } = {}) {
     if (!player?.cards || player.cards.length !== 2) {
       return { equity: 0.5, samples: 0, method: "fallback", opponentCount: 0 };
@@ -170,6 +225,7 @@
     const deck = beliefDeck(player, board);
     const cardsNeeded = opponents * 2 + futureCount;
     const iterations = clamp(Math.floor(Number(samples) || 320), 48, 1200);
+    const safeRaisePressure = clamp(Number(raisePressure) || 0.65, 0.15, 2.5);
     if (deck.length < cardsNeeded) {
       return { equity: 0.5, samples: 0, method: "fallback", opponentCount: opponents };
     }
@@ -183,25 +239,57 @@
 
     let equity = 0;
     let completed = 0;
+    let foldProbabilityTotal = 0;
+    let raiseCallProbabilityTotal = 0;
+    let raiseCalledEquityMass = 0;
     for (let iteration = 0; iteration < iterations; iteration += 1) {
       const deal = conditioned
         ? weightedOpponentHands(deck, records, profiles, opponents, futureCount, random, model)
         : uniformOpponentHands(deck, opponents, futureCount, random);
       if (!deal) continue;
       const finalBoard = [...board, ...deal.futureCards];
-      equity += compareAgainstField(player.cards, deal.opponentHands, finalBoard);
+      const outcome = compareAgainstField(player.cards, deal.opponentHands, finalBoard);
+      equity += outcome;
+
+      if (conditioned) {
+        const continueProbabilities = deal.opponentRecords.map((record, index) => (
+          model.raiseContinueProbability(
+            record,
+            profiles[index] || profiles[profiles.length - 1],
+            safeRaisePressure,
+          )
+        ));
+        const response = expectedRaiseResponse(
+          player.cards,
+          deal.opponentHands,
+          finalBoard,
+          continueProbabilities,
+        );
+        foldProbabilityTotal += response.foldProbability;
+        raiseCallProbabilityTotal += response.callProbability;
+        raiseCalledEquityMass += response.calledEquityMass;
+      } else {
+        raiseCallProbabilityTotal += 1;
+        raiseCalledEquityMass += outcome;
+      }
       completed += 1;
     }
 
+    const currentEquity = completed > 0 ? equity / completed : 0.5;
     return {
-      equity: completed > 0 ? equity / completed : 0.5,
+      equity: currentEquity,
+      raiseCalledEquity: raiseCallProbabilityTotal > 0
+        ? raiseCalledEquityMass / raiseCallProbabilityTotal
+        : currentEquity,
+      rangeFoldEquity: completed > 0 ? foldProbabilityTotal / completed : 0,
+      raisePressure: safeRaisePressure,
       samples: completed,
       method: opponents > 1 ? "joint-multiway-monte-carlo" : "heads-up-monte-carlo",
       opponentCount: opponents,
       rangeConditioned: conditioned,
       rangeModelVersion: model?.version || "uniform",
       rangeSummaries: conditioned
-        ? profiles.map(profile => model.distributionSummary(records, profile))
+        ? profiles.map(profile => model.distributionSummary(records, profile, safeRaisePressure))
         : [],
     };
   }
@@ -232,6 +320,7 @@
     beliefDeck,
     activeOpponentCount,
     compareAgainstField,
+    expectedRaiseResponse,
     exactRiverHeadsUp,
     simulateMultiway,
     estimate,
