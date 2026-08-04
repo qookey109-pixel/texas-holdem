@@ -3,6 +3,7 @@
 function render() {
   if (!state.players.length) return;
   const animateCards = shouldAnimateCards();
+  const animateHoleCards = animateCards && state.board.length === 0;
 
   els.table.classList.toggle("is-showdown", state.handOver);
   els.table.classList.toggle("is-human-turn", state.waitingForHuman && !state.handOver);
@@ -38,8 +39,8 @@ function render() {
   const player = human();
   const playerCards = player?.cards || [];
   els.playerCards.innerHTML = playerCards.length === 2
-    ? playerCards.map((c, i) => renderCard(c, i, { animate: animateCards })).join("")
-    : Array.from({ length: 2 }, (_, i) => renderCard(null, i, { animate: animateCards })).join("");
+    ? playerCards.map((c, i) => renderCard(c, i, { animate: animateHoleCards })).join("")
+    : Array.from({ length: 2 }, (_, i) => renderCard(null, i, { animate: animateHoleCards })).join("");
 
   els.boardCards.innerHTML = state.board.length
     ? state.board.map((c, i) => renderCard(c, i, { animate: animateCards })).join("")
@@ -80,7 +81,7 @@ function render() {
       : "";
     const cards = `
       <div class="seat-card-zone seat-cards-pos-${player.position} ${player.folded ? "is-folded" : ""} ${isWinner ? "is-winner" : ""}" data-layout-key="seatCards${player.position}" data-layout-label="${escapeHtml(player.emoji + " 手牌")}">
-        <div class="cards">${player.cards.map((c, i) => renderCard(reveal ? c : null, i, { animate: animateCards })).join("")}</div>
+        <div class="cards">${player.cards.map((c, i) => renderCard(reveal ? c : null, i, { animate: animateHoleCards })).join("")}</div>
         ${player.folded ? '<div class="fold-banner">FOLD</div>' : ""}
       </div>
     `;
