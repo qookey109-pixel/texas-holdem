@@ -90,8 +90,10 @@
           ))
         : Number.NEGATIVE_INFINITY;
 
-      const strongValue = equity >= ((state?.board?.length || 0) >= 3 ? 0.57 : 0.7);
-      const premiumValue = raiseCalledEquity >= ((state?.board?.length || 0) >= 3 ? 0.74 : 0.84);
+      const postflop = (state?.board?.length || 0) >= 3;
+      const currentStrongValue = equity >= (postflop ? 0.57 : 0.7);
+      const raiseValue = raiseCalledEquity >= (postflop ? 0.57 : 0.7);
+      const premiumValue = raiseCalledEquity >= (postflop ? 0.74 : 0.84);
       const stackBb = stack / bigBlind;
       const bluffFrequency = clamp(
         (player?.name === "Oracle" ? 0.17 : 0.12) + foldExploit - callPenalty,
@@ -104,7 +106,7 @@
         && stackBb > 18
         && Math.random() < bluffFrequency;
       const trap = needed === 0
-        && strongValue
+        && currentStrongValue
         && player?.name === "Chronos"
         && Math.random() < 0.2;
       const jam = canRaise && premiumValue && stackBb <= 13 && Math.random() < 0.72;
@@ -113,7 +115,7 @@
       let chosenRaiseBy = 0;
       if (needed > 0 && callEv < -(bigBlind * 0.08) && !mixedBluff) {
         action = "fold";
-      } else if (!trap && canRaise && (jam || mixedBluff || (strongValue && raiseEv > callEv))) {
+      } else if (!trap && canRaise && (jam || mixedBluff || (raiseValue && raiseEv > callEv))) {
         action = "raise";
         chosenRaiseBy = jam ? availableRaise : raiseBy;
       }
@@ -126,6 +128,7 @@
         rawEquity: result.equity,
         unweightedEquity: result.unweightedEquity,
         raiseCalledEquity,
+        raiseValue,
         equityMethod: result.method,
         equitySamples: result.samples,
         opponentCount: result.opponentCount,
