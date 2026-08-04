@@ -124,9 +124,12 @@ test.describe("自然下注狀態機壓力測試", () => {
             0,
           );
           const maximumBet = Math.max(0, ...players.map(player => player.bet || 0));
+          const expectedPlayerCount = TABLE_AI_COUNT + 1;
           const errors = [];
 
-          if (players.length !== 6) errors.push(`player-count:${players.length}`);
+          if (players.length !== expectedPlayerCount) {
+            errors.push(`player-count:${players.length}/${expectedPlayerCount}`);
+          }
           if (allCards.length !== 52) errors.push(`card-count:${allCards.length}`);
           if (new Set(allCards.map(cardKey)).size !== allCards.length) errors.push("duplicate-card");
           if (![0, 3, 4, 5].includes(state.board.length)) errors.push(`board:${state.board.length}`);
