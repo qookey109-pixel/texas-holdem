@@ -4,7 +4,7 @@
 
   if (window.AiEvAccountingV1?.version) return;
 
-  const VERSION = "1.0.0";
+  const VERSION = "1.0.1";
   const SPECIAL_NAMES = new Set(["Oracle", "Chronos"]);
   let installTimer = 0;
   let basePatched = false;
@@ -29,13 +29,16 @@
     return safeEquity * safeFinalPot - safeInvestment;
   }
 
-  function raiseEv({ equity, pot, callAmount, raiseBy, foldEquity }) {
+  function raiseEv({ equity, pot, callAmount, raiseBy, foldEquity, calledBy = 1 }) {
     const safePot = Math.max(0, Number(pot) || 0);
     const safeCall = Math.max(0, Number(callAmount) || 0);
     const safeRaise = Math.max(0, Number(raiseBy) || 0);
     const safeFoldEquity = clamp(foldEquity);
+    const numericCalledBy = Number(calledBy);
+    const safeCalledBy = Math.max(0, Number.isFinite(numericCalledBy) ? numericCalledBy : 1);
     const investment = safeCall + safeRaise;
-    const finalPot = safePot + investment;
+    const opponentCallContribution = safeRaise * safeCalledBy;
+    const finalPot = safePot + investment + opponentCallContribution;
     const calledEv = showdownEv({ equity, finalPot, investment });
     return safeFoldEquity * safePot + (1 - safeFoldEquity) * calledEv;
   }
@@ -54,6 +57,7 @@
         callAmount: needed,
         raiseBy: candidate.raiseBy,
         foldEquity: candidate.foldEquity,
+        calledBy: candidate.calledBy ?? 1,
       });
       return {
         ...candidate,
@@ -98,6 +102,7 @@
         callAmount: needed,
         raiseBy: decision.raiseBy,
         foldEquity: decision.foldEquity,
+        calledBy: decision.calledBy ?? 1,
       })
       : Number.NEGATIVE_INFINITY;
 
