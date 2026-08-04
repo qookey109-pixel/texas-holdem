@@ -107,12 +107,52 @@ C(45, 2) = 990 組
 
 保留較寬且偏弱的分布，但仍允許慢打強牌。
 
+## Call 範圍與 Raise 被跟注範圍
+
+單一 Equity 不足以同時定價 Call 與 Raise。
+
+例如頂對可能領先對手目前的河牌下注範圍，因為該範圍含有詐唬；但當 Boss 再加注後，詐唬通常會棄牌，留下願意跟注的更強範圍。
+
+因此引擎分開計算：
+
+```text
+equity
+= 對手目前公開下注／行動範圍下的 Equity
+
+raiseCalledEquity
+= Boss 再加注且至少一名對手繼續時的條件 Equity
+
+rangeFoldEquity
+= 對手範圍面對 Boss 再加注全部棄牌的估計機率
+```
+
+每個假想對手 Combo 會依：
+
+- 目前牌型百分位
+- 街道
+- Boss 再加注尺寸相對底池的壓力
+- 公開範圍強度
+- 公開堅果密度
+
+得到平滑的繼續機率。
+
+弱詐唬組合通常棄牌，頂端價值組合通常繼續，中間區間平滑過渡；沒有使用特定牌面或特定手牌的硬編碼答案。
+
+Raise EV 使用 `raiseCalledEquity`，Call EV 使用 `equity`。這能同時保留：
+
+- 堅果牌價值加注
+- 頂對／Bluff Catch 合理跟注
+- 真正低 Equity 組合的混合詐唬
+
 ## 精確河牌
 
 河牌單挑會同時計算：
 
 - `equity`：公開範圍加權 Equity
 - `unweightedEquity`：原均勻 990 組 Equity
+- `raiseCalledEquity`：面對再加注仍繼續的條件範圍 Equity
+- `rangeFoldEquity`：公開範圍面對再加注的全體棄牌機率
+- `raisePressure`：再加注額相對當前可爭奪底池的比例
 - `combinations`：固定為 990
 - `rangeConditioned`：是否啟用公開範圍
 - `rangeModelVersion`
@@ -131,10 +171,17 @@ C(45, 2) = 990 組
 5. 從剩餘未知牌均勻抽未來公共牌。
 6. Boss 必須同時擊敗整個欄位才計為完整勝利。
 
+每個樣本還會枚舉哪些對手會在 Boss 再加注後繼續。最多七名對手時只有 `2^7 - 1 = 127` 個非空繼續子集合，並以各自機率加權：
+
+- 全部棄牌計入 `rangeFoldEquity`
+- 至少一名繼續才計入 `raiseCalledEquity`
+- 已棄牌的假想對手不會繼續參與再加注後的攤牌
+
 因此不會出現：
 
 - 不同對手抽到同一張牌
 - 每位對手各自獨立模擬後再線性扣分
+- 把已經會棄牌的詐唬牌算進 Raise 被跟注後的 Equity
 - 偷看真實未來公共牌
 
 Oracle 保留 `360` 次樣本，Chronos 保留 `480` 次樣本。
@@ -146,6 +193,9 @@ Boss 決策會保存：
 ```text
 equity
 unweightedEquity
+raiseCalledEquity
+rangeFoldEquity
+raisePressure
 equityMethod
 equitySamples
 opponentCount
@@ -160,6 +210,7 @@ equityEngineVersion
 - 平均強度百分位
 - 頂端四分位權重
 - 底端四分位權重
+- 面對再加注的繼續權重
 - 公開最後行動
 - 公開範圍強度
 
@@ -172,6 +223,9 @@ equityEngineVersion
 - 公開河牌加注範圍的平均強度高於過牌範圍。
 - 河牌加注範圍仍保留非零底端四分位權重。
 - A9 頂對面對公開河牌加注時，加權 Equity 必須低於均勻牌組 Equity。
+- A9 的 `raiseCalledEquity` 必須低於目前下注範圍的 `equity`。
+- 固定種子校準中，河牌頂對再加注率不得超過 25%。
+- 固定種子校準中，河牌堅果加注率仍不得低於 75%。
 - 固定種子多人模擬必須完全可重現。
 - 對手隱藏底牌 getter 不得被觸發。
 - Oracle／Chronos 樣本數維持 `360／480`。
