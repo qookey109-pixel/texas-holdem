@@ -187,10 +187,16 @@
     }, true);
 
     document.addEventListener("keydown", event => {
+      const activates = event.key === "Enter" || event.key === " ";
       const seat = event.target.closest?.(".seat[data-profile-position]");
-      if (seat && !state.layout.editing && (event.key === "Enter" || event.key === " ")) {
+      if (seat && !state.layout.editing && activates) {
         aiReturnPosition = seat.dataset.profilePosition;
         restoreAiOnClose = false;
+      }
+
+      if (activates && event.target.closest?.("[data-profile-close]")) {
+        aiReturnPosition = String(selectedAiPosition() ?? "");
+        restoreAiOnClose = true;
       }
     }, true);
 
