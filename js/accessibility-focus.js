@@ -15,6 +15,7 @@
 
   const dialogState = new WeakMap();
   let aiReturnPosition = null;
+  let focusedAiSeatPosition = null;
   let restoreAiOnClose = false;
   let aiFocusRequestId = 0;
 
@@ -191,12 +192,46 @@
     });
   }
 
+  function openAiProfileFromKeyboard(event, seat, panel) {
+    event.preventDefault();
+    event.stopPropagation();
+    const position = String(seat.dataset.profilePosition);
+    aiReturnPosition = position;
+    focusedAiSeatPosition = position;
+    restoreAiOnClose = false;
+    state.selectedProfilePosition = Number(position);
+    render();
+    focusAiWhenReady(
+      () => panel.querySelector("[data-profile-close]"),
+      () => visible(panel),
+    );
+  }
+
+  function closeAiProfileFromKeyboard(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    aiReturnPosition = String(selectedAiPosition() ?? aiReturnPosition ?? "");
+    focusedAiSeatPosition = aiReturnPosition || focusedAiSeatPosition;
+    restoreAiOnClose = true;
+    state.selectedProfilePosition = null;
+    render();
+  }
+
   function installAiProfileFocus() {
     const panel = els?.aiProfilePanel;
     if (!(panel instanceof HTMLElement)) return;
 
     let wasVisible = visible(panel);
     syncAiSemantics();
+
+    document.addEventListener("focusin", event => {
+      const seat = event.target.closest?.(".seat[data-profile-position]");
+      if (seat) {
+        focusedAiSeatPosition = seat.dataset.profilePosition;
+        return;
+      }
+      if (!event.target.closest?.("#aiProfilePanel")) focusedAiSeatPosition = null;
+    }, true);
 
     document.addEventListener("pointerdown", event => {
       const seat = event.target.closest?.(".seat[data-profile-position]");
@@ -207,29 +242,30 @@
 
       if (event.target.closest?.("[data-profile-close]")) {
         aiReturnPosition = String(selectedAiPosition() ?? "");
+        focusedAiSeatPosition = aiReturnPosition || focusedAiSeatPosition;
         restoreAiOnClose = true;
       }
     }, true);
 
     document.addEventListener("keydown", event => {
       const activates = event.key === "Enter" || event.key === " ";
-      const seat = event.target.closest?.(".seat[data-profile-position]");
-      if (seat && !state.layout.editing && activates) {
-        aiReturnPosition = seat.dataset.profilePosition;
-        restoreAiOnClose = false;
+      if (!activates) return;
+
+      const closeButton = event.target.closest?.("[data-profile-close]");
+      if (closeButton) {
+        closeAiProfileFromKeyboard(event);
+        return;
       }
 
-      if (activates && event.target.closest?.("[data-profile-close]")) {
-        aiReturnPosition = String(selectedAiPosition() ?? "");
-        restoreAiOnClose = true;
-      }
+      const seat = event.target.closest?.(".seat[data-profile-position]");
+      if (seat && !state.layout.editing) openAiProfileFromKeyboard(event, seat, panel);
     }, true);
 
     const observer = new MutationObserver(() => {
       const isVisible = visible(panel);
       syncAiSemantics();
 
-      if (isVisible && !wasVisible) {
+      if (isVisible && (!wasVisible || !panel.contains(document.activeElement))) {
         aiReturnPosition = String(selectedAiPosition() ?? aiReturnPosition ?? "");
         focusAiWhenReady(
           () => panel.querySelector("[data-profile-close]"),
@@ -241,6 +277,7 @@
         const position = aiReturnPosition;
         aiFocusRequestId += 1;
         if (restoreAiOnClose && position !== null && position !== "") {
+          focusedAiSeatPosition = position;
           focusAiWhenReady(
             () => aiSeat(position),
             () => !visible(panel),
@@ -259,7 +296,18 @@
     });
 
     if (els.opponents) {
-      const seatObserver = new MutationObserver(syncAiSemantics);
+      const seatObserver = new MutationObserver(() => {
+        syncAiSemantics();
+        const position = focusedAiSeatPosition;
+        const active = document.activeElement;
+        const focusWasLost = active === document.body || !(active instanceof HTMLElement) || !active.isConnected;
+        if (!visible(panel) && position && focusWasLost) {
+          focusAiWhenReady(
+            () => aiSeat(position),
+            () => !visible(panel) && focusedAiSeatPosition === position,
+          );
+        }
+      });
       seatObserver.observe(els.opponents, { childList: true });
     }
   }
@@ -289,6 +337,7 @@
         event.preventDefault();
         event.stopImmediatePropagation();
         aiReturnPosition = String(selectedAiPosition() ?? aiReturnPosition ?? "");
+        focusedAiSeatPosition = aiReturnPosition || focusedAiSeatPosition;
         restoreAiOnClose = true;
         state.selectedProfilePosition = null;
         render();
@@ -309,7 +358,7 @@
   installGlobalKeyboardHandling();
 
   window.DesktopAccessibilityFocus = Object.freeze({
-    version: "2.0.1",
+    version: "2.1.0",
     focusableElements,
     trapTab,
     syncAiSemantics,
