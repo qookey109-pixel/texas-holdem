@@ -11,27 +11,119 @@
     document.body.appendChild(script);
   }
 
-  loadOnce('script[data-elite-character-presentation-v2]', "js/elite-character-presentation-v2.js?v=elite-roster-v2", "eliteCharacterPresentationV2");
-  loadOnce('script[data-elite-character-progress-fix]', "js/elite-character-progress-fix.js?v=nineteen-roster-v1", "eliteCharacterProgressFix");
-  loadOnce('script[data-ai-tier-boss-system]', "js/ai-tier-boss-system.js?v=tier-boss-fair-guard-v2", "aiTierBossSystem");
-  loadOnce('script[data-fair-boss-core-guard]', "js/fair-boss-core-guard.js?v=fair-boss-core-guard-v1", "fairBossCoreGuard");
-  loadOnce('script[data-ai-action-memory]', "js/ai-action-memory-v1.js?v=multi-street-ai-v1-1", "aiActionMemory");
-  loadOnce('script[data-ai-range-tools]', "js/ai-range-tools-v1.js?v=multi-street-ai-v1-1", "aiRangeTools");
-  loadOnce('script[data-ai-character-strategies]', "js/ai-character-strategies-v1.js?v=independent-ai-v1", "aiCharacterStrategies");
-  loadOnce('script[data-ai-character-strategies-v1-1]', "js/ai-character-strategies-v1-1.js?v=multi-street-ai-v1-1", "aiCharacterStrategiesV11");
-  loadOnce('script[data-ai-preflop-range-engine]', "js/ai-preflop-range-engine-v1.js?v=preflop-range-ai-v1-2", "aiPreflopRangeEngine");
-  loadOnce('script[data-ai-character-strategies-v1-2]', "js/ai-character-strategies-v1-2.js?v=preflop-range-ai-v1-2", "aiCharacterStrategiesV12");
-  loadOnce('script[data-ai-player-model]', "js/ai-player-model-v1.js?v=adaptive-player-model-v1-3", "aiPlayerModel");
-  loadOnce('script[data-ai-player-model-memory]', "js/ai-player-model-memory-v1.js?v=long-term-ai-memory-v1-4", "aiPlayerModelMemory");
-  loadOnce('script[data-ai-character-strategies-v1-3]', "js/ai-character-strategies-v1-3.js?v=adaptive-player-model-v1-3", "aiCharacterStrategiesV13");
-  loadOnce('script[data-ai-multiway-range-model]', "js/ai-multiway-range-model-v1.js?v=multiway-range-ai-v1-5", "aiMultiwayRangeModel");
-  loadOnce('script[data-ai-character-strategies-v1-5]', "js/ai-character-strategies-v1-5.js?v=multiway-range-ai-v1-5", "aiCharacterStrategiesV15");
-  loadOnce('script[data-ai-repeated-allin-counter]', "js/ai-repeated-allin-counter-v1.js?v=repeated-allin-counter-v1-6-1", "aiRepeatedAllinCounter");
-  loadOnce('script[data-fair-special-bosses]', "js/fair-special-bosses.js?v=public-showdown-range-v2", "fairSpecialBosses");
-  loadOnce('script[data-ai-ev-accounting]', "js/ai-ev-accounting-v1.js?v=net-ev-accounting-v1", "aiEvAccounting");
-  loadOnce('script[data-ai-effective-stack-spr]', "js/ai-effective-stack-spr-v1.js?v=effective-stack-spr-v1", "aiEffectiveStackSpr");
-  loadOnce('script[data-boss-equity-engine]', "js/boss-equity-engine-v1.js?v=fair-boss-equity-v1", "bossEquityEngine");
-  loadOnce('script[data-tournament-observation-memory]', "js/tournament-observation-memory-v1.js?v=shared-public-observation-v1", "tournamentObservationMemory");
-  loadOnce('script[data-ai-provider-legacy-worker-migration]', "js/ai-provider-legacy-worker-migration.js?v=custom-ai-provider-v1", "aiProviderLegacyWorkerMigration");
-  loadOnce('script[data-ai-provider-client]', "js/ai-provider-client-v1.js?v=custom-ai-provider-v1", "aiProviderClient");
+  loadOnce(
+    'script[data-elite-character-presentation-v2]',
+    "js/elite-character-presentation-v2.js?v=elite-roster-v2",
+    "eliteCharacterPresentationV2",
+  );
+  loadOnce(
+    'script[data-elite-character-progress-fix]',
+    "js/elite-character-progress-fix.js?v=nineteen-roster-v1",
+    "eliteCharacterProgressFix",
+  );
+  loadOnce(
+    'script[data-ai-tier-boss-system]',
+    "js/ai-tier-boss-system.js?v=tier-boss-fair-guard-v2",
+    "aiTierBossSystem",
+  );
+  loadOnce(
+    'script[data-fair-boss-core-guard]',
+    "js/fair-boss-core-guard.js?v=fair-boss-core-guard-v1",
+    "fairBossCoreGuard",
+  );
+  loadOnce(
+    'script[data-ai-action-memory]',
+    "js/ai-action-memory-v1.js?v=multi-street-ai-v1-1",
+    "aiActionMemory",
+  );
+  loadOnce(
+    'script[data-ai-range-tools]',
+    "js/ai-range-tools-v1.js?v=multi-street-ai-v1-1",
+    "aiRangeTools",
+  );
+  loadOnce(
+    'script[data-ai-character-strategies]',
+    "js/ai-character-strategies-v1.js?v=independent-ai-v1",
+    "aiCharacterStrategies",
+  );
+  loadOnce(
+    'script[data-ai-character-strategies-v1-1]',
+    "js/ai-character-strategies-v1-1.js?v=multi-street-ai-v1-1",
+    "aiCharacterStrategiesV11",
+  );
+  loadOnce(
+    'script[data-ai-preflop-range-engine]',
+    "js/ai-preflop-range-engine-v1.js?v=preflop-range-ai-v1-2",
+    "aiPreflopRangeEngine",
+  );
+  loadOnce(
+    'script[data-ai-character-strategies-v1-2]',
+    "js/ai-character-strategies-v1-2.js?v=preflop-range-ai-v1-2",
+    "aiCharacterStrategiesV12",
+  );
+  loadOnce(
+    'script[data-ai-player-model]',
+    "js/ai-player-model-v1.js?v=adaptive-player-model-v1-3",
+    "aiPlayerModel",
+  );
+  loadOnce(
+    'script[data-ai-player-model-memory]',
+    "js/ai-player-model-memory-v1.js?v=long-term-ai-memory-v1-4",
+    "aiPlayerModelMemory",
+  );
+  loadOnce(
+    'script[data-ai-character-strategies-v1-3]',
+    "js/ai-character-strategies-v1-3.js?v=adaptive-player-model-v1-3",
+    "aiCharacterStrategiesV13",
+  );
+  loadOnce(
+    'script[data-ai-multiway-range-model]',
+    "js/ai-multiway-range-model-v1.js?v=multiway-range-ai-v1-5",
+    "aiMultiwayRangeModel",
+  );
+  loadOnce(
+    'script[data-ai-character-strategies-v1-5]',
+    "js/ai-character-strategies-v1-5.js?v=multiway-range-ai-v1-5",
+    "aiCharacterStrategiesV15",
+  );
+  loadOnce(
+    'script[data-ai-repeated-allin-counter]',
+    "js/ai-repeated-allin-counter-v1.js?v=repeated-allin-counter-v1-6-1",
+    "aiRepeatedAllinCounter",
+  );
+  loadOnce(
+    'script[data-fair-special-bosses]',
+    "js/fair-special-bosses.js?v=public-showdown-range-v2",
+    "fairSpecialBosses",
+  );
+  loadOnce(
+    'script[data-ai-ev-accounting]',
+    "js/ai-ev-accounting-v1.js?v=net-ev-accounting-v1",
+    "aiEvAccounting",
+  );
+  loadOnce(
+    'script[data-ai-effective-stack-spr]',
+    "js/ai-effective-stack-spr-v1.js?v=effective-stack-spr-v1",
+    "aiEffectiveStackSpr",
+  );
+  loadOnce(
+    'script[data-boss-equity-engine]',
+    "js/boss-equity-engine-v1.js?v=fair-boss-equity-v1",
+    "bossEquityEngine",
+  );
+  loadOnce(
+    'script[data-tournament-observation-memory]',
+    "js/tournament-observation-memory-v1.js?v=shared-public-observation-v1",
+    "tournamentObservationMemory",
+  );
+  loadOnce(
+    'script[data-ai-provider-legacy-worker-migration]',
+    "js/ai-provider-legacy-worker-migration.js?v=custom-ai-provider-v1",
+    "aiProviderLegacyWorkerMigration",
+  );
+  loadOnce(
+    'script[data-ai-provider-client]',
+    "js/ai-provider-client-v1.js?v=custom-ai-provider-v1",
+    "aiProviderClient",
+  );
 })();
