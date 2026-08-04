@@ -2,6 +2,8 @@
 (() => {
   "use strict";
 
+  const FAIR_SPECIAL_NAMES = new Set(["Oracle", "Chronos"]);
+
   function loadOnce(selector, src, dataKey) {
     if (document.querySelector(selector)) return;
     const script = document.createElement("script");
@@ -9,6 +11,42 @@
     script.async = false;
     script.dataset[dataKey] = "true";
     document.body.appendChild(script);
+  }
+
+  function sanitizeSpecialBossProfiles() {
+    if (typeof AI_ROSTER === "undefined") return false;
+    for (const profile of AI_ROSTER) {
+      if (!FAIR_SPECIAL_NAMES.has(profile?.name)) continue;
+      delete profile.omniscient;
+      profile.fairPlay = true;
+      profile.playerModeling = true;
+      profile.publicInformationOnly = true;
+      profile.publicShowdownMemory = true;
+      profile.rangeInference = true;
+    }
+    return true;
+  }
+
+  function installFairSpecialBossGuard() {
+    sanitizeSpecialBossProfiles();
+    if (typeof botAction !== "function" || !window.FairSpecialBosses?.version) return false;
+
+    const currentDecision = botAction;
+    if (currentDecision?.__fairSpecialBossGuard === true) return true;
+    const baseDecision = window.__aiTierBossOriginalBotAction;
+
+    const guardedDecision = function guardedFairSpecialBossDecision(player) {
+      if (FAIR_SPECIAL_NAMES.has(player?.name)) {
+        if (window.__fairSpecialBossDecisionInstalled) return currentDecision(player);
+        if (typeof baseDecision === "function") return baseDecision(player);
+      }
+      return currentDecision(player);
+    };
+    guardedDecision.__fairSpecialBossGuard = true;
+    botAction = guardedDecision;
+    window.__fairSpecialBossGuardInstalled = true;
+    document.documentElement.dataset.fairSpecialBossGuard = "ready";
+    return true;
   }
 
   loadOnce(
@@ -101,4 +139,17 @@
     "js/ai-provider-client-v1.js?v=custom-ai-provider-v1",
     "aiProviderClient",
   );
+
+  const guardObserver = new MutationObserver(() => {
+    sanitizeSpecialBossProfiles();
+    installFairSpecialBossGuard();
+  });
+  guardObserver.observe(document.documentElement, { childList: true, subtree: true });
+
+  let guardAttempts = 0;
+  const guardTimer = window.setInterval(() => {
+    guardAttempts += 1;
+    const ready = installFairSpecialBossGuard();
+    if (ready || guardAttempts >= 200) window.clearInterval(guardTimer);
+  }, 50);
 })();
