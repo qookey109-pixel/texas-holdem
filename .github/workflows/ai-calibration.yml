@@ -11,6 +11,7 @@ on:
       - "tests/support/ai-calibration-*.js"
       - "tests/e2e/ai-calibration-*.spec.js"
       - "docs/ai-calibration-*.md"
+      - "docs/calibration-results/*.md"
       - "package.json"
       - ".github/workflows/ai-calibration.yml"
 
