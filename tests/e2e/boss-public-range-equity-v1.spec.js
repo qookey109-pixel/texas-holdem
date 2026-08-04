@@ -1,13 +1,5 @@
 import { expect, test } from "@playwright/test";
 
-function seededRandom(seed) {
-  let value = seed >>> 0;
-  return () => {
-    value = (value * 1664525 + 1013904223) >>> 0;
-    return value / 4294967296;
-  };
-}
-
 test.describe("Boss public range-conditioned equity V1", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("./");
@@ -55,10 +47,12 @@ test.describe("Boss public range-conditioned equity V1", () => {
     expect(result.aggressive.averagePercentile).toBeGreaterThan(result.checked.averagePercentile);
     expect(result.aggressive.topQuartileMass).toBeGreaterThan(result.checked.topQuartileMass);
     expect(result.aggressive.bottomQuartileMass).toBeGreaterThan(0.01);
+    expect(result.aggressive.raiseContinueMass).toBeGreaterThan(0.05);
+    expect(result.aggressive.raiseContinueMass).toBeLessThan(0.95);
     expect(result.aggressive.publicInformationOnly).toBe(true);
   });
 
-  test("river top pair equity falls below the uniform-deck estimate after a public raise", async ({ page }) => {
+  test("river top pair calls the betting range but does not value-raise its stronger continue range", async ({ page }) => {
     const result = await page.evaluate(() => {
       const snapshot = {
         board: state.board,
@@ -73,6 +67,7 @@ test.describe("Boss public range-conditioned equity V1", () => {
         stack: 1200,
         bet: 0,
         folded: false,
+        raiseLocked: false,
       };
       const opponent = {
         name: "Owl",
@@ -96,14 +91,16 @@ test.describe("Boss public range-conditioned equity V1", () => {
       const conditioned = window.BossEquityEngineV1.estimate(boss, {
         board: state.board,
         opponentCount: 1,
+        raisePressure: 0.65,
       });
       const uniform = window.BossEquityEngineV1.estimate(boss, {
         board: state.board,
         opponentCount: 1,
         rangeModel: false,
       });
+      const decision = window.BossEquityIntegrationV1.decide(boss);
       Object.assign(state, snapshot);
-      return { conditioned, uniform };
+      return { conditioned, uniform, decision };
     });
 
     expect(result.conditioned.method).toBe("exact-river-heads-up");
@@ -114,6 +111,12 @@ test.describe("Boss public range-conditioned equity V1", () => {
     expect(result.conditioned.equity).toBeLessThan(result.uniform.equity);
     expect(result.conditioned.equity).toBeLessThan(0.8);
     expect(result.conditioned.unweightedEquity).toBeCloseTo(result.uniform.equity, 10);
+    expect(result.conditioned.raiseCalledEquity).toBeLessThan(result.conditioned.equity);
+    expect(result.conditioned.rangeFoldEquity).toBeGreaterThan(0.05);
+    expect(result.conditioned.rangeFoldEquity).toBeLessThan(0.95);
+    expect(result.decision.action).toBe("call");
+    expect(result.decision.raiseCalledEquity).toBeLessThan(result.decision.equity);
+    expect(result.decision.raiseEv).toBeLessThan(result.decision.callEv);
   });
 
   test("joint weighted sampling is reproducible and keeps all opponents in one deal", async ({ page }) => {
@@ -146,7 +149,7 @@ test.describe("Boss public range-conditioned equity V1", () => {
       ];
       state.pot = 180;
       state.currentBet = 40;
-      const options = { board: state.board, opponentCount: 3, samples: 96 };
+      const options = { board: state.board, opponentCount: 3, samples: 96, raisePressure: 0.7 };
       const first = window.BossEquityEngineV1.estimate(boss, { ...options, random: randomFactory(2026) });
       const second = window.BossEquityEngineV1.estimate(boss, { ...options, random: randomFactory(2026) });
       Object.assign(state, snapshot);
@@ -159,6 +162,10 @@ test.describe("Boss public range-conditioned equity V1", () => {
     expect(result.first.rangeConditioned).toBe(true);
     expect(result.first.rangeSummaries).toHaveLength(3);
     expect(result.first.equity).toBe(result.second.equity);
+    expect(result.first.raiseCalledEquity).toBe(result.second.raiseCalledEquity);
+    expect(result.first.rangeFoldEquity).toBe(result.second.rangeFoldEquity);
+    expect(result.first.raiseCalledEquity).toBeGreaterThanOrEqual(0);
+    expect(result.first.raiseCalledEquity).toBeLessThanOrEqual(1);
   });
 
   test("public range profiles never inspect hidden opponent cards", async ({ page }) => {
