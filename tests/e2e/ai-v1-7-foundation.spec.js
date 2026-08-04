@@ -58,7 +58,7 @@ test.describe("AI V1.7 foundation", () => {
         { value: 2, suit: "clubs" },
       ];
       const strong = { cards: [{ value: 14, suit: "spades" }, { value: 13, suit: "clubs" }] };
-      const weak = { cards: [{ value: 14, suit: "clubs" }, { value: 3, suit: "spades" }] };
+      const weak = { cards: [{ value: 14, suit: "clubs" }, { value: 9, suit: "spades" }] };
       state.players = [strong, { folded: false }, { folded: true }];
       const headsUp = estimateStrength(strong);
       const weakKicker = estimateStrength(weak);
