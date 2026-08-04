@@ -151,13 +151,9 @@ test.describe("自然下注狀態機壓力測試", () => {
               ["bet", player.bet],
               ["totalContribution", player.totalContribution],
             ]) {
-              if (!Number.isInteger(value) || value < 0) {
-                errors.push(`${player.position}:${field}:${value}`);
-              }
+              if (!Number.isInteger(value) || value < 0) errors.push(`${player.position}:${field}:${value}`);
             }
-            if (player.bet > player.totalContribution) {
-              errors.push(`${player.position}:bet-over-contribution`);
-            }
+            if (player.bet > player.totalContribution) errors.push(`${player.position}:bet-over-contribution`);
           }
 
           stress.maximumPot = Math.max(stress.maximumPot, state.pot);
@@ -247,7 +243,7 @@ test.describe("自然下注狀態機壓力測試", () => {
       }
     }
 
-    const report = await page.evaluate(() => {
+    const browserReport = await page.evaluate(() => {
       const stress = window.__NATURAL_BETTING_STRESS__;
       const experience = window.AiTimingController?.getExperience?.() || {};
       Math.random = stress.originalRandom;
@@ -261,10 +257,13 @@ test.describe("自然下注狀態機壓力測試", () => {
         maximumPot: stress.maximumPot,
         maximumPendingTimers: stress.maximumPendingTimers,
         aiExperienceEntries: Object.keys(experience).length,
-        pageErrors: [...pageErrors],
-        handReports,
       };
     });
+    const report = {
+      ...browserReport,
+      pageErrors: [...pageErrors],
+      handReports,
+    };
 
     expect(report.handsStarted).toBe(HAND_COUNT);
     expect(report.handsCompleted).toBe(HAND_COUNT);
