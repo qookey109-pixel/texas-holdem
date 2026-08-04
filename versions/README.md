@@ -55,6 +55,42 @@ v77-pixel-card-theme-2026-07-19
 
 `v77-pixel-card-theme-2026-07-19` 是目前最新的「資料夾快照」，但不是最新正式版本。
 
+## 正式發布紀錄
+
+### AI V1.9 — 2026-08-04
+
+發布文件：
+
+```text
+docs/releases/2026-08-04-ai-v1-9.md
+```
+
+完整合併後正式基準：
+
+```text
+10f6f77abebc93a16fda9e138953d2df82e85987
+```
+
+該版本包含：
+
+- 初階連續牌力與 Pot 相對下注尺寸。
+- Call／Raise 淨 EV 會計。
+- 有效籌碼與 SPR。
+- 連續 All-in 單一調整鏈。
+- 河牌單挑 990 組精確枚舉。
+- 真正多人聯合 Equity 模擬。
+- Oracle 360／Chronos 480 次多人樣本。
+- 公平 Boss 正式接線與 legacy fallback。
+- Equity Engine `1.0.1` 牌面正規化。
+
+後續校準基準：
+
+```text
+docs/ai-calibration-v1-9.md
+```
+
+此 SHA 只代表 AI V1.9 發布基準，不得視為永久最新 `main`。
+
 ## 目前正式功能基準
 
 截至 2026-08-04，正式 `main` 已遠超 v77，包含：
@@ -70,15 +106,19 @@ v77-pixel-card-theme-2026-07-19
 - AI V1.3 分街玩家模型
 - AI V1.4 長期安全記憶
 - AI V1.5 多人底池與公開範圍分布
+- AI V1.6 固定種子校準工具
+- AI V1.7 初階牌力與淨 EV 基礎
+- AI V1.8 有效籌碼、SPR 與 All-in 單一調整鏈
+- AI V1.9 公平 Boss 精確河牌、真正多人 Equity 與正式接線
 - Safari 公共牌街道轉場效能優化
 
-本文件整理工作建立時，最新正式基準為：
+目前正式 AI V1.9 發布基準為：
 
 ```text
-6b141f4e42cdf5b6d0298f667b73b0d611ba3264
+10f6f77abebc93a16fda9e138953d2df82e85987
 ```
 
-此 SHA 只代表 2026-08-04 的整理起點，不得視為永久最新版本。接續工作前必須重新讀取 GitHub `main`。
+此 SHA 只代表 2026-08-04 的 AI V1.9 發布點，不得視為永久最新版本。接續工作前必須重新讀取 GitHub `main`。
 
 ## 回退原則
 
