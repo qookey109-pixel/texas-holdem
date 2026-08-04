@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = process.cwd();
@@ -75,11 +75,24 @@ if (!Number.isInteger(schemaVersion) || schemaVersion < 1) {
   fail("Unable to determine tournament cloud save schemaVersion.");
 }
 
-const migrationPath = `supabase/migrations/20260804_allow_tournament_save_v${schemaVersion}.sql`;
-const migrationSource = read(migrationPath);
+const migrationsDirectory = resolve(root, "supabase/migrations");
+const migrationFileName = existsSync(migrationsDirectory)
+  ? readdirSync(migrationsDirectory)
+      .filter(name => name.endsWith(`_allow_tournament_save_v${schemaVersion}.sql`))
+      .sort()
+      .at(-1)
+  : null;
+const migrationPath = migrationFileName
+  ? `supabase/migrations/${migrationFileName}`
+  : `supabase/migrations/*_allow_tournament_save_v${schemaVersion}.sql`;
+const migrationSource = migrationFileName ? read(migrationPath) : "";
 const normalizedMigration = migrationSource.replace(/\s+/g, " ").toLowerCase();
 
-if (schemaVersion >= 2) {
+if (!migrationFileName) {
+  fail(`Missing Supabase migration for tournament cloud save schema V${schemaVersion}.`);
+}
+
+if (schemaVersion >= 2 && migrationFileName) {
   const allowedVersions = Array.from({ length: schemaVersion }, (_, index) => index + 1).join("\\s*,\\s*");
   const allowedPattern = new RegExp(`save_version\\s+in\\s*\\(\\s*${allowedVersions}\\s*\\)`, "i");
   if (!allowedPattern.test(migrationSource)) {
@@ -92,7 +105,7 @@ if (schemaVersion >= 2) {
   }
 }
 
-if (!manifestAssets.has(migrationPath)) {
+if (migrationFileName && !manifestAssets.has(migrationPath)) {
   fail(`Cloud save migration is not listed in build-manifest.json: ${migrationPath}`);
 }
 
