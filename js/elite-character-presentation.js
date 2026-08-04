@@ -98,7 +98,7 @@
   );
   loadOnce(
     'script[data-ai-ev-accounting]',
-    "js/ai-ev-accounting-v1.js?v=net-ev-accounting-v1",
+    "js/ai-ev-accounting-v1.js?v=net-ev-accounting-v1-0-1",
     "aiEvAccounting",
   );
   loadOnce(
@@ -107,8 +107,13 @@
     "aiEffectiveStackSpr",
   );
   loadOnce(
+    'script[data-boss-public-range-model]',
+    "js/boss-public-range-model-v1.js?v=boss-public-range-v1",
+    "bossPublicRangeModel",
+  );
+  loadOnce(
     'script[data-boss-equity-engine]',
-    "js/boss-equity-engine-v1.js?v=fair-boss-equity-v1",
+    "js/boss-equity-engine-v1.js?v=public-range-equity-v1-1",
     "bossEquityEngine",
   );
   loadOnce(
