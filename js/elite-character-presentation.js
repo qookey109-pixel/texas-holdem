@@ -102,6 +102,11 @@
     "aiEvAccounting",
   );
   loadOnce(
+    'script[data-ai-effective-stack-spr]',
+    "js/ai-effective-stack-spr-v1.js?v=effective-stack-spr-v1",
+    "aiEffectiveStackSpr",
+  );
+  loadOnce(
     'script[data-tournament-observation-memory]',
     "js/tournament-observation-memory-v1.js?v=shared-public-observation-v1",
     "tournamentObservationMemory",
