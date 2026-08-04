@@ -46,7 +46,19 @@ async function openAccountFromTopbar(page) {
   await expect(accountButton).toBeVisible();
   await expect(accountButton).toHaveAttribute("data-auth-placement", "topbar");
   await expect(accountButton.locator("xpath=..")).toHaveAttribute("id", "topbarSettings");
-  expect(await accountButton.evaluate((button, settings) => button.previousElementSibling === settings, await settingsButton.elementHandle())).toBe(true);
+
+  const placement = await page.evaluate(() => {
+    const account = document.querySelector("#authAccountButton").getBoundingClientRect();
+    const settings = document.querySelector("#settingsMenuButton").getBoundingClientRect();
+    return {
+      accountRight: account.right,
+      settingsLeft: settings.left,
+      gap: settings.left - account.right,
+    };
+  });
+  expect(placement.accountRight).toBeLessThanOrEqual(placement.settingsLeft);
+  expect(Math.abs(placement.gap - 8)).toBeLessThanOrEqual(1);
+
   await accountButton.click();
   await expect(page.locator("#authAccountOverlay")).toBeVisible();
   return accountButton;
