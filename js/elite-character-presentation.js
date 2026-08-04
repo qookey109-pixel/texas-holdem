@@ -23,7 +23,7 @@
   );
   loadOnce(
     'script[data-ai-tier-boss-system]',
-    "js/ai-tier-boss-system.js?v=tier-boss-v1",
+    "js/ai-tier-boss-system.js?v=tier-boss-fair-guard-v1",
     "aiTierBossSystem",
   );
   loadOnce(
@@ -90,6 +90,11 @@
     'script[data-fair-special-bosses]',
     "js/fair-special-bosses.js?v=public-showdown-range-v2",
     "fairSpecialBosses",
+  );
+  loadOnce(
+    'script[data-fair-special-boss-guard]',
+    "js/fair-special-boss-guard.js?v=fair-lock-v1",
+    "fairSpecialBossGuard",
   );
   loadOnce(
     'script[data-ai-provider-legacy-worker-migration]',
