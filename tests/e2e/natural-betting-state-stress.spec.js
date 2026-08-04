@@ -262,13 +262,13 @@ test.describe("自然下注狀態機壓力測試", () => {
       }
     }
 
-    const browserReport = await page.evaluate(() => {
+    const browserReport = await page.evaluate(configuredHands => {
       const stress = window.__NATURAL_BETTING_STRESS__;
       const experience = window.AiTimingController?.getExperience?.() || {};
       Math.random = stress.originalRandom;
       return {
         seed: "0x4e415455",
-        configuredHands: HAND_COUNT,
+        configuredHands,
         handsStarted: stress.handsStarted,
         handsCompleted: stress.handsCompleted,
         humanDecisions: stress.humanDecisions,
@@ -278,7 +278,7 @@ test.describe("自然下注狀態機壓力測試", () => {
         maximumPendingTimers: stress.maximumPendingTimers,
         aiExperienceEntries: Object.keys(experience).length,
       };
-    });
+    }, HAND_COUNT);
     const report = {
       ...browserReport,
       pageErrors: [...pageErrors],
