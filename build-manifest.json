@@ -1,22 +1,26 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-main-ai-v1-5-street-transition-v1-2026-08-04",
+  "buildId": "desktop-main-ai-v1-6-cloud-save-v2-render-stability-v3-2026-08-04",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
   "assets": [
     { "path": "index.html", "label": "首頁" },
     { "path": "styles.css", "label": "主樣式" },
+    { "path": "topbar-control-alignment-v2.css", "label": "頂部控制列排列樣式" },
+    { "path": "session-summary-layout-fix.css", "label": "淘汰賽結算版面修正" },
     { "path": "app.js", "label": "主程式" },
     { "path": "js/audio.js", "label": "音訊核心" },
     { "path": "js/cards-data.js", "label": "撲克牌資料" },
     { "path": "js/ai-data.js", "label": "AI 人物資料" },
     { "path": "js/config.js", "label": "遊戲設定" },
+    { "path": "js/official-layout-preset.js", "label": "官方預設牌桌版面" },
     { "path": "js/google-auth.js", "label": "Google 登入與玩家身分" },
     { "path": "js/google-auth.css", "label": "Google 登入介面樣式" },
-    { "path": "js/tournament-cloud-save.js", "label": "淘汰賽雲端存檔與恢復" },
+    { "path": "js/tournament-cloud-save.js", "label": "淘汰賽雲端存檔與恢復 V2" },
     { "path": "js/tournament-cloud-save.css", "label": "淘汰賽雲端存檔介面" },
     { "path": "supabase/migrations/20260803_create_tournament_saves_v1.sql", "label": "淘汰賽存檔資料表與 RLS" },
+    { "path": "supabase/migrations/20260804_allow_tournament_save_v2.sql", "label": "淘汰賽存檔 V2 資料庫升級" },
     { "path": "js/tutorial-data.js", "label": "教學資料" },
     { "path": "js/layout-ui.js", "label": "版面介面" },
     { "path": "js/card-engine.js", "label": "牌型引擎" },
@@ -42,10 +46,14 @@
     { "path": "js/game-flow.js", "label": "牌局流程" },
     { "path": "js/showdown-actions.js", "label": "攤牌結算" },
     { "path": "js/render-ui.js", "label": "牌桌渲染" },
+    { "path": "js/hero-card-render-stability.js", "label": "玩家底牌 DOM 穩定層" },
+    { "path": "js/hole-card-motion-scope.js", "label": "底牌與公共牌動畫分流" },
+    { "path": "js/ui-text-write-guard.js", "label": "介面文字寫入保護" },
     { "path": "js/table-status-dock.js", "label": "公共牌淨空提示區" },
     { "path": "js/elite-character-presentation.js", "label": "高階角色與 AI 策略相容載入器" },
     { "path": "js/elite-character-presentation-v2.js", "label": "高階角色外觀與 Vlad" },
     { "path": "js/elite-character-progress-fix.js", "label": "19 位挑戰賽進度顯示" },
+    { "path": "js/ai-profile-position.js", "label": "AI 資訊卡定位" },
     { "path": "js/gemini-final-boss.js", "label": "Gemini 最終 Boss" },
     { "path": "js/gemini-backend-client-v2.js", "label": "Gemini 安全後端客戶端" },
     { "path": "js/ai-provider-legacy-worker-migration.js", "label": "舊版自訂 Worker 設定遷移" },
@@ -54,7 +62,7 @@
     { "path": "js/tournament-mode.js", "label": "淘汰賽模式" },
     { "path": "js/tournament-seat-balance.js", "label": "淘汰賽縮桌座位平均分配" },
     { "path": "js/tournament-mode-visible-entry.js", "label": "淘汰賽入口相容載入器" },
-    { "path": "js/street-transition-performance.js", "label": "Safari 公共牌街道轉場效能" },
+    { "path": "js/street-transition-performance.js", "label": "Safari 公共牌街道轉場效能 V2" },
     { "path": "js/game-mode-controls-v2.js", "label": "遊戲模式統一控制" },
     { "path": "js/tournament-gemini-bridge.js", "label": "淘汰賽 Gemini 後端橋接" },
     { "path": "js/replacement-stack-balance.js", "label": "新進角色籌碼平衡" },
@@ -77,7 +85,7 @@
     {
       "id": "core-game",
       "label": "核心牌桌與牌局",
-      "assets": ["index.html", "styles.css", "app.js", "js/config.js", "js/card-engine.js", "js/game-flow.js", "js/showdown-actions.js", "js/render-ui.js", "js/events-boot.js"]
+      "assets": ["index.html", "styles.css", "topbar-control-alignment-v2.css", "app.js", "js/config.js", "js/card-engine.js", "js/game-flow.js", "js/showdown-actions.js", "js/render-ui.js", "js/events-boot.js"]
     },
     {
       "id": "google-auth",
@@ -86,8 +94,8 @@
     },
     {
       "id": "tournament-cloud-save",
-      "label": "登入玩家的淘汰賽自動存檔、暫停、恢復與刪除",
-      "assets": ["js/tournament-cloud-save.js", "js/tournament-cloud-save.css", "js/tournament-mode.js", "js/tournament-mode-visible-entry.js", "js/google-auth.js", "supabase/migrations/20260803_create_tournament_saves_v1.sql"]
+      "label": "登入玩家的淘汰賽 V1／V2 自動存檔、暫停、恢復與刪除",
+      "assets": ["js/tournament-cloud-save.js", "js/tournament-cloud-save.css", "js/tournament-mode.js", "js/tournament-mode-visible-entry.js", "js/google-auth.js", "supabase/migrations/20260803_create_tournament_saves_v1.sql", "supabase/migrations/20260804_allow_tournament_save_v2.sql"]
     },
     {
       "id": "ai-strategy-stack",
@@ -101,8 +109,8 @@
     },
     {
       "id": "elite-characters",
-      "label": "高階角色外觀、登場提示與 Vlad",
-      "assets": ["js/elite-character-presentation.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/config.js", "js/ai-data.js", "js/render-ui.js", "js/tournament-mode.js"]
+      "label": "高階角色外觀、登場提示、資訊卡定位與 Vlad",
+      "assets": ["js/elite-character-presentation.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-profile-position.js", "js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/config.js", "js/ai-data.js", "js/render-ui.js", "js/tournament-mode.js"]
     },
     {
       "id": "tournament-mode",
@@ -111,8 +119,8 @@
     },
     {
       "id": "street-transition-performance",
-      "label": "Safari 公共牌先繪製與後續完整牌桌更新",
-      "assets": ["js/street-transition-performance.js", "js/tournament-mode-visible-entry.js", "js/render-ui.js", "js/game-flow.js"]
+      "label": "Safari 公共牌先繪製、底牌穩定與後續完整牌桌更新",
+      "assets": ["js/street-transition-performance.js", "js/hero-card-render-stability.js", "js/hole-card-motion-scope.js", "js/ui-text-write-guard.js", "js/tournament-mode-visible-entry.js", "js/render-ui.js", "js/game-flow.js"]
     },
     {
       "id": "table-status-dock",
@@ -131,8 +139,8 @@
     },
     {
       "id": "ai-experience",
-      "label": "AI 對話、表情與行動節奏",
-      "assets": ["js/ai-data.js", "js/dialogue.js", "js/ai-emotion-face-ui.js", "js/ai-timing.js", "js/ai-turn-indicator.js"]
+      "label": "AI 對話、表情、資訊卡與行動節奏",
+      "assets": ["js/ai-data.js", "js/dialogue.js", "js/ai-emotion-face-ui.js", "js/ai-timing.js", "js/ai-turn-indicator.js", "js/ai-profile-position.js"]
     },
     {
       "id": "audio",
@@ -141,8 +149,8 @@
     },
     {
       "id": "layout",
-      "label": "版面編輯與尺寸控制",
-      "assets": ["js/layout-ui.js", "js/layout-size-controls.js", "js/positions.js", "js/tournament-seat-balance.js"]
+      "label": "官方預設版面、編輯與尺寸控制",
+      "assets": ["js/official-layout-preset.js", "js/layout-ui.js", "js/layout-size-controls.js", "js/positions.js", "js/tournament-seat-balance.js", "topbar-control-alignment-v2.css"]
     },
     {
       "id": "coach-tutorial",
@@ -152,7 +160,7 @@
     {
       "id": "review-session",
       "label": "攤牌、結算與覆盤",
-      "assets": ["js/showdown-actions.js", "js/session-summary.js", "js/hand-review.js", "js/hand-review-analysis.js", "js/coach-hand-review-integration.js"]
+      "assets": ["js/showdown-actions.js", "js/session-summary.js", "session-summary-layout-fix.css", "js/hand-review.js", "js/hand-review-analysis.js", "js/coach-hand-review-integration.js"]
     },
     {
       "id": "gemini-boss",

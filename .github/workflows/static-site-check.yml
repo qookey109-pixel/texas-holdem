@@ -23,5 +23,5 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Validate root website
-        run: node scripts/validate-static-site.mjs
+      - name: Validate root website and deployment contracts
+        run: npm run validate
