@@ -40,8 +40,7 @@ function estimatePreflopStrength(player) {
   let score = 0;
 
   if (pair) {
-    score = 0.58 + (high / 14) * 0.38;
-    if (high >= 10) score += 0.025;
+    score = 0.58 + (high / 14) * 0.4;
   } else {
     score = (high / 14) * 0.43 + (low / 14) * 0.24;
     if (suited) score += 0.09;
