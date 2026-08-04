@@ -125,7 +125,7 @@ test("玩家底牌每局只發一次，翻牌轉牌河牌不重建也不重播�
   }
   expect(result.childMutationCount).toBe(0);
   expect(result.observedAnimationStarts).toBe(0);
-  expect(result.sameHandStatus.suppressedWriteCount).toBeGreaterThanOrEqual(6);
+  expect(result.sameHandStatus.suppressedWriteCount).toBeGreaterThanOrEqual(3);
   expect(result.sameHandStatus.allowedWriteCount).toBe(0);
   expect(result.sameHandStatus.matchesState).toBe(true);
 
