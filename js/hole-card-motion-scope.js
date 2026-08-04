@@ -2,16 +2,19 @@
 (() => {
   "use strict";
 
-  const VERSION = "1.0.0";
-  const STYLE_ID = "hole-card-motion-scope-v1";
+  const VERSION = "1.1.0";
+  const STYLE_ID = "hole-card-motion-scope-v2";
   if (window.HoleCardMotionScope?.version === VERSION) return;
 
   let installed = false;
-  let originalRender = null;
-  let wrappedRender = null;
+  let boardObserver = null;
+
+  function renderedBoardHasCards() {
+    return Boolean(document.querySelector("#boardCards > .card:not(.back)"));
+  }
 
   function currentPhase() {
-    return Array.isArray(state?.board) && state.board.length > 0 ? "locked" : "deal";
+    return renderedBoardHasCards() ? "locked" : "deal";
   }
 
   function syncPhase() {
@@ -25,6 +28,8 @@
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
+      html:has(#boardCards > .card:not(.back)) #playerCards > .card,
+      html:has(#boardCards > .card:not(.back)) .seat-card-zone .cards > .card,
       html[data-hole-card-motion="locked"] #playerCards > .card,
       html[data-hole-card-motion="locked"] .seat-card-zone .cards > .card {
         animation-name: none !important;
@@ -36,17 +41,22 @@
     document.head.appendChild(style);
   }
 
+  function observeBoard() {
+    const boardCards = document.querySelector("#boardCards");
+    if (!boardCards || boardObserver) return;
+    boardObserver = new MutationObserver(syncPhase);
+    boardObserver.observe(boardCards, {
+      childList: true,
+      subtree: false,
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+  }
+
   function install() {
     if (installed) return true;
-    if (typeof window.render !== "function") return false;
-
     installStyle();
-    originalRender = window.render;
-    wrappedRender = function renderWithScopedCardMotion(...args) {
-      syncPhase();
-      return originalRender.apply(this, args);
-    };
-    window.render = wrappedRender;
+    observeBoard();
     installed = true;
     syncPhase();
     return true;
@@ -60,8 +70,9 @@
       return {
         installed,
         phase: syncPhase(),
-        boardCount: Array.isArray(state?.board) ? state.board.length : 0,
+        boardCount: document.querySelectorAll("#boardCards > .card:not(.back)").length,
         styleInstalled: Boolean(document.getElementById(STYLE_ID)),
+        observerInstalled: Boolean(boardObserver),
       };
     },
   };
