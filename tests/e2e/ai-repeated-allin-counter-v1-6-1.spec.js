@@ -130,21 +130,35 @@ test.describe("AI repeated All-in counter V1.6.1", () => {
         heroPosition: "SB",
         jam: { isHuman: true, action: "allin-raise" },
       };
-      const hand = window.AiPreflopRangeEngine.classifyHand(unit);
-      const plans = {
-        unit: counter.planDefense(unit, { profile, context, hand, random: () => 0 }),
-        bruno: counter.planDefense(bruno, { profile, context, hand, random: () => 0 }),
-        leo: counter.planDefense(leo, { profile, context, hand, random: () => 0 }),
+      const strongHand = window.AiPreflopRangeEngine.classifyHand(unit);
+      const strongPlans = {
+        unit: counter.planDefense(unit, { profile, context, hand: strongHand, random: () => 0 }),
+        bruno: counter.planDefense(bruno, { profile, context, hand: strongHand, random: () => 0 }),
+        leo: counter.planDefense(leo, { profile, context, hand: strongHand, random: () => 0 }),
       };
+      const marginalHand = {
+        code: "counter-margin",
+        score: (strongPlans.unit.baselineThreshold + strongPlans.unit.adjustedThreshold) / 2,
+      };
+      const marginalUnit = counter.planDefense(unit, {
+        profile,
+        context,
+        hand: marginalHand,
+        random: () => 0,
+      });
+
       return {
-        handScore: hand.score,
-        unitAdjustment: plans.unit.adjustment,
-        brunoAdjustment: plans.bruno.adjustment,
-        leoAdjustment: plans.leo.adjustment,
-        unitThreshold: plans.unit.adjustedThreshold,
-        brunoThreshold: plans.bruno.adjustedThreshold,
-        leoThreshold: plans.leo.adjustedThreshold,
-        unitAction: plans.unit.action,
+        strongHandScore: strongHand.score,
+        unitAdjustment: strongPlans.unit.adjustment,
+        brunoAdjustment: strongPlans.bruno.adjustment,
+        leoAdjustment: strongPlans.leo.adjustment,
+        unitThreshold: strongPlans.unit.adjustedThreshold,
+        brunoThreshold: strongPlans.bruno.adjustedThreshold,
+        leoThreshold: strongPlans.leo.adjustedThreshold,
+        unitBaseline: strongPlans.unit.baselineThreshold,
+        unitStrongAction: strongPlans.unit.action,
+        marginalScore: marginalHand.score,
+        marginalUnitAction: marginalUnit.action,
         fair: counter.fairInformationPolicy,
         bosses: [
           counter.supports({ name: "Oracle", isHuman: false }),
@@ -158,7 +172,11 @@ test.describe("AI repeated All-in counter V1.6.1", () => {
     expect(result.brunoAdjustment).toBeGreaterThan(result.leoAdjustment);
     expect(result.unitThreshold).toBeLessThan(result.brunoThreshold);
     expect(result.brunoThreshold).toBeLessThanOrEqual(result.leoThreshold);
-    expect(result.unitAction).toBe("call");
+    expect(result.strongHandScore).toBeGreaterThanOrEqual(result.unitBaseline);
+    expect(result.unitStrongAction).toBe("fallback");
+    expect(result.marginalScore).toBeGreaterThan(result.unitThreshold);
+    expect(result.marginalScore).toBeLessThan(result.unitBaseline);
+    expect(result.marginalUnitAction).toBe("call");
     expect(result.fair.hiddenOpponentCards).toBe(false);
     expect(result.fair.actualDeckOrder).toBe(false);
     expect(result.fair.futureBoardAnswer).toBe(false);
