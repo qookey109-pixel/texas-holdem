@@ -44,13 +44,11 @@ test.describe("Shared tournament observation memory V1", () => {
         folded: false,
         allIn: false,
         position: 0,
+        cards: [
+          { value: 7, suit: "diamonds" },
+          { value: 2, suit: "clubs" },
+        ],
       };
-      Object.defineProperty(hero, "cards", {
-        configurable: true,
-        get() {
-          throw new Error("shared observation memory must not read current hidden hero cards");
-        },
-      });
       const ace = {
         name: "Ace",
         isHuman: false,
@@ -145,16 +143,39 @@ test.describe("Shared tournament observation memory V1", () => {
       }));
 
       memory.registerCurrentPlayers();
-      const summary = memory.buildSummary({ player: ace });
+
+      const originalHeroCards = hero.cards;
+      let summary;
+      let hiddenCardProbePassed = false;
+      Object.defineProperty(hero, "cards", {
+        configurable: true,
+        get() {
+          throw new Error("shared observation memory must not read current hidden hero cards");
+        },
+      });
+      try {
+        summary = memory.buildSummary({ player: ace });
+        hiddenCardProbePassed = true;
+      } finally {
+        Object.defineProperty(hero, "cards", {
+          configurable: true,
+          enumerable: true,
+          writable: true,
+          value: originalHeroCards,
+        });
+      }
+
       return {
         arrival: ace.publicObservationMemory,
         summary,
+        hiddenCardProbePassed,
         status: memory.status(),
         fair: memory.fairInformationPolicy,
         serialized: JSON.stringify(summary),
       };
     });
 
+    expect(result.hiddenCardProbePassed).toBe(true);
     expect(result.arrival.arrivalHand).toBe(9);
     expect(result.arrival.observedHandsBeforeArrival).toBe(8);
     expect(result.arrival.tier).toBe("middle");
