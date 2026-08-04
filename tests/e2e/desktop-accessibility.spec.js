@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 async function waitForAccessibility(page) {
-  await expect.poll(() => page.evaluate(() => window.DesktopAccessibilityFocus?.version || "")).toBe("2.0.1");
+  await expect.poll(() => page.evaluate(() => window.DesktopAccessibilityFocus?.version || "")).toBe("2.1.0");
 }
 
 async function expectFocusInside(page, containerSelector) {
@@ -47,14 +47,16 @@ test("新手教學接管焦點、限制 Tab 並在關閉後還原焦點", async 
   await expect(tutorialButton).toBeFocused();
 });
 
-test("AI 角色資訊的鍵盤關閉按鈕與 Escape 都會回到原座位", async ({ page }) => {
+test("AI 座位與角色資訊焦點跨重繪保留，Enter 與 Escape 都回到原座位", async ({ page }) => {
   const seat = page.locator("#opponents .seat[data-profile-position]").first();
   const panel = page.locator("#aiProfilePanel");
   const closeButton = panel.locator("[data-profile-close]");
 
   await seat.focus();
-  await page.keyboard.press("Enter");
+  await page.evaluate(() => render());
+  await expect(seat).toBeFocused();
 
+  await seat.press("Enter");
   await expect(panel).toBeVisible();
   await expect(panel).toHaveAttribute("role", "dialog");
   await expect(panel).toHaveAttribute("aria-label", /角色資訊/);
@@ -62,12 +64,16 @@ test("AI 角色資訊的鍵盤關閉按鈕與 Escape 都會回到原座位", asy
   await expect(seat).toHaveAttribute("aria-expanded", "true");
   await expect(closeButton).toBeFocused();
 
-  await page.keyboard.press("Enter");
+  await page.evaluate(() => render());
+  await expect(panel).toBeVisible();
+  await expect(closeButton).toBeFocused();
+
+  await closeButton.press("Enter");
   await expect(panel).toBeHidden();
   await expect(seat).toHaveAttribute("aria-expanded", "false");
   await expect(seat).toBeFocused();
 
-  await page.keyboard.press("Enter");
+  await seat.press("Enter");
   await expect(panel).toBeVisible();
   await expect(closeButton).toBeFocused();
 
