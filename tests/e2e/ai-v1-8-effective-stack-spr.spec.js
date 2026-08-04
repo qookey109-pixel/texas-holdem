@@ -92,7 +92,7 @@ test.describe("AI V1.8 effective stack and SPR", () => {
         heroPosition: "BB",
       };
       const originalPlayers = state.players;
-      state.players = [player, hero];
+      state.players = [hero, player];
       const decision = window.AiEffectiveStackSprV1.planDefense(player, {
         context,
         profile: { observedHands: 8, jamHands: 6, weightedJamRate: 0.8, consecutiveJams: 4 },
