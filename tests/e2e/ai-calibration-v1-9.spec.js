@@ -61,6 +61,7 @@ test.describe("AI V1.9 fixed-seed Boss calibration", () => {
       versions: {
         integration: "1.0.0",
         equityEngine: "1.0.1",
+        evAccounting: "1.0.1",
       },
     });
     expect(result.secondFingerprint).toBe(result.first.deterministicFingerprint);
@@ -103,6 +104,10 @@ test.describe("AI V1.9 fixed-seed Boss calibration", () => {
         expect(value.timingMs.p95).toBeGreaterThanOrEqual(value.timingMs.median);
         expect(value.timingMs.max).toBeGreaterThanOrEqual(value.timingMs.p95);
       }
+
+      const nutValue = scenarios["river-nuts-facing-bet"];
+      expect(nutValue.rates.raise).toBeGreaterThanOrEqual(0.75);
+      expect(nutValue.rates.call).toBeLessThanOrEqual(0.25);
     }
 
     expect(result.first.performance.totalMs).toBeGreaterThan(0);
