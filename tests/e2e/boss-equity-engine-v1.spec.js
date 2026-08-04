@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test.describe("Fair Boss equity engine V1", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("./");
-    await expect.poll(() => page.evaluate(() => window.BossEquityEngineV1?.version || "")).toBe("1.0.0");
+    await expect.poll(() => page.evaluate(() => window.BossEquityEngineV1?.version || "")).toBe("1.0.1");
   });
 
   test("river heads-up enumerates all 990 unknown opponent combinations", async ({ page }) => {
