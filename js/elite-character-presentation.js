@@ -23,8 +23,13 @@
   );
   loadOnce(
     'script[data-ai-tier-boss-system]',
-    "js/ai-tier-boss-system.js?v=tier-boss-v1",
+    "js/ai-tier-boss-system.js?v=tier-boss-fair-guard-v2",
     "aiTierBossSystem",
+  );
+  loadOnce(
+    'script[data-fair-boss-core-guard]',
+    "js/fair-boss-core-guard.js?v=fair-boss-core-guard-v1",
+    "fairBossCoreGuard",
   );
   loadOnce(
     'script[data-ai-action-memory]',
