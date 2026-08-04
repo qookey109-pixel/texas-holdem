@@ -47,7 +47,7 @@ test("新手教學接管焦點、限制 Tab 並在關閉後還原焦點", async 
   await expect(tutorialButton).toBeFocused();
 });
 
-test("AI 角色資訊可由鍵盤開啟、Escape 關閉並回到原座位", async ({ page }) => {
+test("AI 角色資訊的鍵盤關閉按鈕與 Escape 都會回到原座位", async ({ page }) => {
   const seat = page.locator("#opponents .seat[data-profile-position]").first();
   const panel = page.locator("#aiProfilePanel");
   const closeButton = panel.locator("[data-profile-close]");
@@ -60,6 +60,15 @@ test("AI 角色資訊可由鍵盤開啟、Escape 關閉並回到原座位", asyn
   await expect(panel).toHaveAttribute("aria-label", /角色資訊/);
   await expect(seat).toHaveAttribute("aria-controls", "aiProfilePanel");
   await expect(seat).toHaveAttribute("aria-expanded", "true");
+  await expect(closeButton).toBeFocused();
+
+  await page.keyboard.press("Enter");
+  await expect(panel).toBeHidden();
+  await expect(seat).toHaveAttribute("aria-expanded", "false");
+  await expect(seat).toBeFocused();
+
+  await page.keyboard.press("Enter");
+  await expect(panel).toBeVisible();
   await expect(closeButton).toBeFocused();
 
   await page.keyboard.press("Escape");
