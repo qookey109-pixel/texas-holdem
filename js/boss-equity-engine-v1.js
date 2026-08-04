@@ -2,14 +2,32 @@
 (() => {
   "use strict";
 
-  const VERSION = "1.0.0";
+  const VERSION = "1.0.1";
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
   }
 
+  function normalizedValue(card) {
+    const raw = card?.value ?? card?.rank ?? card?.number;
+    if (Number.isFinite(Number(raw))) return Number(raw);
+    const face = String(raw || "").trim().toUpperCase();
+    return { A: 14, K: 13, Q: 12, J: 11, T: 10 }[face] || 0;
+  }
+
+  function normalizedSuit(card) {
+    const raw = String(card?.suit ?? card?.symbol ?? "").trim().toLowerCase();
+    const aliases = {
+      hearts: "h", heart: "h", "♥": "h", h: "h",
+      diamonds: "d", diamond: "d", "♦": "d", d: "d",
+      clubs: "c", club: "c", "♣": "c", c: "c",
+      spades: "s", spade: "s", "♠": "s", s: "s",
+    };
+    return aliases[raw] || raw;
+  }
+
   function cardKey(card) {
-    return `${Number(card?.value) || 0}:${String(card?.suit || "")}`;
+    return `${normalizedValue(card)}:${normalizedSuit(card)}`;
   }
 
   function knownCards(player, board) {
@@ -127,6 +145,7 @@
       futureBoardAnswer: false,
       predeterminedWinner: false,
     }),
+    cardKey,
     beliefDeck,
     activeOpponentCount,
     compareAgainstField,
