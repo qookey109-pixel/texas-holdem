@@ -128,6 +128,17 @@ test.describe("自然下注狀態機壓力測試", () => {
         timers.clear();
       }
 
+      function drainOneShotTimers(limit = 1_000) {
+        let drained = 0;
+        while (drained < limit) {
+          const timer = nextTimer();
+          if (!timer || timer.type === "interval") break;
+          runNextTimer();
+          drained += 1;
+        }
+        return drained;
+      }
+
       window.setTimeout = (callback, delay = 0, ...args) => (
         scheduleTimer("timeout", callback, delay, args)
       );
@@ -359,13 +370,32 @@ test.describe("自然下注狀態機壓力測試", () => {
         }
 
         cleanupHandTimers();
+        const stateBeforeVisualDrain = {
+          handNumber: state.handNumber,
+          handOver: state.handOver,
+          pot: state.pot,
+          stacks: state.players.map(player => player.stack),
+          winners: [...state.winners],
+        };
+        const drainedVisualTimers = drainOneShotTimers();
         const residualTimers = pendingTimerDetails();
+        const stateChangedDuringDrain = (
+          state.handNumber !== stateBeforeVisualDrain.handNumber
+          || state.handOver !== stateBeforeVisualDrain.handOver
+          || state.pot !== stateBeforeVisualDrain.pot
+          || state.players.some((player, index) => player.stack !== stateBeforeVisualDrain.stacks[index])
+          || state.winners.join("|") !== stateBeforeVisualDrain.winners.join("|")
+        );
 
-        if (residualTimers.length && !failures.length) {
+        if ((residualTimers.length || stateChangedDuringDrain) && !failures.length) {
           failures.push({
             handNumber,
             event: events,
-            errors: ["residual-timers"],
+            errors: [
+              ...(residualTimers.length ? ["residual-timers"] : []),
+              ...(stateChangedDuringDrain ? ["state-changed-during-timer-drain"] : []),
+            ],
+            drainedVisualTimers,
             pendingTimers: residualTimers,
           });
         }
@@ -378,6 +408,7 @@ test.describe("自然下注狀態機壓力測試", () => {
           boardCount: state.board.length,
           totalChips: finalValidation.totalChips,
           expectedChips,
+          drainedVisualTimers,
           residualTimers,
         });
 
