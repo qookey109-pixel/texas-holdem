@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-main-ai-v2-public-range-equity-2026-08-05",
+  "buildId": "desktop-main-ai-v2-accessibility-focus-2026-08-05",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
@@ -14,6 +14,7 @@
     { "path": "js/cards-data.js", "label": "撲克牌資料" },
     { "path": "js/ai-data.js", "label": "AI 人物資料" },
     { "path": "js/config.js", "label": "遊戲設定" },
+    { "path": "js/accessibility-focus.js", "label": "桌機鍵盤與焦點管理" },
     { "path": "js/official-layout-preset.js", "label": "官方預設牌桌版面" },
     { "path": "js/google-auth.js", "label": "Google 登入與玩家身分" },
     { "path": "js/google-auth.css", "label": "Google 登入介面樣式" },
@@ -162,6 +163,11 @@
       "id": "layout",
       "label": "官方預設版面、編輯與尺寸控制",
       "assets": ["js/official-layout-preset.js", "js/layout-ui.js", "js/layout-size-controls.js", "js/positions.js", "js/tournament-seat-balance.js", "topbar-control-alignment-v2.css"]
+    },
+    {
+      "id": "desktop-accessibility",
+      "label": "桌機鍵盤焦點、對話框導覽與焦點還原",
+      "assets": ["js/accessibility-focus.js", "js/config.js", "js/tutorial-ui.js", "js/session-summary.js", "js/render-ui.js", "js/events-boot.js"]
     },
     {
       "id": "coach-tutorial",
