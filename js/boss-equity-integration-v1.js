@@ -24,8 +24,8 @@
   }
 
   function estimate(player) {
-    const engine = window.BossFairEquityEngineV1;
-    if (!engine?.estimate) throw new Error("BossFairEquityEngineV1 unavailable");
+    const engine = window.BossEquityEngineV1;
+    if (!engine?.estimate) throw new Error("BossEquityEngineV1 unavailable");
     const opponents = engine.activeOpponentCount(player);
     const boardCards = Array.isArray(state?.board) ? state.board.length : 0;
     const samples = player?.name === "Chronos" ? 480 : 360;
@@ -158,7 +158,7 @@
   }
 
   function install() {
-    if (typeof botAction !== "function" || !window.FairSpecialBosses?.version || !window.BossFairEquityEngineV1?.version) return false;
+    if (typeof botAction !== "function" || !window.FairSpecialBosses?.version || !window.BossEquityEngineV1?.version) return false;
     if (window.__bossEquityIntegrationInstalled === VERSION) return true;
     const previous = botAction;
     window.__bossEquityIntegrationPreviousBotAction = previous;
