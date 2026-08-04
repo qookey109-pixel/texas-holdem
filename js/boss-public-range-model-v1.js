@@ -12,6 +12,11 @@
     return Math.min(maximum, Math.max(minimum, Number(value) || 0));
   }
 
+  function smoothstep(value) {
+    const bounded = clamp(value);
+    return bounded * bounded * (3 - 2 * bounded);
+  }
+
   function normalizedValue(card) {
     const raw = card?.value ?? card?.rank ?? card?.number;
     if (Number.isFinite(Number(raw))) return Number(raw);
@@ -197,6 +202,35 @@
     return Math.max(0.002, weight * priorCompatibility);
   }
 
+  function raiseContinueProbability(record, profile, raisePressure = 0.65) {
+    const percentile = clamp(record?.percentile, 0, 1);
+    const prior = clamp(record?.preflopScore, 0, 1);
+    const pressure = clamp(raisePressure, 0.15, 2.5);
+    const strength = clamp(profile?.rangeStrength, 0.18, 0.97);
+    const nutDensity = clamp(profile?.nutDensity, 0.04, 0.72);
+    const street = profile?.street || "preflop";
+
+    const streetBase = street === "river"
+      ? 0.61
+      : (street === "turn" ? 0.55 : (street === "flop" ? 0.5 : 0.58));
+    const threshold = clamp(
+      streetBase
+        + Math.min(0.18, pressure * 0.13)
+        + (1 - strength) * 0.055
+        - nutDensity * 0.055,
+      0.54,
+      0.88,
+    );
+    const transitionWidth = clamp(0.24 - pressure * 0.035 + (profile?.rangeWidth || 0.5) * 0.045, 0.11, 0.28);
+    const centered = (percentile - (threshold - transitionWidth)) / (transitionWidth * 2);
+    let probability = 0.008 + smoothstep(centered) * 0.982;
+
+    if (street === "preflop") probability *= 0.7 + prior * 0.38;
+    if (percentile >= 0.97) probability = Math.max(probability, 0.96);
+    if (percentile <= 0.18) probability = Math.min(probability, 0.035);
+    return clamp(probability, 0.005, 0.995);
+  }
+
   function buildComboRecords(deck, board = state?.board || []) {
     const records = [];
     for (let left = 0; left < deck.length - 1; left += 1) {
@@ -228,22 +262,25 @@
     return records;
   }
 
-  function distributionSummary(records, profile) {
+  function distributionSummary(records, profile, raisePressure = 0.65) {
     let total = 0;
     let weightedPercentile = 0;
     let topQuartile = 0;
     let bottomQuartile = 0;
+    let continueMass = 0;
     for (const record of records || []) {
       const weight = comboWeight(record, profile);
       total += weight;
       weightedPercentile += weight * record.percentile;
       if (record.percentile >= 0.75) topQuartile += weight;
       if (record.percentile <= 0.25) bottomQuartile += weight;
+      continueMass += weight * raiseContinueProbability(record, profile, raisePressure);
     }
     return {
       averagePercentile: total > 0 ? weightedPercentile / total : 0.5,
       topQuartileMass: total > 0 ? topQuartile / total : 0.25,
       bottomQuartileMass: total > 0 ? bottomQuartile / total : 0.25,
+      raiseContinueMass: total > 0 ? continueMass / total : 0.5,
       totalWeight: total,
       latestAction: profile?.latestAction || "",
       rangeStrength: clamp(profile?.rangeStrength, 0, 1),
@@ -289,6 +326,7 @@
     profilesFor,
     preflopScore,
     comboWeight,
+    raiseContinueProbability,
     buildComboRecords,
     distributionSummary,
     chooseWeightedRecord,
