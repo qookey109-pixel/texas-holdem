@@ -1,71 +1,23 @@
-// Paint the player's new hole cards before the heavier full-table refresh,
-// then keep those visible card nodes stable throughout the same hand.
+// Allow the player's hole cards to be dealt only once per hand.
 (() => {
   "use strict";
 
-  if (window.HeroCardRenderStability?.version === "2.0.0") return;
+  const VERSION = "3.0.0";
+  if (window.HeroCardRenderStability?.version === VERSION) return;
   window.HeroCardRenderStability?.cancel?.();
 
-  const VERSION = "2.0.0";
-  const FRAME_FALLBACK_MS = 18;
-  const FULL_RENDER_FALLBACK_MS = 220;
-  const STYLE_ID = "hero-card-motion-v2";
-
+  const STYLE_ID = "hero-card-motion-v3";
   let installed = false;
-  let originalRender = null;
-  let wrappedRender = null;
-  let visibleHandNumber = -1;
-  let visibleCardSignature = "";
-  let visibleChildCount = 0;
-  let preservedRenderCount = 0;
-  let refreshedRenderCount = 0;
-  let earlyPaintCount = 0;
-  let deferredFullRenderCount = 0;
-  let pendingDeal = false;
-  let firstFrameId = 0;
-  let secondFrameId = 0;
-  let fallbackTimer = 0;
-  let pendingContext = window;
-  let pendingArgs = [];
-
-  function now() {
-    return typeof performance?.now === "function" ? performance.now() : Date.now();
-  }
-
-  function requestFrame(callback) {
-    if (typeof window.requestAnimationFrame === "function") {
-      return window.requestAnimationFrame(callback);
-    }
-    return window.setTimeout(() => callback(now()), FRAME_FALLBACK_MS);
-  }
-
-  function cancelFrame(id) {
-    if (!id) return;
-    if (typeof window.cancelAnimationFrame === "function") window.cancelAnimationFrame(id);
-    else window.clearTimeout(id);
-  }
-
-  function installMotionStyle() {
-    if (document.getElementById(STYLE_ID)) return;
-    const style = document.createElement("style");
-    style.id = STYLE_ID;
-    style.textContent = `
-      .player-cards .card:not(.is-static) {
-        animation-name: heroDealInV2;
-        animation-duration: 230ms;
-        animation-timing-function: cubic-bezier(.2,.82,.3,1);
-        animation-delay: calc(var(--card-index, 0) * 42ms);
-        backface-visibility: hidden;
-        transform-origin: 50% 70%;
-        will-change: transform, opacity;
-      }
-      @keyframes heroDealInV2 {
-        from { opacity: .2; transform: translate3d(24px,-18px,0) rotateZ(4deg) scale(.965); }
-        to { opacity: 1; transform: translate3d(0,0,0) rotateZ(0) scale(1); }
-      }
-    `;
-    document.head.appendChild(style);
-  }
+  let playerCardsElement = null;
+  let nativeInnerHtml = null;
+  let previousOwnDescriptor = null;
+  let animationListener = null;
+  let renderedHandNumber = -1;
+  let renderedCardSignature = "";
+  let renderedChildCount = 0;
+  let suppressedWriteCount = 0;
+  let allowedWriteCount = 0;
+  let animationStartCount = 0;
 
   function currentHandNumber() {
     return Number(state?.handNumber) || 0;
@@ -91,168 +43,150 @@
     return cards.map(cardIdentity).join("|");
   }
 
+  function findInnerHtmlDescriptor(element) {
+    let prototype = element;
+    while (prototype) {
+      const descriptor = Object.getOwnPropertyDescriptor(prototype, "innerHTML");
+      if (descriptor?.get && descriptor?.set) return descriptor;
+      prototype = Object.getPrototypeOf(prototype);
+    }
+    return null;
+  }
+
+  function installMotionStyle() {
+    if (document.getElementById(STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = STYLE_ID;
+    style.textContent = `
+      .player-cards .card:not(.is-static) {
+        animation-name: heroDealInV3;
+        animation-duration: 210ms;
+        animation-timing-function: cubic-bezier(.2,.82,.3,1);
+        animation-delay: calc(var(--card-index, 0) * 38ms);
+        backface-visibility: hidden;
+        transform-origin: 50% 70%;
+        will-change: transform, opacity;
+      }
+      @keyframes heroDealInV3 {
+        from { opacity: .25; transform: translate3d(20px,-14px,0) rotateZ(3deg) scale(.975); }
+        to { opacity: 1; transform: translate3d(0,0,0) rotateZ(0) scale(1); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   function rememberVisibleCards() {
-    if (typeof els !== "object" || !els.playerCards) return;
-    visibleHandNumber = currentHandNumber();
-    visibleCardSignature = currentCardSignature();
-    visibleChildCount = els.playerCards.children.length;
-    els.playerCards.dataset.renderedHeroHand = String(visibleHandNumber);
-    els.playerCards.dataset.renderedHeroCards = visibleCardSignature;
+    if (!playerCardsElement) return;
+    renderedHandNumber = currentHandNumber();
+    renderedCardSignature = currentCardSignature();
+    renderedChildCount = playerCardsElement.children.length;
+    playerCardsElement.dataset.renderedHeroHand = String(renderedHandNumber);
+    playerCardsElement.dataset.renderedHeroCards = renderedCardSignature;
   }
 
   function visibleCardsMatchState() {
-    if (typeof els !== "object" || !els.playerCards) return false;
-    return visibleChildCount === 2
-      && els.playerCards.children.length === visibleChildCount
-      && visibleHandNumber === currentHandNumber()
-      && visibleCardSignature === currentCardSignature();
+    if (!playerCardsElement) return false;
+    return renderedChildCount === 2
+      && playerCardsElement.children.length === 2
+      && renderedHandNumber === currentHandNumber()
+      && renderedCardSignature === currentCardSignature();
   }
 
-  function isSubsequentNewHand() {
-    const handNumber = currentHandNumber();
-    return visibleHandNumber > 0
-      && handNumber > visibleHandNumber
-      && currentCards().length === 2;
-  }
-
-  function canEarlyPaint() {
-    return typeof els === "object"
-      && Boolean(els.playerCards)
-      && typeof renderCard === "function"
-      && isSubsequentNewHand();
-  }
-
-  function paintHeroCardsEarly() {
-    if (!canEarlyPaint()) return false;
-    const cards = currentCards();
-    els.playerCards.innerHTML = cards
-      .map((card, index) => renderCard(card, index, { animate: true }))
-      .join("");
-    els.playerCards.dataset.heroDealPreview = "true";
-    document.documentElement.dataset.heroDealPreviewPending = "true";
-    rememberVisibleCards();
-    earlyPaintCount += 1;
-    return true;
-  }
-
-  function clearPreviewMarker() {
-    document.documentElement.removeAttribute("data-hero-deal-preview-pending");
-    if (typeof els === "object") els.playerCards?.removeAttribute?.("data-hero-deal-preview");
-  }
-
-  function clearSchedule() {
-    cancelFrame(firstFrameId);
-    cancelFrame(secondFrameId);
-    window.clearTimeout(fallbackTimer);
-    firstFrameId = 0;
-    secondFrameId = 0;
-    fallbackTimer = 0;
-  }
-
-  function withStableVisibleCards(callback) {
-    if (!visibleCardsMatchState()) {
-      const result = callback();
-      rememberVisibleCards();
-      refreshedRenderCount += 1;
-      return result;
+  function restoreGuard() {
+    if (!playerCardsElement) return;
+    if (animationListener) {
+      playerCardsElement.removeEventListener("animationstart", animationListener, true);
     }
-
-    const visibleCards = els.playerCards;
-    const detachedCards = document.createElement(visibleCards.tagName || "div");
-    detachedCards.className = visibleCards.className;
-    els.playerCards = detachedCards;
 
     try {
-      const result = callback();
-      preservedRenderCount += 1;
-      return result;
-    } finally {
-      els.playerCards = visibleCards;
+      if (previousOwnDescriptor) {
+        Object.defineProperty(playerCardsElement, "innerHTML", previousOwnDescriptor);
+      } else {
+        delete playerCardsElement.innerHTML;
+      }
+    } catch (_) {
+      // The page can continue even if a browser refuses descriptor restoration.
     }
-  }
 
-  function completeDeferredRender() {
-    if (!pendingDeal) return undefined;
-    clearSchedule();
-    pendingDeal = false;
-    clearPreviewMarker();
-    deferredFullRenderCount += 1;
-
-    // Re-enter the current public render entry so wrappers installed after this
-    // module (seat balance, street transitions, mode UI) still run normally.
-    const currentRenderEntry = window.render;
-    if (typeof currentRenderEntry === "function" && currentRenderEntry !== originalRender) {
-      return currentRenderEntry.apply(pendingContext, pendingArgs);
-    }
-    return withStableVisibleCards(() => originalRender.apply(pendingContext, pendingArgs));
-  }
-
-  function scheduleFullRender() {
-    clearSchedule();
-    firstFrameId = requestFrame(() => {
-      firstFrameId = 0;
-      secondFrameId = requestFrame(() => {
-        secondFrameId = 0;
-        completeDeferredRender();
-      });
-    });
-    fallbackTimer = window.setTimeout(completeDeferredRender, FULL_RENDER_FALLBACK_MS);
+    playerCardsElement = null;
+    nativeInnerHtml = null;
+    previousOwnDescriptor = null;
+    animationListener = null;
+    installed = false;
   }
 
   function install() {
-    if (installed) return true;
-    if (typeof window.render !== "function") return false;
+    const nextElement = typeof els === "object"
+      ? els.playerCards
+      : document.querySelector("#playerCards");
+    if (!nextElement) return false;
+    if (installed && playerCardsElement === nextElement) return true;
+    if (installed) restoreGuard();
+
+    const descriptor = findInnerHtmlDescriptor(nextElement);
+    if (!descriptor) return false;
 
     installMotionStyle();
-    originalRender = window.render;
-    wrappedRender = function renderWithStableHeroCards(...args) {
-      pendingContext = this;
-      pendingArgs = args;
-
-      if (pendingDeal) return undefined;
-
-      if (!visibleCardsMatchState() && paintHeroCardsEarly()) {
-        pendingDeal = true;
-        scheduleFullRender();
-        return undefined;
-      }
-
-      return withStableVisibleCards(() => originalRender.apply(this, args));
-    };
-    window.render = wrappedRender;
-
-    installed = true;
+    playerCardsElement = nextElement;
+    nativeInnerHtml = descriptor;
+    previousOwnDescriptor = Object.getOwnPropertyDescriptor(nextElement, "innerHTML") || null;
     rememberVisibleCards();
+
+    Object.defineProperty(nextElement, "innerHTML", {
+      configurable: true,
+      enumerable: descriptor.enumerable,
+      get() {
+        return nativeInnerHtml.get.call(this);
+      },
+      set(value) {
+        if (visibleCardsMatchState()) {
+          suppressedWriteCount += 1;
+          return;
+        }
+        nativeInnerHtml.set.call(this, value);
+        allowedWriteCount += 1;
+        rememberVisibleCards();
+      },
+    });
+
+    animationListener = event => {
+      if (event.target?.classList?.contains("card")) animationStartCount += 1;
+    };
+    nextElement.addEventListener("animationstart", animationListener, true);
+    installed = true;
     return true;
   }
 
   window.HeroCardRenderStability = {
     version: VERSION,
     install,
-    refresh: rememberVisibleCards,
-    cancel() {
-      clearSchedule();
-      pendingDeal = false;
-      clearPreviewMarker();
+    refresh() {
+      install();
+      rememberVisibleCards();
     },
-    flush: completeDeferredRender,
+    cancel: restoreGuard,
+    flush() {
+      return undefined;
+    },
     resetMetrics() {
-      preservedRenderCount = 0;
-      refreshedRenderCount = 0;
-      earlyPaintCount = 0;
-      deferredFullRenderCount = 0;
+      suppressedWriteCount = 0;
+      allowedWriteCount = 0;
+      animationStartCount = 0;
     },
     status() {
       return {
         installed,
-        visibleHandNumber,
-        visibleCardSignature,
-        visibleChildCount,
-        preservedRenderCount,
-        refreshedRenderCount,
-        earlyPaintCount,
-        deferredFullRenderCount,
-        pendingDeal,
+        visibleHandNumber: renderedHandNumber,
+        visibleCardSignature: renderedCardSignature,
+        visibleChildCount: renderedChildCount,
+        preservedRenderCount: suppressedWriteCount,
+        refreshedRenderCount: allowedWriteCount,
+        suppressedWriteCount,
+        allowedWriteCount,
+        animationStartCount,
+        earlyPaintCount: 0,
+        deferredFullRenderCount: 0,
+        pendingDeal: false,
         matchesState: visibleCardsMatchState(),
       };
     },
