@@ -4,7 +4,7 @@ function collectRuntimeIssues(page) {
   const issues = [];
   page.on("pageerror", error => issues.push(`pageerror: ${error.message}`));
   page.on("console", message => {
-    if (message.type() === "error") issues.push(`console: ${message.text()}`);
+    if (message.type() === "error") issues.push(`console: ${message.text()}`));
   });
   return issues;
 }
@@ -80,6 +80,17 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
     )),
   }), guardedIds);
 
+  // Let explicit refreshes and their queued animation-frame work settle before
+  // measuring the unrelated-mutation phase. This prevents legitimate work from
+  // the previous phase being attributed to the observer probe below.
+  await page.waitForTimeout(420);
+  const settledBaseline = await page.evaluate(ids => ({
+    status: window.UiTextWriteGuard.status(),
+    sameNodes: ids.every(id => (
+      document.getElementById(id)?.firstChild === window.__uiObserverTextNodes[id]
+    )),
+  }), guardedIds);
+
   await page.evaluate(() => {
     const probe = document.createElement("div");
     probe.id = "unrelatedObserverProbe";
@@ -92,7 +103,10 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
     }
     probe.remove();
   });
-  await page.waitForTimeout(180);
+  await page.evaluate(() => new Promise(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  }));
+  await page.waitForTimeout(80);
 
   const afterUnrelatedMutations = await page.evaluate(() => window.UiTextWriteGuard.status());
 
@@ -113,11 +127,12 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
   expect(afterRefresh.status.guardedCount).toBeGreaterThanOrEqual(guardedIds.length);
   expect(afterRefresh.status.skippedWrites).toBeGreaterThan(before.skippedWrites);
   expect(afterRefresh.sameNodes).toBe(true);
+  expect(settledBaseline.sameNodes).toBe(true);
   expect(afterIdle.sameNodes).toBe(true);
 
   for (const id of ["tournamentModeButton", "geminiBossButton"]) {
     expect(
-      count(afterUnrelatedMutations, id) - count(afterRefresh.status, id),
+      count(afterUnrelatedMutations, id) - count(settledBaseline.status, id),
     ).toBeLessThanOrEqual(maxUnrelatedMutationWrites);
   }
 
