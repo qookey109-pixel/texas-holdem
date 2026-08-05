@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  if (window.ReplacementStackBalance?.version === "2.0.0") return;
+  if (window.ReplacementStackBalance?.version === "2.1.0") return;
 
   const NORMAL_TABLE_AVERAGE_RATIO = 0.70;
   const NORMAL_BUY_IN_RATIO_CAP = 0.60;
@@ -37,9 +37,11 @@
   let installed = false;
   let retryCount = 0;
   let originalBuildNextAiSeats = null;
-  let originalStartHand = null;
+  let originalBlindLevelForHand = null;
+  let originalCurrentBuyIn = null;
   const latestNormalReplacementStacks = new Map();
   const tournamentDiagnostics = [];
+  let tournamentEntryContext = null;
 
   function clamp(value, minimum, maximum) {
     return Math.max(minimum, Math.min(maximum, value));
@@ -51,12 +53,19 @@
       .map(player => Number(player.stack));
   }
 
+  function isTournamentActive() {
+    return Boolean(window.TournamentMode?.isActive?.());
+  }
+
   function levelForNormalBalance({ nextHand = false } = {}) {
     const handNumber = Math.max(1, Number(state?.handNumber || 0) + (nextHand ? 1 : 0));
+    if (typeof originalBlindLevelForHand === "function") {
+      return originalBlindLevelForHand(handNumber);
+    }
     if (typeof blindLevelForHand === "function") return blindLevelForHand(handNumber);
     return {
       big: typeof currentBigBlind === "function" ? currentBigBlind() : 20,
-      buyIn: typeof currentBuyIn === "function" ? currentBuyIn() : 2000,
+      buyIn: 2000,
     };
   }
 
@@ -80,13 +89,14 @@
 
   function tournamentBlindLevelForHand(handNumber) {
     const safeHand = Math.max(1, Number(handNumber) || 1);
-    let selected = TOURNAMENT_LEVELS[0];
-    for (const level of TOURNAMENT_LEVELS) {
-      if (safeHand < level[0]) break;
-      selected = level;
+    let selectedIndex = 0;
+    for (let index = 0; index < TOURNAMENT_LEVELS.length; index += 1) {
+      if (safeHand < TOURNAMENT_LEVELS[index][0]) break;
+      selectedIndex = index;
     }
+    const selected = TOURNAMENT_LEVELS[selectedIndex];
     return {
-      level: TOURNAMENT_LEVELS.indexOf(selected) + 1,
+      level: selectedIndex + 1,
       small: selected[1],
       big: selected[2],
       buyIn: 2000,
@@ -104,21 +114,35 @@
     return "middle";
   }
 
-  function pendingCandidateNames(limit) {
-    const tournament = state?.tournament;
-    if (!tournament || !Array.isArray(tournament.queue) || limit <= 0) return [];
-    const blocked = new Set([
-      ...(Array.isArray(tournament.appeared) ? tournament.appeared : []),
-      ...(Array.isArray(tournament.eliminated) ? tournament.eliminated : []),
-    ]);
-    const names = [];
-    for (const name of tournament.queue) {
-      if (!name || blocked.has(name)) continue;
-      blocked.add(name);
-      names.push(name);
-      if (names.length >= limit) break;
-    }
-    return names;
+  function calculateTournamentEntryFromRunningChips(name, runningChips, handNumber) {
+    const level = tournamentBlindLevelForHand(handNumber);
+    const bigBlind = Math.max(1, Number(level.big));
+    const chipUnit = Math.max(1, Number(level.small));
+    const tier = tierForName(name);
+    const role = TOURNAMENT_ROLE_BB[tier] || TOURNAMENT_ROLE_BB.middle;
+    const currentTableBb = Math.max(0, Number(runningChips) || 0) / bigBlind;
+    const tableGapBb = TOURNAMENT_FULL_TABLE_TARGET_BB - currentTableBb;
+    const rawEntryBb = role.target
+      + TOURNAMENT_BLEND_RESPONSE * (tableGapBb - role.target);
+    const boundedEntryBb = clamp(rawEntryBb, role.min, role.max);
+    const minimumStack = role.min * bigBlind;
+    const maximumStack = role.max * bigBlind;
+    const roundedStack = Math.round((boundedEntryBb * bigBlind) / chipUnit) * chipUnit;
+    const stack = clamp(roundedStack, minimumStack, maximumStack);
+    return {
+      name,
+      tier,
+      handNumber,
+      blindLevel: level.level,
+      smallBlind: level.small,
+      bigBlind,
+      currentTableBb,
+      fullTableTargetBb: TOURNAMENT_FULL_TABLE_TARGET_BB,
+      tableGapBb,
+      rawEntryBb,
+      actualEntryBb: stack / bigBlind,
+      stack,
+    };
   }
 
   function calculateTournamentEntries(
@@ -126,51 +150,63 @@
     candidateNames = [],
     { handNumber = Math.max(1, Number(state?.handNumber || 0) + 1) } = {},
   ) {
-    const level = tournamentBlindLevelForHand(handNumber);
-    const bigBlind = Math.max(1, Number(level.big));
-    const chipUnit = Math.max(1, Number(level.small));
     let runningChips = positiveStacks(players).reduce((sum, stack) => sum + stack, 0);
-
     return candidateNames.map(name => {
-      const tier = tierForName(name);
-      const role = TOURNAMENT_ROLE_BB[tier] || TOURNAMENT_ROLE_BB.middle;
-      const currentTableBb = runningChips / bigBlind;
-      const tableGapBb = TOURNAMENT_FULL_TABLE_TARGET_BB - currentTableBb;
-      const rawEntryBb = role.target
-        + TOURNAMENT_BLEND_RESPONSE * (tableGapBb - role.target);
-      const boundedEntryBb = clamp(rawEntryBb, role.min, role.max);
-      const minimumStack = role.min * bigBlind;
-      const maximumStack = role.max * bigBlind;
-      const roundedStack = Math.round((boundedEntryBb * bigBlind) / chipUnit) * chipUnit;
-      const stack = clamp(roundedStack, minimumStack, maximumStack);
-      const actualEntryBb = stack / bigBlind;
-      const plan = {
-        name,
-        tier,
-        handNumber,
-        blindLevel: level.level,
-        smallBlind: level.small,
-        bigBlind,
-        currentTableBb,
-        fullTableTargetBb: TOURNAMENT_FULL_TABLE_TARGET_BB,
-        tableGapBb,
-        rawEntryBb,
-        actualEntryBb,
-        stack,
-      };
-      runningChips += stack;
+      const plan = calculateTournamentEntryFromRunningChips(name, runningChips, handNumber);
+      runningChips += plan.stack;
       return plan;
     });
   }
 
-  function recordTournamentDiagnostics(plans) {
-    for (const plan of plans) {
-      tournamentDiagnostics.push({ ...plan, recordedAt: Date.now() });
-      console.info("[TournamentEconomyG1]", { ...plan });
-    }
+  function recordTournamentDiagnostic(plan) {
+    tournamentDiagnostics.push({ ...plan, recordedAt: Date.now() });
+    console.info("[TournamentEconomyG1]", { ...plan });
     if (tournamentDiagnostics.length > MAX_DIAGNOSTICS) {
       tournamentDiagnostics.splice(0, tournamentDiagnostics.length - MAX_DIAGNOSTICS);
     }
+  }
+
+  function currentReplacementAppearance() {
+    if (!isTournamentActive()) return null;
+    const players = Array.isArray(state?.players) ? state.players : [];
+    if (!players.length) return null;
+    const appeared = state?.tournament?.appeared;
+    if (!Array.isArray(appeared) || !appeared.length) return null;
+
+    const appearanceIndex = appeared.length - 1;
+    const name = appeared[appearanceIndex];
+    if (!name) return null;
+    if (players.some(player => player?.name === name)) return null;
+    if (state?.tournament?.eliminated?.includes?.(name)) return null;
+    return { name, appearanceIndex };
+  }
+
+  function tournamentReplacementBuyIn() {
+    const appearance = currentReplacementAppearance();
+    if (!appearance) return null;
+
+    const nextHandNumber = Math.max(1, Number(state?.handNumber || 0) + 1);
+    const contextKey = `${nextHandNumber}:${state.players.length}:${state.tournament.eliminated?.length || 0}`;
+    if (!tournamentEntryContext || tournamentEntryContext.key !== contextKey) {
+      tournamentEntryContext = {
+        key: contextKey,
+        runningChips: positiveStacks(state.players).reduce((sum, stack) => sum + stack, 0),
+        handledAppearances: new Set(),
+      };
+    }
+
+    const appearanceKey = `${appearance.appearanceIndex}:${appearance.name}`;
+    if (tournamentEntryContext.handledAppearances.has(appearanceKey)) return null;
+
+    const plan = calculateTournamentEntryFromRunningChips(
+      appearance.name,
+      tournamentEntryContext.runningChips,
+      nextHandNumber,
+    );
+    tournamentEntryContext.handledAppearances.add(appearanceKey);
+    tournamentEntryContext.runningChips += plan.stack;
+    recordTournamentDiagnostic(plan);
+    return plan.stack;
   }
 
   function installNormalModeBalance() {
@@ -197,54 +233,45 @@
   }
 
   function installTournamentModeBalance() {
-    if (typeof startHand !== "function" || typeof currentBuyIn !== "function") return false;
-    if (startHand.__tournamentEconomyG1 === true) return true;
+    if (typeof blindLevelForHand !== "function" || typeof currentBuyIn !== "function") {
+      return false;
+    }
 
-    originalStartHand = startHand;
-    const balancedStartHand = function balancedStartHand(...args) {
-      const tournamentActive = Boolean(window.TournamentMode?.isActive?.());
-      if (!tournamentActive) return originalStartHand.apply(this, args);
-
-      const previousPlayers = Array.isArray(state?.players) ? state.players : [];
-      const nextHandNumber = Math.max(1, Number(state?.handNumber || 0) + 1);
-      const bustedCount = previousPlayers.filter(
-        player => player && !player.isHuman && Number(player.stack) <= 0,
-      ).length;
-      const candidateNames = previousPlayers.length
-        ? pendingCandidateNames(bustedCount)
-        : [];
-      const plans = calculateTournamentEntries(previousPlayers, candidateNames, {
-        handNumber: nextHandNumber,
-      });
-
-      const savedBlindLevelForHand = blindLevelForHand;
-      const savedCurrentBuyIn = currentBuyIn;
-      let planCursor = 0;
-      blindLevelForHand = function tournamentOnlyBlindLevel(handNumber) {
-        return tournamentBlindLevelForHand(handNumber);
+    if (blindLevelForHand.__tournamentEconomyG1 !== true) {
+      originalBlindLevelForHand = originalBlindLevelForHand || blindLevelForHand;
+      const tournamentAwareBlindLevelForHand = function tournamentAwareBlindLevelForHand(handNumber) {
+        if (isTournamentActive()) return tournamentBlindLevelForHand(handNumber);
+        return originalBlindLevelForHand(handNumber);
       };
-      currentBuyIn = function tournamentEntryBuyIn() {
-        if (planCursor < plans.length) {
-          const stack = plans[planCursor].stack;
-          planCursor += 1;
-          return stack;
+      tournamentAwareBlindLevelForHand.__tournamentEconomyG1 = true;
+      tournamentAwareBlindLevelForHand.__original = originalBlindLevelForHand;
+      blindLevelForHand = tournamentAwareBlindLevelForHand;
+    } else if (!originalBlindLevelForHand) {
+      originalBlindLevelForHand = blindLevelForHand.__original;
+    }
+
+    if (currentBuyIn.__tournamentEconomyG1 !== true) {
+      originalCurrentBuyIn = originalCurrentBuyIn || currentBuyIn;
+      const tournamentAwareCurrentBuyIn = function tournamentAwareCurrentBuyIn() {
+        if (isTournamentActive()) {
+          const replacementStack = tournamentReplacementBuyIn();
+          if (Number.isFinite(replacementStack) && replacementStack > 0) {
+            return replacementStack;
+          }
         }
-        return savedCurrentBuyIn();
+        return originalCurrentBuyIn();
       };
+      tournamentAwareCurrentBuyIn.__tournamentEconomyG1 = true;
+      tournamentAwareCurrentBuyIn.__original = originalCurrentBuyIn;
+      currentBuyIn = tournamentAwareCurrentBuyIn;
+    } else if (!originalCurrentBuyIn) {
+      originalCurrentBuyIn = currentBuyIn.__original;
+    }
 
-      try {
-        const result = originalStartHand.apply(this, args);
-        recordTournamentDiagnostics(plans.slice(0, planCursor));
-        return result;
-      } finally {
-        blindLevelForHand = savedBlindLevelForHand;
-        currentBuyIn = savedCurrentBuyIn;
-      }
-    };
-    balancedStartHand.__tournamentEconomyG1 = true;
-    balancedStartHand.__original = originalStartHand;
-    startHand = balancedStartHand;
-    return true;
+    return Boolean(
+      blindLevelForHand.__tournamentEconomyG1
+      && currentBuyIn.__tournamentEconomyG1,
+    );
   }
 
   function install() {
@@ -259,7 +286,7 @@
   }
 
   window.ReplacementStackBalance = {
-    version: "2.0.0",
+    version: "2.1.0",
     calculate: calculateNormalReplacementStack,
     calculateTournamentEntries,
     tournamentBlindLevelForHand,
