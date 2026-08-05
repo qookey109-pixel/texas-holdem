@@ -11,6 +11,7 @@
     "validate:deployment": "node scripts/validate-deployment-contracts.mjs",
     "simulate:tournament-economy": "node scripts/simulate-tournament-economy.mjs",
     "simulate:tournament-economy:monte-carlo": "node scripts/simulate-tournament-economy-monte-carlo.mjs",
+    "simulate:tournament-economy:finalists": "node scripts/simulate-tournament-economy-finalists.mjs",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:ai-calibration": "AI_V19_CALIBRATION=1 playwright test tests/e2e/ai-calibration-v1-6.spec.js tests/e2e/ai-calibration-v1-9.spec.js --project=chromium",
