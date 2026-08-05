@@ -153,6 +153,7 @@
     const capFraction = openingPhase ? profileData.earlyRaiseCap : profileData.normalRaiseCap;
     const maximumCommitted = roundToChip(effectiveStack * capFraction);
     const maxRaise = roundToChip(Math.min(availableRaise, Math.max(0, maximumCommitted - needed)));
+    const raiseLegal = scenario.canRaise !== false && availableRaise >= minimumRaise;
 
     return Object.freeze({
       name,
@@ -177,7 +178,8 @@
       maximumCommitted,
       availableRaise,
       maxRaise,
-      canRaise: scenario.canRaise !== false && maxRaise >= minimumRaise,
+      raiseLegal,
+      canRaise: raiseLegal && maxRaise >= minimumRaise,
       stackInBigBlinds: stack / bigBlind,
     });
   }
@@ -217,7 +219,8 @@
       && context.texture.dry
       && random < bluffChance;
     const valueReady = adjustedStrength >= profileData.valueThreshold;
-    const shortStackJam = context.stackInBigBlinds <= 10
+    const shortStackJam = context.raiseLegal
+      && context.stackInBigBlinds <= 10
       && adjustedStrength >= profileData.jamStrength;
 
     let action = context.needed > 0 ? "fold" : "check";
