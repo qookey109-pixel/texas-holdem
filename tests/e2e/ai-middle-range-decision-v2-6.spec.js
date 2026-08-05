@@ -112,7 +112,7 @@ test("強且窄的公開 Range 讓中階收緊邊緣 Call，弱且寬的 Range �
 
 test("公開樣本不足時中階不套用 Range 推測，翻牌前也維持既有策略", async ({ page }) => {
   await loadMiddleRange(page);
-  const result = await page.evaluate(base => {
+  const result = await page.evaluate(({ base, strong }) => {
     const api = window.AiMiddleRangeDecisionV26;
     const player = { name: "Ace", cards: [{ value: 13, suit: "s" }, { value: 12, suit: "h" }] };
     const lowSample = api.enhanceDecision(player, structuredClone(base), {
@@ -132,11 +132,9 @@ test("公開樣本不足時中階不套用 Range 推測，翻牌前也維持既�
     const preflop = api.enhanceDecision(player, {
       ...structuredClone(base),
       context: { ...base.context, street: "preflop" },
-    }, {
-      ...strongRangeOptions(),
-    });
+    }, strong);
     return { lowSample, preflop };
-  }, marginalCallDecision());
+  }, { base: marginalCallDecision(), strong: strongRangeOptions() });
 
   expect(result.lowSample.action).toBe("call");
   expect(result.lowSample.callScore).toBe(0.04);
