@@ -157,15 +157,7 @@ test("策略決策會寫入角色強度校準，且只使用公開決策上下�
     state.players = [hero, unit9];
 
     const decision = AiCharacterStrategies.chooseDecision(unit9, { random: () => 0.5 });
-    const directSignals = AiRoleStrengthBalanceV1.decisionSignals("Unit-9", {
-      handNumber: 8801,
-      street: "flop",
-      position: "BB",
-      pot: 240,
-      needed: 40,
-      currentBet: 60,
-      activeOpponents: 1,
-    });
+    const directSignals = AiRoleStrengthBalanceV1.decisionSignals("Unit-9", decision.context);
     return {
       decision: {
         action: decision.action,
