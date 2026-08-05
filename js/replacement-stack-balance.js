@@ -1,37 +1,48 @@
-// Balance replacement stacks against the surviving table instead of granting a full fresh buy-in.
+// Balance normal-mode replacements and run the isolated G1 tournament economy playtest.
 (() => {
   "use strict";
 
-  if (window.ReplacementStackBalance?.version) return;
+  if (window.ReplacementStackBalance?.version === "2.0.0") return;
 
-  const TABLE_AVERAGE_RATIO = 0.70;
-  const BUY_IN_RATIO_CAP = 0.60;
-  const MAX_BIG_BLINDS = 40;
-  const MIN_BIG_BLINDS = 10;
+  const NORMAL_TABLE_AVERAGE_RATIO = 0.70;
+  const NORMAL_BUY_IN_RATIO_CAP = 0.60;
+  const NORMAL_MAX_BIG_BLINDS = 40;
+  const NORMAL_MIN_BIG_BLINDS = 10;
+
+  const TOURNAMENT_FULL_TABLE_TARGET_BB = 170;
+  const TOURNAMENT_BLEND_RESPONSE = 0.15;
+  const TOURNAMENT_LEVELS = Object.freeze([
+    [1, 10, 20], [5, 15, 30], [9, 25, 50], [13, 40, 80],
+    [17, 60, 120], [21, 100, 200], [25, 150, 300], [30, 200, 400],
+    [35, 300, 600], [40, 400, 800], [45, 600, 1200], [50, 800, 1600],
+    [55, 1200, 2400], [60, 1600, 3200], [65, 2400, 4800],
+    [70, 3200, 6400], [75, 4800, 9600], [80, 6400, 12800],
+    [85, 8000, 16000], [95, 12000, 24000], [105, 16000, 32000],
+    [115, 24000, 48000], [125, 32000, 64000], [135, 48000, 96000],
+    [145, 64000, 128000], [155, 80000, 160000],
+  ]);
+  const TOURNAMENT_ROLE_BB = Object.freeze({
+    middle: Object.freeze({ min: 25, target: 35, max: 45 }),
+    elite: Object.freeze({ min: 30, target: 40, max: 50 }),
+    special: Object.freeze({ min: 35, target: 45, max: 60 }),
+    gemini: Object.freeze({ min: 40, target: 50, max: 70 }),
+  });
+  const MIDDLE_NAMES = new Set(["Ace", "Momo", "Nori", "Bruno", "Dodo", "Viper"]);
+  const ELITE_NAMES = new Set(["Nova", "Unit-9", "Merlin", "Vlad"]);
+  const SPECIAL_NAMES = new Set(["Oracle", "Chronos"]);
   const INSTALL_RETRY_MS = 25;
   const INSTALL_RETRY_LIMIT = 240;
+  const MAX_DIAGNOSTICS = 120;
 
   let installed = false;
   let retryCount = 0;
   let originalBuildNextAiSeats = null;
   let originalStartHand = null;
-  let originalLog = null;
   const latestNormalReplacementStacks = new Map();
+  const tournamentDiagnostics = [];
 
-  function levelForBalance({ nextHand = false } = {}) {
-    const handNumber = Math.max(
-      1,
-      Number(state?.handNumber || 0) + (nextHand ? 1 : 0),
-    );
-
-    if (typeof blindLevelForHand === "function") {
-      return blindLevelForHand(handNumber);
-    }
-
-    return {
-      big: typeof currentBigBlind === "function" ? currentBigBlind() : 20,
-      buyIn: typeof currentBuyIn === "function" ? currentBuyIn() : 2000,
-    };
+  function clamp(value, minimum, maximum) {
+    return Math.max(minimum, Math.min(maximum, value));
   }
 
   function positiveStacks(players) {
@@ -40,50 +51,146 @@
       .map(player => Number(player.stack));
   }
 
-  function calculateReplacementStack(players = state?.players, options = {}) {
-    const level = levelForBalance(options);
+  function levelForNormalBalance({ nextHand = false } = {}) {
+    const handNumber = Math.max(1, Number(state?.handNumber || 0) + (nextHand ? 1 : 0));
+    if (typeof blindLevelForHand === "function") return blindLevelForHand(handNumber);
+    return {
+      big: typeof currentBigBlind === "function" ? currentBigBlind() : 20,
+      buyIn: typeof currentBuyIn === "function" ? currentBuyIn() : 2000,
+    };
+  }
+
+  function calculateNormalReplacementStack(players = state?.players, options = {}) {
+    const level = levelForNormalBalance(options);
     const bigBlind = Math.max(1, Number(level?.big || 20));
     const fullBuyIn = Math.max(bigBlind, Number(level?.buyIn || bigBlind * 100));
     const stacks = positiveStacks(players);
     const tableAverage = stacks.length
       ? stacks.reduce((sum, stack) => sum + stack, 0) / stacks.length
       : fullBuyIn;
-
-    const minimum = bigBlind * MIN_BIG_BLINDS;
+    const minimum = bigBlind * NORMAL_MIN_BIG_BLINDS;
     const rawTarget = Math.min(
-      tableAverage * TABLE_AVERAGE_RATIO,
-      fullBuyIn * BUY_IN_RATIO_CAP,
-      bigBlind * MAX_BIG_BLINDS,
+      tableAverage * NORMAL_TABLE_AVERAGE_RATIO,
+      fullBuyIn * NORMAL_BUY_IN_RATIO_CAP,
+      bigBlind * NORMAL_MAX_BIG_BLINDS,
     );
     const roundedDown = Math.floor(rawTarget / bigBlind) * bigBlind;
     return Math.max(minimum, roundedDown || minimum);
   }
 
+  function tournamentBlindLevelForHand(handNumber) {
+    const safeHand = Math.max(1, Number(handNumber) || 1);
+    let selected = TOURNAMENT_LEVELS[0];
+    for (const level of TOURNAMENT_LEVELS) {
+      if (safeHand < level[0]) break;
+      selected = level;
+    }
+    return {
+      level: TOURNAMENT_LEVELS.indexOf(selected) + 1,
+      small: selected[1],
+      big: selected[2],
+      buyIn: 2000,
+      tournamentEconomy: "G1",
+    };
+  }
+
+  function tierForName(name) {
+    const externalTier = window.AiTierBossSystem?.tierForName?.(name)?.key;
+    if (TOURNAMENT_ROLE_BB[externalTier]) return externalTier;
+    if (name === "Gemini") return "gemini";
+    if (SPECIAL_NAMES.has(name)) return "special";
+    if (ELITE_NAMES.has(name)) return "elite";
+    if (MIDDLE_NAMES.has(name)) return "middle";
+    return "middle";
+  }
+
+  function pendingCandidateNames(limit) {
+    const tournament = state?.tournament;
+    if (!tournament || !Array.isArray(tournament.queue) || limit <= 0) return [];
+    const blocked = new Set([
+      ...(Array.isArray(tournament.appeared) ? tournament.appeared : []),
+      ...(Array.isArray(tournament.eliminated) ? tournament.eliminated : []),
+    ]);
+    const names = [];
+    for (const name of tournament.queue) {
+      if (!name || blocked.has(name)) continue;
+      blocked.add(name);
+      names.push(name);
+      if (names.length >= limit) break;
+    }
+    return names;
+  }
+
+  function calculateTournamentEntries(
+    players = state?.players,
+    candidateNames = [],
+    { handNumber = Math.max(1, Number(state?.handNumber || 0) + 1) } = {},
+  ) {
+    const level = tournamentBlindLevelForHand(handNumber);
+    const bigBlind = Math.max(1, Number(level.big));
+    const chipUnit = Math.max(1, Number(level.small));
+    let runningChips = positiveStacks(players).reduce((sum, stack) => sum + stack, 0);
+
+    return candidateNames.map(name => {
+      const tier = tierForName(name);
+      const role = TOURNAMENT_ROLE_BB[tier] || TOURNAMENT_ROLE_BB.middle;
+      const currentTableBb = runningChips / bigBlind;
+      const tableGapBb = TOURNAMENT_FULL_TABLE_TARGET_BB - currentTableBb;
+      const rawEntryBb = role.target
+        + TOURNAMENT_BLEND_RESPONSE * (tableGapBb - role.target);
+      const boundedEntryBb = clamp(rawEntryBb, role.min, role.max);
+      const minimumStack = role.min * bigBlind;
+      const maximumStack = role.max * bigBlind;
+      const roundedStack = Math.round((boundedEntryBb * bigBlind) / chipUnit) * chipUnit;
+      const stack = clamp(roundedStack, minimumStack, maximumStack);
+      const actualEntryBb = stack / bigBlind;
+      const plan = {
+        name,
+        tier,
+        handNumber,
+        blindLevel: level.level,
+        smallBlind: level.small,
+        bigBlind,
+        currentTableBb,
+        fullTableTargetBb: TOURNAMENT_FULL_TABLE_TARGET_BB,
+        tableGapBb,
+        rawEntryBb,
+        actualEntryBb,
+        stack,
+      };
+      runningChips += stack;
+      return plan;
+    });
+  }
+
+  function recordTournamentDiagnostics(plans) {
+    for (const plan of plans) {
+      tournamentDiagnostics.push({ ...plan, recordedAt: Date.now() });
+      console.info("[TournamentEconomyG1]", { ...plan });
+    }
+    if (tournamentDiagnostics.length > MAX_DIAGNOSTICS) {
+      tournamentDiagnostics.splice(0, tournamentDiagnostics.length - MAX_DIAGNOSTICS);
+    }
+  }
+
   function installNormalModeBalance() {
     if (typeof buildNextAiSeats !== "function") return false;
-    if (buildNextAiSeats.__replacementStackBalanced === true) return true;
+    if (buildNextAiSeats.__replacementStackBalancedV2 === true) return true;
 
     originalBuildNextAiSeats = buildNextAiSeats;
     const balancedBuildNextAiSeats = function balancedBuildNextAiSeats(previousPlayers) {
       const seats = originalBuildNextAiSeats.apply(this, arguments);
       if (!Array.isArray(previousPlayers) || !previousPlayers.length) return seats;
-
-      const replacementStack = calculateReplacementStack(previousPlayers);
+      const replacementStack = calculateNormalReplacementStack(previousPlayers);
       latestNormalReplacementStacks.clear();
-
       return seats.map(seat => {
         if (!seat?.replaced) return seat;
         const name = seat.profile?.name || "";
         if (name) latestNormalReplacementStacks.set(name, replacementStack);
-        return {
-          ...seat,
-          stack: replacementStack,
-          replacementStackBalanced: true,
-        };
+        return { ...seat, stack: replacementStack, replacementStackBalanced: true };
       });
     };
-
-    balancedBuildNextAiSeats.__replacementStackBalanced = true;
+    balancedBuildNextAiSeats.__replacementStackBalancedV2 = true;
     balancedBuildNextAiSeats.__original = originalBuildNextAiSeats;
     buildNextAiSeats = balancedBuildNextAiSeats;
     return true;
@@ -91,101 +198,90 @@
 
   function installTournamentModeBalance() {
     if (typeof startHand !== "function" || typeof currentBuyIn !== "function") return false;
-    if (startHand.__replacementStackBalanced === true) return true;
+    if (startHand.__tournamentEconomyG1 === true) return true;
 
     originalStartHand = startHand;
     const balancedStartHand = function balancedStartHand(...args) {
       const tournamentActive = Boolean(window.TournamentMode?.isActive?.());
+      if (!tournamentActive) return originalStartHand.apply(this, args);
+
       const previousPlayers = Array.isArray(state?.players) ? state.players : [];
-
-      if (!tournamentActive || !previousPlayers.length) {
-        return originalStartHand.apply(this, args);
-      }
-
-      const replacementStack = calculateReplacementStack(previousPlayers, {
-        nextHand: true,
+      const nextHandNumber = Math.max(1, Number(state?.handNumber || 0) + 1);
+      const bustedCount = previousPlayers.filter(
+        player => player && !player.isHuman && Number(player.stack) <= 0,
+      ).length;
+      const candidateNames = previousPlayers.length
+        ? pendingCandidateNames(bustedCount)
+        : [];
+      const plans = calculateTournamentEntries(previousPlayers, candidateNames, {
+        handNumber: nextHandNumber,
       });
-      const savedCurrentBuyIn = currentBuyIn;
 
-      currentBuyIn = function balancedTournamentBuyIn() {
-        return replacementStack;
+      const savedBlindLevelForHand = blindLevelForHand;
+      const savedCurrentBuyIn = currentBuyIn;
+      let planCursor = 0;
+      blindLevelForHand = function tournamentOnlyBlindLevel(handNumber) {
+        return tournamentBlindLevelForHand(handNumber);
+      };
+      currentBuyIn = function tournamentEntryBuyIn() {
+        if (planCursor < plans.length) {
+          const stack = plans[planCursor].stack;
+          planCursor += 1;
+          return stack;
+        }
+        return savedCurrentBuyIn();
       };
 
       try {
-        return originalStartHand.apply(this, args);
+        const result = originalStartHand.apply(this, args);
+        recordTournamentDiagnostics(plans.slice(0, planCursor));
+        return result;
       } finally {
+        blindLevelForHand = savedBlindLevelForHand;
         currentBuyIn = savedCurrentBuyIn;
       }
     };
-
-    balancedStartHand.__replacementStackBalanced = true;
+    balancedStartHand.__tournamentEconomyG1 = true;
     balancedStartHand.__original = originalStartHand;
     startHand = balancedStartHand;
     return true;
   }
 
-  function installLogCorrection() {
-    if (typeof log !== "function") return false;
-    if (log.__replacementStackBalanced === true) return true;
-
-    originalLog = log;
-    const balancedLog = function balancedLog(message, ...rest) {
-      let text = String(message ?? "");
-
-      for (const [name, stack] of latestNormalReplacementStacks.entries()) {
-        const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        text = text.replace(
-          new RegExp(`(${escapedName} 帶入 )\\d+( 加入牌桌)`),
-          `$1${stack}$2`,
-        );
-      }
-
-      return originalLog.call(this, text, ...rest);
-    };
-
-    balancedLog.__replacementStackBalanced = true;
-    balancedLog.__original = originalLog;
-    log = balancedLog;
-    return true;
-  }
-
   function install() {
-    if (installed) return true;
-
     const normalReady = installNormalModeBalance();
     const tournamentReady = installTournamentModeBalance();
-    const logReady = installLogCorrection();
-
-    if (!normalReady || !tournamentReady || !logReady) return false;
-
-    installed = true;
-    document.documentElement.dataset.replacementStackBalance = "active";
-    return true;
-  }
-
-  function retryInstall() {
-    if (install()) return;
-    retryCount += 1;
-    if (retryCount >= INSTALL_RETRY_LIMIT) return;
-    window.setTimeout(retryInstall, INSTALL_RETRY_MS);
+    installed = normalReady && tournamentReady;
+    if (!installed && retryCount < INSTALL_RETRY_LIMIT) {
+      retryCount += 1;
+      window.setTimeout(install, INSTALL_RETRY_MS);
+    }
+    return installed;
   }
 
   window.ReplacementStackBalance = {
-    version: "1.0.0",
-    install,
-    calculate(players, options = {}) {
-      return calculateReplacementStack(players, options);
+    version: "2.0.0",
+    calculate: calculateNormalReplacementStack,
+    calculateTournamentEntries,
+    tournamentBlindLevelForHand,
+    tournamentConfig: Object.freeze({
+      name: "G1",
+      fullTableTargetBb: TOURNAMENT_FULL_TABLE_TARGET_BB,
+      blendResponse: TOURNAMENT_BLEND_RESPONSE,
+      roleProfiles: TOURNAMENT_ROLE_BB,
+      theoreticalReplacementCeilingBb: 660,
+    }),
+    diagnostics() {
+      return tournamentDiagnostics.map(entry => ({ ...entry }));
     },
-    rules: {
-      tableAverageRatio: TABLE_AVERAGE_RATIO,
-      buyInRatioCap: BUY_IN_RATIO_CAP,
-      maxBigBlinds: MAX_BIG_BLINDS,
-      minBigBlinds: MIN_BIG_BLINDS,
+    clearDiagnostics() {
+      tournamentDiagnostics.length = 0;
     },
     isInstalled() {
       return installed;
     },
+    refresh: install,
   };
 
-  retryInstall();
+  document.documentElement.dataset.tournamentEconomyPlaytest = "G1";
+  install();
 })();
