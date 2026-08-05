@@ -4,7 +4,7 @@
 
   if (window.AiBoardTextureEngineV1?.version) return;
 
-  const VERSION = "1.0.0";
+  const VERSION = "1.0.1";
   const FACE_VALUES = Object.freeze({ A: 14, K: 13, Q: 12, J: 11, T: 10 });
   const SUIT_ALIASES = Object.freeze({
     hearts: "h", heart: "h", "♥": "h", h: "h",
@@ -99,10 +99,15 @@
       + (cards.length === 3 ? 0.12 : 0.04)
       - pairedLevel * 0.08,
     );
+    const structurallyWet = wetness >= 0.58
+      || (flushThreat >= 0.66 && straightThreat >= 0.68);
+    const structurallyDynamic = nutVolatility >= 0.55
+      || straightThreat >= 0.72
+      || (flushThreat >= 0.66 && straightThreat >= 0.6);
 
     const tags = [];
-    if (dryness >= 0.66) tags.push("dry");
-    if (wetness >= 0.62) tags.push("wet");
+    if (dryness >= 0.66 && !structurallyWet) tags.push("dry");
+    if (structurallyWet) tags.push("wet");
     if (maxSuitCount === 2) tags.push("two-tone");
     if (maxSuitCount === 3) tags.push("three-flush");
     if (maxSuitCount >= 4) tags.push("four-flush");
@@ -113,7 +118,7 @@
     if (pairedLevel === 3) tags.push("trips-board");
     if (highCardDensity >= 0.5) tags.push("high-card-heavy");
     if (values.length && Math.max(...values) <= 9) tags.push("low-board");
-    tags.push(nutVolatility >= 0.58 ? "dynamic" : "static");
+    tags.push(structurallyDynamic ? "dynamic" : "static");
 
     return Object.freeze({
       version: VERSION,
