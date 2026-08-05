@@ -42,6 +42,9 @@
   const latestNormalReplacementStacks = new Map();
   const tournamentDiagnostics = [];
   let tournamentEntryContext = null;
+  let handledTournamentState = null;
+  let handledAppearedList = null;
+  const handledTournamentAppearances = new Set();
 
   function clamp(value, minimum, maximum) {
     return Math.max(minimum, Math.min(maximum, value));
@@ -178,12 +181,25 @@
     if (!name) return null;
     if (players.some(player => player?.name === name)) return null;
     if (state?.tournament?.eliminated?.includes?.(name)) return null;
-    return { name, appearanceIndex };
+    return { name, appearanceIndex, appeared };
   }
 
   function tournamentReplacementBuyIn() {
     const appearance = currentReplacementAppearance();
     if (!appearance) return null;
+
+    const tournament = state.tournament;
+    if (
+      handledTournamentState !== tournament
+      || handledAppearedList !== appearance.appeared
+    ) {
+      handledTournamentState = tournament;
+      handledAppearedList = appearance.appeared;
+      handledTournamentAppearances.clear();
+    }
+
+    const appearanceKey = `${appearance.appearanceIndex}:${appearance.name}`;
+    if (handledTournamentAppearances.has(appearanceKey)) return null;
 
     const nextHandNumber = Math.max(1, Number(state?.handNumber || 0) + 1);
     const playersRef = state.players;
@@ -200,7 +216,6 @@
       };
     }
 
-    const appearanceKey = `${appearance.appearanceIndex}:${appearance.name}`;
     if (tournamentEntryContext.handledAppearances.has(appearanceKey)) return null;
 
     const plan = calculateTournamentEntryFromRunningChips(
@@ -208,6 +223,7 @@
       tournamentEntryContext.runningChips,
       nextHandNumber,
     );
+    handledTournamentAppearances.add(appearanceKey);
     tournamentEntryContext.handledAppearances.add(appearanceKey);
     tournamentEntryContext.runningChips += plan.stack;
     recordTournamentDiagnostic(plan);
