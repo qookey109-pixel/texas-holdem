@@ -80,6 +80,22 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
     )),
   }), guardedIds);
 
+  await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.id = "unrelatedObserverProbe";
+    document.body.appendChild(probe);
+    for (let index = 0; index < 24; index += 1) {
+      const node = document.createElement("span");
+      node.textContent = `unrelated-${index}`;
+      probe.appendChild(node);
+      node.remove();
+    }
+    probe.remove();
+  });
+  await page.waitForTimeout(180);
+
+  const afterUnrelatedMutations = await page.evaluate(() => window.UiTextWriteGuard.status());
+
   await page.waitForTimeout(420);
 
   const afterIdle = await page.evaluate(ids => ({
@@ -91,6 +107,7 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
 
   const count = (snapshot, id) => snapshot.writesById[id] || 0;
   const maxIdleWrites = 12;
+  const maxUnrelatedMutationWrites = 2;
 
   expect(before.supported).toBe(true);
   expect(afterRefresh.status.guardedCount).toBeGreaterThanOrEqual(guardedIds.length);
@@ -98,21 +115,27 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
   expect(afterRefresh.sameNodes).toBe(true);
   expect(afterIdle.sameNodes).toBe(true);
 
+  for (const id of ["tournamentModeButton", "geminiBossButton"]) {
+    expect(
+      count(afterUnrelatedMutations, id) - count(afterRefresh.status, id),
+    ).toBeLessThanOrEqual(maxUnrelatedMutationWrites);
+  }
+
   // Other UI modules can legitimately request several sync passes. At 60 fps,
   // an observer self-loop would approach 25 writes in this 420 ms window.
   // Staying below half that rate, while preserving text-node identity, proves
   // repeated requests are idempotent instead of rebuilding the DOM every frame.
   expect(
     count(afterIdle.status, "tournamentModeButton")
-      - count(afterRefresh.status, "tournamentModeButton"),
+      - count(afterUnrelatedMutations, "tournamentModeButton"),
   ).toBeLessThanOrEqual(maxIdleWrites);
   expect(
     count(afterIdle.status, "geminiBossButton")
-      - count(afterRefresh.status, "geminiBossButton"),
+      - count(afterUnrelatedMutations, "geminiBossButton"),
   ).toBeLessThanOrEqual(maxIdleWrites);
   expect(
     count(afterIdle.status, "challengeModeButton")
-      - count(afterRefresh.status, "challengeModeButton"),
+      - count(afterUnrelatedMutations, "challengeModeButton"),
   ).toBeLessThanOrEqual(maxIdleWrites);
 
   expect(runtimeIssues, runtimeIssues.join("\n")).toEqual([]);
