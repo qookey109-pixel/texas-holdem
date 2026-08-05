@@ -6,7 +6,7 @@ test("一般模式維持桌均比例補位，淘汰賽 G1 模組完成安裝", a
   await expect.poll(
     () => page.evaluate(() => window.ReplacementStackBalance?.version || ""),
     { timeout: 10_000 },
-  ).toBe("2.0.0");
+  ).toBe("2.1.0");
   await expect.poll(
     () => page.evaluate(() => window.ReplacementStackBalance?.isInstalled?.()),
   ).toBe(true);
@@ -28,10 +28,22 @@ test("一般模式維持桌均比例補位，淘汰賽 G1 模組完成安裝", a
     state.handNumber = 25;
     state.blindLevel = blindLevelForHand(25);
     const shortLate = ReplacementStackBalance.calculate([{ stack: 4000 }, { stack: 4000 }]);
-    return { levelOne, levelTwo, shortLate };
+    return {
+      levelOne,
+      levelTwo,
+      shortLate,
+      blindWrapped: blindLevelForHand.__tournamentEconomyG1 === true,
+      buyInWrapped: currentBuyIn.__tournamentEconomyG1 === true,
+    };
   });
 
-  expect(normalTargets).toEqual({ levelOne: 800, levelTwo: 1400, shortLate: 4000 });
+  expect(normalTargets).toEqual({
+    levelOne: 800,
+    levelTwo: 1400,
+    shortLate: 4000,
+    blindWrapped: true,
+    buyInWrapped: true,
+  });
 
   const tournamentConfig = await page.evaluate(() => ({
     ...ReplacementStackBalance.tournamentConfig,
