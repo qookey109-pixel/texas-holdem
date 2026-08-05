@@ -369,3 +369,195 @@ applyTheme(state.theme, { persist: false });
 applyLayout();
 loadCardThemeUi();
 bootGame();
+
+// Mobile V1 keeps the desktop game engine intact and only changes presentation.
+(() => {
+  const landscapeMedia = window.matchMedia("(orientation: landscape) and (max-width: 1180px) and (max-height: 650px)");
+  const portraitMedia = window.matchMedia("(orientation: portrait) and (max-width: 900px)");
+  const sideRail = document.querySelector(".side-rail");
+  const coachPanel = document.querySelector("#coachPanel");
+  const historyPanel = document.querySelector("#historyPanel");
+  const controls = document.querySelector(".controls");
+  const raiseControl = document.querySelector(".raise-control");
+  const noticeCard = document.querySelector("#desktopOnlyNotice > div");
+
+  if (!sideRail || !coachPanel || !historyPanel || !controls) return;
+
+  const coachAnchor = document.createComment("mobile-v1-coach-anchor");
+  const historyAnchor = document.createComment("mobile-v1-history-anchor");
+  sideRail.insertBefore(coachAnchor, coachPanel);
+  sideRail.insertBefore(historyAnchor, historyPanel);
+
+  const dock = document.createElement("nav");
+  dock.className = "mobile-v1-dock";
+  dock.setAttribute("aria-label", "手機版工具");
+  dock.innerHTML = `
+    <button type="button" data-mobile-panel="coach" aria-pressed="false">教練</button>
+    <button type="button" data-mobile-panel="history" aria-pressed="false">紀錄</button>
+    <button type="button" data-mobile-panel="settings" aria-pressed="false">設定</button>
+  `;
+
+  const backdrop = document.createElement("button");
+  backdrop.type = "button";
+  backdrop.className = "mobile-v1-backdrop";
+  backdrop.setAttribute("aria-label", "關閉手機工具抽屜");
+
+  const drawer = document.createElement("section");
+  drawer.className = "mobile-v1-drawer";
+  drawer.setAttribute("aria-modal", "true");
+  drawer.setAttribute("role", "dialog");
+  drawer.setAttribute("aria-label", "手機工具抽屜");
+  drawer.innerHTML = `
+    <header class="mobile-v1-drawer-header">
+      <strong id="mobileV1DrawerTitle">手機工具</strong>
+      <button type="button" class="mobile-v1-drawer-close" aria-label="關閉">×</button>
+    </header>
+    <div class="mobile-v1-drawer-content"></div>
+  `;
+
+  document.body.append(backdrop, drawer, dock);
+
+  const drawerTitle = drawer.querySelector("#mobileV1DrawerTitle");
+  const drawerContent = drawer.querySelector(".mobile-v1-drawer-content");
+  const closeButton = drawer.querySelector(".mobile-v1-drawer-close");
+
+  const betToggle = document.createElement("button");
+  betToggle.type = "button";
+  betToggle.className = "mobile-v1-bet-toggle";
+  betToggle.textContent = "下注額";
+  betToggle.setAttribute("aria-expanded", "false");
+  betToggle.setAttribute("aria-controls", "raiseAmount");
+  controls.insertBefore(betToggle, raiseControl || null);
+
+  const portraitActions = document.createElement("div");
+  portraitActions.className = "mobile-v1-portrait-actions";
+  portraitActions.innerHTML = `
+    <button type="button" data-mobile-portrait-action="tutorial">📘 新手教學</button>
+    <button type="button" data-mobile-portrait-action="theme">☀ 明暗模式</button>
+    <button type="button" data-mobile-portrait-action="account">👤 登入／存檔設定</button>
+  `;
+  noticeCard?.appendChild(portraitActions);
+
+  function restorePanels() {
+    if (coachPanel.parentNode !== sideRail) coachAnchor.parentNode?.insertBefore(coachPanel, coachAnchor.nextSibling);
+    if (historyPanel.parentNode !== sideRail) historyAnchor.parentNode?.insertBefore(historyPanel, historyAnchor.nextSibling);
+  }
+
+  function settingsMarkup() {
+    return `
+      <div class="mobile-v1-settings-grid">
+        <button type="button" data-mobile-proxy="themeButton">☀ 明暗模式</button>
+        <button type="button" data-mobile-proxy="muteButton">🔊 音效</button>
+        <button type="button" data-mobile-proxy="tutorialButton">📘 新手教學</button>
+        <button type="button" data-mobile-proxy="autoNewHandButton">▶ 自動牌局</button>
+        <button type="button" data-mobile-proxy="newHandButton">🃏 新牌局</button>
+        <button type="button" data-mobile-proxy="authAccountButton">👤 登入／帳號</button>
+      </div>
+    `;
+  }
+
+  function setDockState(activePanel = "") {
+    dock.querySelectorAll("[data-mobile-panel]").forEach(button => {
+      button.setAttribute("aria-pressed", String(button.dataset.mobilePanel === activePanel));
+    });
+  }
+
+  function closeDrawer({ restore = true } = {}) {
+    document.body.classList.remove("mobile-v1-drawer-open");
+    drawer.dataset.panel = "";
+    setDockState();
+    if (restore) restorePanels();
+  }
+
+  function openDrawer(panelName) {
+    restorePanels();
+    drawerContent.replaceChildren();
+    drawer.dataset.panel = panelName;
+
+    if (panelName === "coach") {
+      drawerTitle.textContent = "撲克教練";
+      drawerContent.appendChild(coachPanel);
+    } else if (panelName === "history") {
+      drawerTitle.textContent = "牌局紀錄";
+      drawerContent.appendChild(historyPanel);
+    } else {
+      drawerTitle.textContent = "快速設定";
+      drawerContent.innerHTML = settingsMarkup();
+    }
+
+    document.body.classList.add("mobile-v1-drawer-open");
+    setDockState(panelName);
+  }
+
+  function syncMobileMode() {
+    const isLandscape = landscapeMedia.matches;
+    const isPortrait = portraitMedia.matches;
+    document.body.classList.toggle("is-mobile-v1-landscape", isLandscape);
+    document.body.classList.toggle("is-mobile-v1-portrait", isPortrait);
+    document.documentElement.dataset.mobileV1Ready = "true";
+
+    if (!isLandscape) {
+      document.body.classList.remove("mobile-v1-bet-sizing-open");
+      betToggle.setAttribute("aria-expanded", "false");
+      closeDrawer();
+    }
+  }
+
+  betToggle.addEventListener("click", () => {
+    const open = !document.body.classList.contains("mobile-v1-bet-sizing-open");
+    document.body.classList.toggle("mobile-v1-bet-sizing-open", open);
+    betToggle.setAttribute("aria-expanded", String(open));
+  });
+
+  dock.addEventListener("click", event => {
+    const button = event.target.closest("[data-mobile-panel]");
+    if (!button) return;
+    const panelName = button.dataset.mobilePanel;
+    const alreadyOpen = document.body.classList.contains("mobile-v1-drawer-open") && drawer.dataset.panel === panelName;
+    if (alreadyOpen) closeDrawer();
+    else openDrawer(panelName);
+  });
+
+  drawerContent.addEventListener("click", event => {
+    const proxy = event.target.closest("[data-mobile-proxy]");
+    if (!proxy) return;
+    const targetId = proxy.dataset.mobileProxy;
+    const target = document.querySelector(`#${targetId}`) || (targetId === "authAccountButton" ? document.querySelector("#settingsMenuButton") : null);
+    target?.click();
+    if (!["autoNewHandButton", "muteButton", "themeButton"].includes(targetId)) closeDrawer();
+  });
+
+  portraitActions.addEventListener("click", event => {
+    const button = event.target.closest("[data-mobile-portrait-action]");
+    if (!button) return;
+    const action = button.dataset.mobilePortraitAction;
+    if (action === "tutorial") els.tutorialButton?.click();
+    if (action === "theme") els.themeButton?.click();
+    if (action === "account") {
+      const accountButton = document.querySelector("#authAccountButton");
+      const settingsButton = document.querySelector("#settingsMenuButton");
+      (accountButton || settingsButton)?.click();
+    }
+  });
+
+  closeButton.addEventListener("click", () => closeDrawer());
+  backdrop.addEventListener("click", () => closeDrawer());
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && document.body.classList.contains("mobile-v1-drawer-open")) closeDrawer();
+  });
+
+  [landscapeMedia, portraitMedia].forEach(media => {
+    if (media.addEventListener) media.addEventListener("change", syncMobileMode);
+    else media.addListener(syncMobileMode);
+  });
+  window.addEventListener("resize", syncMobileMode, { passive: true });
+  window.addEventListener("orientationchange", syncMobileMode, { passive: true });
+
+  syncMobileMode();
+
+  window.MobileV1 = Object.freeze({
+    openDrawer,
+    closeDrawer,
+    sync: syncMobileMode,
+  });
+})();
