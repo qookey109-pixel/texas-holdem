@@ -3,12 +3,12 @@ import { expect, test } from "@playwright/test";
 async function loadDecisionChain(page) {
   await page.goto("/", { waitUntil: "networkidle" });
   await expect.poll(
-    () => page.evaluate(() => window.AiMidEliteDecisionChainV25?.version || ""),
+    () => page.evaluate(() => window.AiMidEliteDecisionChainV26?.version || ""),
     { timeout: 12_000 },
-  ).toBe("2.5.1");
+  ).toBe("2.6.0");
 }
 
-test("V2.5 完整決策鏈保留淨 EV、角色校準與 Board Intelligence", async ({ page }) => {
+test("V2.6 完整決策鏈保留 Range、淨 EV、角色校準與 Board Intelligence", async ({ page }) => {
   await loadDecisionChain(page);
   const result = await page.evaluate(() => {
     const baseDecision = {
@@ -33,7 +33,7 @@ test("V2.5 完整決策鏈保留淨 EV、角色校準與 Board Intelligence", as
       },
       candidates: [],
     };
-    return window.AiMidEliteDecisionChainV25.composeDecision(
+    return window.AiMidEliteDecisionChainV26.composeDecision(
       { name: "Bruno", cards: [{ value: 14, suit: "c" }, { value: 11, suit: "d" }] },
       {
         baseDecision,
@@ -57,7 +57,7 @@ test("V2.5 完整決策鏈保留淨 EV、角色校準與 Board Intelligence", as
 
 test("Board 尺寸修正後仍受淨 EV 安全閘約束", async ({ page }) => {
   await loadDecisionChain(page);
-  const result = await page.evaluate(() => window.AiMidEliteDecisionChainV25.guardNetEv({
+  const result = await page.evaluate(() => window.AiMidEliteDecisionChainV26.guardNetEv({
     action: "raise",
     raiseBy: 300,
     sizeFraction: 0.75,
@@ -77,7 +77,7 @@ test("Board 尺寸修正後仍受淨 EV 安全閘約束", async ({ page }) => {
 test("深 SPR 控制邊緣加注，淺 SPR 取消無聽牌純詐唬", async ({ page }) => {
   await loadDecisionChain(page);
   const result = await page.evaluate(() => {
-    const api = window.AiMidEliteDecisionChainV25;
+    const api = window.AiMidEliteDecisionChainV26;
     const deep = api.applySprGuard({ name: "Ace" }, {
       action: "raise",
       raiseBy: 260,
@@ -110,11 +110,11 @@ test("深 SPR 控制邊緣加注，淺 SPR 取消無聽牌純詐唬", async ({ p
 test("完整決策鏈只支援中階與高階，公平資訊限制保持關閉隱藏牌", async ({ page }) => {
   await loadDecisionChain(page);
   const result = await page.evaluate(() => ({
-    supportsAce: window.AiMidEliteDecisionChainV25.supports("Ace"),
-    supportsUnit9: window.AiMidEliteDecisionChainV25.supports("Unit-9"),
-    supportsLeo: window.AiMidEliteDecisionChainV25.supports("Leo"),
-    supportsOracle: window.AiMidEliteDecisionChainV25.supports("Oracle"),
-    policy: window.AiMidEliteDecisionChainV25.fairInformationPolicy,
+    supportsAce: window.AiMidEliteDecisionChainV26.supports("Ace"),
+    supportsUnit9: window.AiMidEliteDecisionChainV26.supports("Unit-9"),
+    supportsLeo: window.AiMidEliteDecisionChainV26.supports("Leo"),
+    supportsOracle: window.AiMidEliteDecisionChainV26.supports("Oracle"),
+    policy: window.AiMidEliteDecisionChainV26.fairInformationPolicy,
   }));
 
   expect(result.supportsAce).toBe(true);
