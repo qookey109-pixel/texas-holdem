@@ -52,6 +52,11 @@
     "aiCharacterStrategies",
   );
   loadOnce(
+    'script[data-ai-opening-strategies-v2-3]',
+    "js/ai-opening-strategies-v2-3.js?v=opening-risk-control-v2-3",
+    "aiOpeningStrategiesV23",
+  );
+  loadOnce(
     'script[data-ai-character-strategies-v1-1]',
     "js/ai-character-strategies-v1-1.js?v=multi-street-ai-v1-1",
     "aiCharacterStrategiesV11",
