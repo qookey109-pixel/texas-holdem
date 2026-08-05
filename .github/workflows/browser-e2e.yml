@@ -66,6 +66,7 @@ jobs:
           tests/e2e/hero-card-render-stability.spec.js
           tests/e2e/hole-card-motion-scope.spec.js
           tests/e2e/tournament-summary-layout.spec.js
+          tests/e2e/ai-tiered-multiway-equity-v2-7.spec.js
           --project=webkit
 
       - name: Run all E2E scenarios on webkit

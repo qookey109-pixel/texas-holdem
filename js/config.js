@@ -176,7 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const loadEliteCharacterPresentation = () => {
     if (document.querySelector('script[data-elite-character-presentation]')) return;
     const characterScript = document.createElement("script");
-    characterScript.src = "js/elite-character-presentation.js?v=middle-range-v2-6";
+    characterScript.src = "js/elite-character-presentation.js?v=tiered-multiway-equity-v2-7";
     characterScript.async = false;
     characterScript.dataset.eliteCharacterPresentation = "true";
     document.body.appendChild(characterScript);
