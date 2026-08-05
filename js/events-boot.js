@@ -1,5 +1,11 @@
 // Event wiring and boot sequence
 
+function revealStableTableLayout() {
+  document.documentElement.dataset.layoutReady = "true";
+}
+
+const layoutRevealFallbackTimer = window.setTimeout(revealStableTableLayout, 1800);
+
 function dockLayoutEditorInSideRail() {
   const panel = els.layoutEditorPanel;
   const sideRail = document.querySelector(".side-rail");
@@ -287,7 +293,38 @@ function loadCardThemeUi() {
   document.body.appendChild(script);
 }
 
+function applyStoredLayoutDimensions() {
+  const savedSizes = window.LayoutSizeController?.getSizes?.();
+  if (savedSizes) {
+    Object.entries(savedSizes).forEach(([key, value]) => {
+      window.LayoutSizeController?.setSize?.(key, value, { persist: false });
+    });
+  }
+
+  let potScale = Number(window.OfficialLayoutPreset?.potScale) || 70;
+  try {
+    const storedPotScale = Number(localStorage.getItem("texasHoldemPotScaleV1"));
+    if (Number.isFinite(storedPotScale) && storedPotScale > 0) potScale = storedPotScale;
+  } catch (_) {
+    // Keep the official scale when storage is unavailable.
+  }
+  document.documentElement.style.setProperty("--layout-pot-scale", (potScale / 100).toFixed(3));
+}
+
 async function bootGame() {
+  await loadScriptOnce(
+    'script[data-layout-size-controls]',
+    "js/layout-size-controls.js?v=side-rail-layout-v4",
+    "data-layout-size-controls",
+  );
+
+  applyStoredLayoutDimensions();
+  applyLayout();
+  requestAnimationFrame(() => {
+    window.clearTimeout(layoutRevealFallbackTimer);
+    revealStableTableLayout();
+  });
+
   await loadScriptOnce(
     'script[data-continuous-bgm]',
     "js/bgm-light-continuous.js?v=upbeat-loop-v2",
@@ -307,11 +344,6 @@ async function bootGame() {
     'script[data-audio-recovery]',
     "js/audio-recovery.js?v=safari-sound-fix-v1",
     "data-audio-recovery",
-  );
-  await loadScriptOnce(
-    'script[data-layout-size-controls]',
-    "js/layout-size-controls.js?v=side-rail-layout-v3",
-    "data-layout-size-controls",
   );
   await loadScriptOnce(
     'script[data-ai-emotion-face-ui]',
