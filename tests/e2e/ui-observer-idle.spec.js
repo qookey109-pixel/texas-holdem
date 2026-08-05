@@ -32,6 +32,11 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
     () => page.evaluate(() => window.EconomyFoldDefenseV1?.status?.().installed === true),
     { timeout: 12_000 },
   ).toBe(true);
+  // The compatibility layer also schedules bounded 0/100/400/900 ms retries.
+  // Installation may become true before the final retry executes, so let all
+  // one-time retries settle while preserving the strict unrelated-mutation
+  // and 420 ms idle budgets below.
+  await page.waitForTimeout(960);
 
   await page.evaluate(() => {
     window.AiTimingController?.clear?.();
