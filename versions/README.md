@@ -67,12 +67,6 @@ a3742e758e7d1bb27d59068a0f073da1ea5e3c38
 
 ### AI V2.2 與 G1 淘汰賽經濟 — 2026-08-05
 
-正式 G1 發布基準：
-
-```text
-c9e0a961db7f026d97a822dbd8a90ab5c1c7edbf
-```
-
 主要正式合併：
 
 ```text
@@ -97,52 +91,154 @@ G1 包含：
 ReplacementStackBalance 2.1.0
 ```
 
+### AI V2.3～V2.5 — 2026-08-05
+
+正式主線加入：
+
+- V2.3 中高階開局策略與更清楚的翻牌前分層。
+- V2.4 公開 Range 決策整合與高階完整 Combo Range。
+- V2.5 Board Texture、Blocker／Unblocker、下注尺寸與完整中高階決策鏈。
+- 初階仍保留簡單、友善與較低計算量的決策。
+
+正式模組：
+
+```text
+js/ai-opening-strategies-v2-3.js
+js/ai-range-decision-integration-v2-4.js
+js/ai-board-intelligence-v2-5.js
+js/ai-mid-elite-decision-chain-v2-5.js
+```
+
+### AI V2.6 中階公開 Range — 2026-08-05
+
+正式合併：
+
+```text
+PR #99 — AI V2.6 中階公開 Range 與樣本信心
+```
+
+正式基準：
+
+```text
+90eb8e691e6a7f37f92b6719644ec394b357575a
+```
+
+包含：
+
+- Ace、Momo、Nori、Bruno、Dodo、Viper 六位中階角色。
+- 公開 Range 樣本信心門檻。
+- 強窄 Range 收緊邊緣跟注與低品質詐唬。
+- 弱寬 Range 保留合理防守。
+- 中階修正幅度小於高階，避免直接升級成 Boss。
+- 隱藏對手底牌 getter 防讀取測試。
+
+### AI V2.7 分級多人 Equity — 2026-08-05
+
+正式合併：
+
+```text
+PR #101 — AI V2.7 分級、決定性多人 Equity
+```
+
+正式發布 commit：
+
+```text
+e4c67c4188af4c7247b939917c0eefc9ba91577e
+```
+
+包含：
+
+- 中階約 `48～120` 次聯合抽樣。
+- 高階約 `80～240` 次聯合抽樣。
+- 中階最大 Equity 修正 `±0.065`。
+- 高階最大 Equity 修正 `±0.115`。
+- 公開 Range 後、淨 EV 前接入決策鏈。
+- 只修正既有 Call／Raise EV，不自行創造新加注線。
+- 相同公開資訊使用相同 seed，可重現。
+- 不讀取對手底牌、`state.deck` 或未來公共牌答案。
+
+正式模組：
+
+```text
+js/ai-tiered-multiway-equity-v2-7.js
+AiTieredMultiwayEquityV27 2.7.0
+```
+
+### V2.7 實戰校準與正式後端 Smoke — 2026-08-05
+
+本次整合加入：
+
+- 10 位中高階角色。
+- 6 種固定公開局面。
+- 5 組固定種子。
+- 300 次可重現決策。
+- VPIP／Open raise／3-bet 情境代理值。
+- 動作率、Equity 修正、樣本數、安全閘與決策時間報表。
+- 與機器速度無關的 deterministic fingerprint。
+- GitHub Pages、Supabase Auth／RLS 與 Gemini Worker 的零寫入 Production Smoke。
+
+正式檔案：
+
+```text
+tests/support/ai-gameplay-calibration-v2-7.js
+tests/support/ai-gameplay-calibration-v2-7-determinism.js
+tests/e2e/ai-gameplay-calibration-v2-7.spec.js
+scripts/production-backend-smoke.mjs
+.github/workflows/production-smoke.yml
+docs/ai-gameplay-calibration-v2-7.md
+docs/production-backend-smoke.md
+```
+
 ### 長時間狀態壓力測試 — 2026-08-05
 
 正式合併 PR：
 
 ```text
 PR #84 — Automate normal and G1 tournament state stress testing
+PR #102～#106 — 每週排程與 25／100 手成本調整
 ```
 
-正式基準：
+目前正式安排：
 
-```text
-79fd4d1a77a2223033440085e99e7b431b0cfd64
-```
-
-包含：
-
-- 一般模式 100 手自然下注壓力測試。
+- Pull Request 執行一般模式 25 手自然下注。
+- 每週日台北時間約 03:30 執行一般模式 100 手自然下注。
+- 每次同時驗證 19 位角色與 13 次 G1 補位循環。
 - 牌張唯一、籌碼守恆、Pot／Contribution／Current Bet、合法 Actor、非負籌碼、卡死與殘留計時器檢查。
-- 19 位角色與 13 次 G1 補位循環。
 - Gemini 最後登場、盲注不得倒退、角色不得重複。
 - 累積補位不得超過 `660 entry-BB`。
-- Pull Request 觸發、手動執行，以及每日台北時間約 03:30 排程。
-- 合併前 Static、AI calibration、Poker state stress、Chromium 與 WebKit 全部通過。
+
+### UI observer 穩定化 — 2026-08-05
+
+正式合併：
+
+```text
+PR #104 — 模式 UI observer 閒置循環修正
+PR #107 — observer idle 測試基準穩定化
+```
+
+目前模式控制只在設定面板、淘汰賽按鈕、Gemini 按鈕與 Gemini 人物卡等相關 DOM 變動時同步。完整 Chromium 與 WebKit 回歸已通過。
 
 ## 目前正式功能基準
 
-截至 2026-08-05，正式 `main` 已包含：
+本次整合分支建立前的正式 `main`：
 
-- 新 Repository 與 GitHub Pages root 發布。
-- Chromium／WebKit Browser E2E。
+```text
+5d2179b917b86b8b187a1936918ab6dbd32fee3a
+```
+
+截至該基準，正式 `main` 已包含：
+
+- Chromium／WebKit 完整 Browser E2E。
 - 19 位永久淘汰賽、G1 動態補位與延伸純手數盲注。
 - Google 登入與 Supabase 淘汰賽雲端存檔 V2。
 - Oracle／Chronos 公平七星 Boss。
-- Gemini 安全後端、本地備援與可切換 Provider。
-- AI V1.1～V2.2 策略、公開範圍、Board Texture 與跨街診斷基礎。
-- Safari 公共牌街道轉場效能優化。
+- Gemini 安全後端與本地備援。
+- AI V1.1～V2.7 策略、公開 Range、Board／Blocker、SPR 與分級多人 Equity。
+- Safari 公共牌街道轉場與 UI observer 穩定化。
 - DesktopAccessibilityFocus 2.1.0。
-- 一般模式 100 手與 G1 13 次補位自動壓力測試。
+- PR 25 手與每週 100 手 G1 狀態壓力測試。
 
-目前最新已驗證正式基準：
-
-```text
-79fd4d1a77a2223033440085e99e7b431b0cfd64
-```
-
-此 SHA 只代表本次文件同步前的正式發布點。接續工作前必須重新讀取 GitHub `main`。
+此 SHA 只代表本次整合開始前的正式發布點。接續工作前必須重新讀取 GitHub `main`；本次 PR 合併後以新 commit 為準。
 
 ## 已被取代的研究與 PR
 
@@ -163,7 +259,7 @@ PR #84 — Automate normal and G1 tournament state stress testing
 1. 確認問題與最後正常 commit。
 2. 從最新 `main` 建立修復或回退分支。
 3. 使用 Git 還原指定檔案或 cherry-pick 安全修正。
-4. 執行 Static、Chromium、WebKit 與必要 AI Calibration／State Stress。
+4. 執行 Static、Chromium、WebKit 與必要 AI Calibration／State Stress／Production Smoke。
 5. 透過 Pull Request 合併。
 
 ## 未來快照建議
@@ -173,7 +269,7 @@ PR #84 — Automate normal and G1 tournament state stress testing
 - 基準 commit SHA。
 - Build ID。
 - 主要新增功能。
-- CI、AI Calibration 與 State Stress 結果。
+- CI、AI Calibration、State Stress 與 Production Smoke 結果。
 - 需要一起還原的模組清單。
 - 是否包含資料庫 migration 或後端設定。
 

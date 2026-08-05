@@ -35,13 +35,14 @@ qoo109/texas-holdem
 
 ### 牌局與介面
 
-- 六人德州撲克牌桌。
+- 六人 No-limit Texas Hold'em。
 - 合法下注、加注、All-in、主池／邊池、攤牌與籌碼結算。
 - 新手教學、撲克教練、牌局覆盤與本輪結算。
 - 牌桌版面編輯、官方預設版面與尺寸控制。
 - 童趣手繪／午夜牌組收藏。
 - AI 情緒表情、座位發光、BGM 與音效分離控制。
 - Safari 音訊恢復與公共牌街道轉場效能優化。
+- 模式與 Gemini 控制 observer 只監聽相關 UI，避免閒置重複同步。
 
 ### AI 難度主線
 
@@ -58,10 +59,39 @@ qoo109/texas-holdem
 → 公平 Boss 精確河牌與多人聯合 Equity V1.9
 → 公開行動條件化對手範圍 V2
 → Board Texture 與公開跨街範圍診斷 V2.1／V2.2
+→ 中高階開局、角色強度與公開 Range 決策 V2.3／V2.4
+→ Board／Blocker／Sizing 與完整中高階鏈 V2.5
+→ 中階有界公開 Range 與樣本信心 V2.6
+→ 中高階分級、決定性多人 Equity V2.7
 → Gemini
 ```
 
+V2.7 正式模組：
+
+```text
+js/ai-tiered-multiway-equity-v2-7.js
+AiTieredMultiwayEquityV27 2.7.0
+```
+
 AI 只可使用自己的底牌、公共牌、公開位置、公開下注行動與聚合後的玩家統計；不得讀取對手隱藏底牌、實際牌堆順序、未來公共牌或預定勝負答案。
+
+### V2.7 實戰校準
+
+固定校準涵蓋：
+
+- 6 位中階與 4 位高階角色。
+- 6 種翻牌前／翻牌後公開局面。
+- 5 組固定種子。
+- 共 300 次決策。
+- VPIP／Open raise／3-bet 情境代理值。
+- Raise／Call／Fold、Equity 修正、樣本數與 P95 決策時間。
+- 隱藏對手底牌與 `state.deck` 防讀取安全閘。
+
+```bash
+npm run test:ai-calibration:v2.7
+```
+
+詳細文件：`docs/ai-gameplay-calibration-v2-7.md`。
 
 ### G1 挑戰賽經濟
 
@@ -125,12 +155,15 @@ git pull --ff-only
 
 ## 驗證
 
-### 靜態與部署契約
+### 靜態、部署與正式後端契約
 
 ```bash
 npm run validate
 npm run validate:deployment
+npm run validate:production-contract
 ```
+
+`npm run validate` 會確認正式資產、部署契約、V2.7 文件／Build Manifest、Supabase RLS migration 與公開端點設定一致。
 
 ### Browser E2E
 
@@ -146,6 +179,9 @@ GitHub Actions 會分別執行 Chromium 與 WebKit。
 
 ```bash
 npm run test:ai-calibration
+npm run test:ai-calibration:v1.6
+npm run test:ai-calibration:v1.9
+npm run test:ai-calibration:v2.7
 ```
 
 ### 長時間狀態壓力測試
@@ -157,11 +193,26 @@ npm run test:state-stress:100
 
 正式壓力測試包含：
 
-- 一般模式最多 100 手自然下注。
+- PR 使用 25 手自然下注。
+- 每週日台北時間約 03:30 執行 100 手自然下注。
 - 牌張唯一、籌碼守恆、合法 Actor、Pot／Contribution／Current Bet、無負數籌碼、無卡死與殘留計時器。
 - G1 19 位角色與 13 次補位循環。
 - Gemini 最後登場、盲注不倒退、角色不重複、累積補位不超過 `660 entry-BB`。
-- 每日台北時間約 03:30 自動執行。
+
+### 正式環境 Smoke
+
+```bash
+npm run test:production-smoke
+```
+
+Production Smoke 會以零寫入方式驗證：
+
+- GitHub Pages 正式版本與 V2.7 Build Manifest。
+- Supabase Auth 設定與 Google Provider。
+- 未登入玩家不可讀取淘汰賽存檔。
+- Gemini Worker `/health` 與 Secret 設定。
+
+它會在每次 `main` 部署後及每週日台北時間約 03:10 自動執行。Google 真人 OAuth 仍依 `docs/production-backend-smoke.md` 使用專用測試帳號人工驗證。
 
 相關文件：
 
@@ -170,6 +221,9 @@ docs/poker-state-stress-v1.md
 docs/ai-calibration-v1-6.md
 docs/ai-calibration-v1-9.md
 docs/ai-v2-public-range-equity.md
+docs/ai-tiered-multiway-equity-v2-7.md
+docs/ai-gameplay-calibration-v2-7.md
+docs/production-backend-smoke.md
 ```
 
 ## 分支與發布流程
@@ -181,7 +235,7 @@ docs/ai-v2-public-range-equity.md
 5. 建立 Pull Request。
 6. 確認 PR head 未變且分支沒有落後。
 7. 確認必要 CI 全綠。
-8. 合併後重新核對正式 `main`、GitHub Pages 與診斷頁。
+8. 合併後重新核對正式 `main`、GitHub Pages、Production Smoke 與診斷頁。
 
 ## 過時 PR 注意事項
 
