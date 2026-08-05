@@ -97,6 +97,11 @@
     "aiCharacterStrategiesV15",
   );
   loadOnce(
+    'script[data-ai-range-decision-v2-4]',
+    "js/ai-range-decision-integration-v2-4.js?v=range-decision-v2-4",
+    "aiRangeDecisionV24",
+  );
+  loadOnce(
     'script[data-ai-repeated-allin-counter]',
     "js/ai-repeated-allin-counter-v1.js?v=repeated-allin-counter-v1-6-1",
     "aiRepeatedAllinCounter",
