@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-main-ai-v2-accessibility-focus-2026-08-05",
+  "buildId": "desktop-main-ai-v2-2-g1-state-stress-2026-08-05",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
@@ -72,7 +72,7 @@
     { "path": "js/street-transition-performance.js", "label": "Safari 公共牌街道轉場效能 V2" },
     { "path": "js/game-mode-controls-v2.js", "label": "遊戲模式統一控制" },
     { "path": "js/tournament-gemini-bridge.js", "label": "淘汰賽 Gemini 後端橋接" },
-    { "path": "js/replacement-stack-balance.js", "label": "新進角色籌碼平衡" },
+    { "path": "js/replacement-stack-balance.js", "label": "G1 淘汰賽動態補位籌碼與延伸盲注" },
     { "path": "js/session-summary.js", "label": "本輪結算" },
     { "path": "js/hand-review.js", "label": "牌局覆盤" },
     { "path": "js/hand-review-analysis.js", "label": "覆盤分析" },
@@ -106,12 +106,12 @@
     },
     {
       "id": "ai-strategy-stack",
-      "label": "AI V1.1～V1.5 多街、翻牌前、玩家模型、長期記憶與多人範圍",
+      "label": "AI V1.1～V2.2 多街、位置範圍、玩家模型、Board Texture 與公開跨街診斷",
       "assets": ["js/ai-data.js", "js/ai-logic.js", "js/ai-action-memory-v1.js", "js/ai-range-tools-v1.js", "js/ai-character-strategies-v1.js", "js/ai-character-strategies-v1-1.js", "js/ai-preflop-range-engine-v1.js", "js/ai-character-strategies-v1-2.js", "js/ai-player-model-v1.js", "js/ai-player-model-memory-v1.js", "js/ai-character-strategies-v1-3.js", "js/ai-multiway-range-model-v1.js", "js/ai-character-strategies-v1-5.js", "js/elite-character-presentation.js"]
     },
     {
       "id": "ai-decision-core-v2",
-      "label": "AI V1.7～V2 淨 EV、有效籌碼、連續 All-in 與公開範圍 Boss Equity",
+      "label": "AI V1.7～V2.2 淨 EV、有效籌碼、公開範圍與公平 Boss Equity",
       "assets": ["js/elite-character-presentation.js", "js/ai-repeated-allin-counter-v1.js", "js/ai-ev-accounting-v1.js", "js/ai-effective-stack-spr-v1.js", "js/fair-special-bosses.js", "js/boss-public-range-model-v1.js", "js/boss-equity-engine-v1.js", "js/boss-equity-integration-v1.js"]
     },
     {
@@ -126,7 +126,7 @@
     },
     {
       "id": "tournament-mode",
-      "label": "19 位永久淘汰賽、分層角色輪替與對稱縮桌",
+      "label": "19 位永久淘汰賽、G1 動態補位、純手數盲注與對稱縮桌",
       "assets": ["js/tournament-mode.js", "js/tournament-seat-balance.js", "js/tournament-mode-visible-entry.js", "js/game-mode-controls-v2.js", "js/tournament-gemini-bridge.js", "js/replacement-stack-balance.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/ai-data.js", "js/game-flow.js", "js/session-summary.js"]
     },
     {
@@ -141,7 +141,7 @@
     },
     {
       "id": "replacement-stack-balance",
-      "label": "新進角色動態籌碼平衡",
+      "label": "G1 全桌目標 170BB、15% 反應與 660 entry-BB 理論上限",
       "assets": ["js/replacement-stack-balance.js", "js/config.js", "js/game-flow.js", "js/tournament-mode.js"]
     },
     {
