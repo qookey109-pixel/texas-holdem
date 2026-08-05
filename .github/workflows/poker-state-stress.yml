@@ -23,7 +23,8 @@ on:
       - "package-lock.json"
       - ".github/workflows/poker-state-stress.yml"
   schedule:
-    - cron: "30 19 * * *"
+    # GitHub cron uses UTC: Saturday 19:30 = Sunday 03:30 in Taiwan (UTC+8).
+    - cron: "30 19 * * 6"
 
 permissions:
   contents: read
