@@ -38,28 +38,34 @@ test.describe("Shared tournament observation memory V1", () => {
 
       const hero = {
         name: "Owl",
+        emoji: "🦉",
         isHuman: true,
         stack: 3900,
         bet: 0,
         folded: false,
         allIn: false,
         position: 0,
+        status: "準備",
+        lastAction: "",
         cards: [
-          { value: 7, suit: "diamonds" },
-          { value: 2, suit: "clubs" },
+          { label: "7", value: 7, suit: "d", suitSymbol: "♦" },
+          { label: "2", value: 2, suit: "c", suitSymbol: "♣" },
         ],
       };
       const ace = {
         name: "Ace",
+        emoji: "🦅",
         isHuman: false,
         stack: 4500,
         bet: 0,
         folded: false,
         allIn: false,
         position: 1,
+        status: "準備",
+        lastAction: "",
         cards: [
-          { value: 14, suit: "spades" },
-          { value: 13, suit: "spades" },
+          { label: "A", value: 14, suit: "s", suitSymbol: "♠" },
+          { label: "K", value: 13, suit: "s", suitSymbol: "♠" },
         ],
       };
       state.players = [hero, ace];
