@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("一般模式維持桌均比例補位，淘汰賽 G1 模組完成安裝", async ({ page }) => {
+test("一般模式保留桌均計算器，淘汰賽 G1 與公平重買入模組完成安裝", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
 
   await expect.poll(
@@ -9,6 +9,9 @@ test("一般模式維持桌均比例補位，淘汰賽 G1 模組完成安裝", a
   ).toBe("2.1.0");
   await expect.poll(
     () => page.evaluate(() => window.ReplacementStackBalance?.isInstalled?.()),
+  ).toBe(true);
+  await expect.poll(
+    () => page.evaluate(() => window.EconomyFoldDefenseV1?.status?.().installed === true),
   ).toBe(true);
 
   const initialStacks = await page.evaluate(
@@ -33,7 +36,11 @@ test("一般模式維持桌均比例補位，淘汰賽 G1 模組完成安裝", a
       levelTwo,
       shortLate,
       blindWrapped: blindLevelForHand.__tournamentEconomyG1 === true,
-      buyInWrapped: currentBuyIn.__tournamentEconomyG1 === true,
+      buyInWrapped: Boolean(
+        currentBuyIn.__economyFoldDefenseCatchup === true
+        && currentBuyIn.__original?.__tournamentEconomyG1 === true
+      ),
+      economyInstalled: window.EconomyFoldDefenseV1?.status?.().installed === true,
     };
   });
 
@@ -43,6 +50,7 @@ test("一般模式維持桌均比例補位，淘汰賽 G1 模組完成安裝", a
     shortLate: 4000,
     blindWrapped: true,
     buyInWrapped: true,
+    economyInstalled: true,
   });
 
   const tournamentConfig = await page.evaluate(() => ({
@@ -63,11 +71,11 @@ test("一般模式維持桌均比例補位，淘汰賽 G1 模組完成安裝", a
   expect(tournamentConfig.level155.big).toBe(160000);
 });
 
-test("一般模式補位維持 800，挑戰賽補位改用 G1 動態 BB", async ({ page }) => {
+test("一般模式玩家與 AI 使用相同公平重買入，挑戰賽補位維持 G1 動態 BB", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
 
   await expect.poll(
-    () => page.evaluate(() => window.ReplacementStackBalance?.isInstalled?.()),
+    () => page.evaluate(() => window.EconomyFoldDefenseV1?.status?.().installed === true),
     { timeout: 10_000 },
   ).toBe(true);
 
@@ -89,10 +97,23 @@ test("一般模式補位維持 800，挑戰賽補位改用 G1 動態 BB", async 
     return {
       name: player?.name || "",
       totalStack: (player?.stack || 0) + (player?.bet || 0),
+      expectedStack: EconomyFoldDefenseV1.calculateNormalRebuy([
+        { stack: 2000 },
+        { stack: 2000 },
+        { stack: 2000 },
+        { stack: 2000 },
+        { stack: 2000 },
+        { stack: 2000 },
+        { stack: 0 },
+      ], { bigBlind: 20, buyIn: 2000 }),
     };
   });
 
-  expect(normalReplacement).toEqual({ name: "Ace", totalStack: 800 });
+  expect(normalReplacement).toEqual({
+    name: "Ace",
+    totalStack: 1000,
+    expectedStack: 1000,
+  });
 
   await page.evaluate(() => {
     TournamentMode.setMode("tournament");
