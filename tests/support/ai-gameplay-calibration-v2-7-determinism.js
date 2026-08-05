@@ -4,7 +4,7 @@
   const base = window.AiGameplayCalibrationV27;
   if (!base?.version || base.fingerprintVersion) return;
 
-  const SCENARIO_VERSION = "1.0.2";
+  const SCENARIO_VERSION = "1.0.3";
   const FINGERPRINT_VERSION = "1.0.1";
 
   function hashString(value) {
@@ -36,6 +36,7 @@
       fingerprintVersion: FINGERPRINT_VERSION,
       seeds: result.seeds,
       versions: result.versions,
+      scope: result.scope,
       tiers: stableMap(result.tiers),
       roles: stableMap(result.roles),
       scenarioSummary: stableMap(result.scenarioSummary),
@@ -62,13 +63,6 @@
     if (state.board.length > 0) return;
 
     const facingOpen = state.currentBet >= 80;
-    if (!facingOpen) {
-      actor.cards = [
-        { value: 14, suit: "s" },
-        { value: 14, suit: "h" },
-      ];
-    }
-
     opponents.forEach((player, index) => {
       const position = index + 1;
       if (position === 1) {
@@ -138,8 +132,24 @@
     const result = runWithNormalizedScenarios(options);
     result.scenarioVersion = SCENARIO_VERSION;
     result.fingerprintVersion = FINGERPRINT_VERSION;
+    result.scope = Object.freeze({
+      postflopV27DecisionPath: true,
+      preflopCompatibilityProbeOnly: true,
+      fullGamePreflopTelemetry: false,
+    });
     result.deterministicFingerprint = hashString(JSON.stringify(fingerprintPayload(result)));
     return result;
+  }
+
+  function toMarkdown(result) {
+    return base.toMarkdown(result)
+      .replace("VPIP proxy", "Continue probe")
+      .replace("Open raise", "Open-probe raise")
+      .replace("3-bet proxy", "Facing-open re-raise")
+      .replace(
+        "- VPIP／Open raise／3-bet are fixed-scenario proxies, not claims about live-player population frequencies.",
+        "- The two preflop rows are composeDecision compatibility probes only. Formal live preflop actions still run through botAction and require full-game telemetry.",
+      );
   }
 
   window.AiGameplayCalibrationV27 = Object.freeze({
@@ -147,5 +157,6 @@
     scenarioVersion: SCENARIO_VERSION,
     fingerprintVersion: FINGERPRINT_VERSION,
     run,
+    toMarkdown,
   });
 })();
