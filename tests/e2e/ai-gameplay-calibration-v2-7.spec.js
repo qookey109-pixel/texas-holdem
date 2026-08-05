@@ -39,7 +39,7 @@ test.describe("AI V2.7 gameplay calibration", () => {
     await expect.poll(
       () => page.evaluate(() => window.AiGameplayCalibrationV27?.scenarioVersion || ""),
       { timeout: 10_000 },
-    ).toBe("1.0.2");
+    ).toBe("1.0.3");
     await expect.poll(
       () => page.evaluate(() => window.AiGameplayCalibrationV27?.fingerprintVersion || ""),
       { timeout: 10_000 },
@@ -69,7 +69,7 @@ test.describe("AI V2.7 gameplay calibration", () => {
     expect(result.first).toMatchObject({
       schemaVersion: 1,
       labVersion: "1.0.0",
-      scenarioVersion: "1.0.2",
+      scenarioVersion: "1.0.3",
       fingerprintVersion: "1.0.1",
       scenarioCount: 6,
       roleCount: 10,
@@ -77,6 +77,11 @@ test.describe("AI V2.7 gameplay calibration", () => {
       versions: {
         decisionChain: "2.7.0",
         tieredEquity: "2.7.0",
+      },
+      scope: {
+        postflopV27DecisionPath: true,
+        preflopCompatibilityProbeOnly: true,
+        fullGamePreflopTelemetry: false,
       },
       fairness: {
         hiddenOpponentCardRead: false,
@@ -102,7 +107,6 @@ test.describe("AI V2.7 gameplay calibration", () => {
     expect(elite.maximumAbsoluteEquityAdjustment).toBeLessThanOrEqual(0.115001);
     expect(middle.publicInformationOnly).toBe(true);
     expect(elite.publicInformationOnly).toBe(true);
-    expect(middle.openRaiseProxy + elite.openRaiseProxy).toBeGreaterThan(0);
 
     for (const tier of [middle, elite]) {
       expectRate(tier.vpipProxy);
@@ -127,6 +131,6 @@ test.describe("AI V2.7 gameplay calibration", () => {
     expect(result.markdown).toContain("# AI V2.7 Gameplay Calibration");
     expect(result.markdown).toContain("| middle |");
     expect(result.markdown).toContain("| elite |");
-    expect(result.markdown).toContain("fixed-scenario proxies");
+    expect(result.markdown).toContain("compatibility probes only");
   });
 });
