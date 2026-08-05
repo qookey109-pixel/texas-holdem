@@ -63,6 +63,7 @@ qoo109/texas-holdem
 → Board／Blocker／Sizing 與完整中高階鏈 V2.5
 → 中階有界公開 Range 與樣本信心 V2.6
 → 中高階分級、決定性多人 Equity V2.7
+→ 籌碼經濟與長期棄牌反制 V1
 → Gemini
 ```
 
@@ -73,7 +74,14 @@ js/ai-tiered-multiway-equity-v2-7.js
 AiTieredMultiwayEquityV27 2.7.0
 ```
 
-AI 只可使用自己的底牌、公共牌、公開位置、公開下注行動與聚合後的玩家統計；不得讀取對手隱藏底牌、實際牌堆順序、未來公共牌或預定勝負答案。
+籌碼經濟與棄牌反制模組：
+
+```text
+js/economy-fold-defense-v1.js
+EconomyFoldDefenseV1 1.0.1
+```
+
+AI 只可使用自己的底牌、公共牌、公開位置、公開下注行動、可見籌碼與聚合後的玩家統計；不得讀取對手隱藏底牌、實際牌堆順序、未來公共牌或預定勝負答案。
 
 ### V2.7 實戰校準
 
@@ -93,23 +101,81 @@ npm run test:ai-calibration:v2.7
 
 詳細文件：`docs/ai-gameplay-calibration-v2-7.md`。
 
+### 一般模式公平重新買入
+
+初始籌碼與盲注不變：
+
+```text
+初始籌碼 2,000
+小盲 / 大盲 10 / 20
+```
+
+玩家與 AI 籌碼歸零後改用相同公開公式：
+
+```text
+min(
+  正籌碼牌桌平均 × 70%,
+  當前完整買入 × 60%,
+  50BB
+)
+```
+
+結果向下取整至大盲單位，最低為 `20BB`。因此玩家不再取得完整 Buy-in、AI 卻只拿短碼補位的非對稱待遇。
+
+### 長期低 VPIP／高棄牌反制
+
+至少觀察 `8` 手後，符合任一條件才標記為偏緊被動：
+
+```text
+VPIP <= 18%
+翻牌前棄牌率 >= 70%
+```
+
+反制方式：
+
+- 初中高階角色依各自性格調整頻率。
+- 未開池且位於後位時，合格牌力可用約 `2.2～2.4BB` 小尺寸偷盲。
+- 乾燥翻牌／轉牌可用約 `33～40% pot` 小尺寸施壓。
+- Toto、Pao、Dodo、Bruno 維持較保守性格。
+- Oracle、Chronos 與 Gemini 保留各自 Boss 決策引擎，不由通用壓力層接管。
+
+系統只使用公開行動、位置、下注尺寸、可見籌碼與聚合統計。
+
+詳細文件：`docs/economy-fold-defense-v1.md`。
+
 ### G1 挑戰賽經濟
 
 - 19 位永久淘汰賽，Gemini 最後登場。
 - 6 位開局、13 位依序補位。
-- 一般模式保留既有補位規則；G1 只套用淘汰賽。
-- 淘汰賽盲注只依手數推進，不依玩家籌碼占比加速。
-- 新角色籌碼依當前大盲、桌面總 BB 與角色階級動態計算。
+- 淘汰賽盲注只依手數推進，不因玩家籌碼領先而加速。
+- 一般中高階新角色籌碼依當前大盲、桌面總 BB 與角色階級動態計算。
 - 全桌目標 `170BB`、反應幅度 `15%`。
-- 中階 `25／35／45BB`、高階 `30／40／50BB`、特殊 Boss `35／45／60BB`、Gemini `40／50／70BB`。
-- 13 位補位角色理論最大累積注入為 `660 entry-BB`。
-- 補位公式不使用玩家個人籌碼、籌碼占比、勝率或籌碼王狀態。
+- 中階 `25／35／45BB`、高階 `30／40／50BB`、基礎特殊 Boss `35／45／60BB`、Gemini `40／50／70BB`。
+- 13 位補位角色的 G1 基礎理論最大累積注入為 `660 entry-BB`。
+
+有限 Boss 追趕：
+
+- 玩家至少是最大 AI 籌碼的 `1.8 倍`才啟動。
+- Oracle／Chronos：`40／55／75BB`。
+- Gemini：`50／65／90BB`。
+- 只使用牌桌可見籌碼。
+- 不扣除玩家籌碼，不改變盲注、底牌、牌堆、公共牌或勝負結果。
+- 一般中高階補位不使用玩家個人籌碼或勝率。
 
 正式模組：
 
 ```text
 ReplacementStackBalance 2.1.0
+EconomyFoldDefenseV1 1.0.1
 ```
+
+### 公平 Boss 與 Gemini 公開觀察
+
+- Oracle、Chronos 使用公開資訊、公平 Equity 與條件化對手範圍。
+- Gemini 使用 Cloudflare Worker 安全後端或本地備援。
+- Worker 現在會白名單清理並保留 `tournamentObservation`。
+- 可使用 VPIP、棄牌／跟注／加注率、分街與位置公開行動率、近期公開事件、重複 All-in 聚合資訊與公開攤牌分類計數。
+- 不傳遞未列入白名單的欄位、對手隱藏牌、牌堆順序、未來公共牌或原始攤牌牌張清單。
 
 ### 挑戰賽與雲端
 
@@ -175,6 +241,15 @@ npm run test:e2e
 
 GitHub Actions 會分別執行 Chromium 與 WebKit。
 
+### 籌碼經濟與棄牌反制
+
+```text
+tests/e2e/economy-fold-defense-v1.spec.js
+tests/e2e/replacement-stack-balance.spec.js
+```
+
+覆蓋一般模式對稱重買入、Boss 追趕上下限、低 VPIP／高棄牌分類、小尺寸壓力、公平資訊邊界與 Gemini Worker 公開觀察白名單。
+
 ### AI 固定種子校準
 
 ```bash
@@ -197,7 +272,8 @@ npm run test:state-stress:100
 - 每週日台北時間約 03:30 執行 100 手自然下注。
 - 牌張唯一、籌碼守恆、合法 Actor、Pot／Contribution／Current Bet、無負數籌碼、無卡死與殘留計時器。
 - G1 19 位角色與 13 次補位循環。
-- Gemini 最後登場、盲注不倒退、角色不重複、累積補位不超過 `660 entry-BB`。
+- Gemini 最後登場、盲注不倒退、角色不重複、G1 基礎補位不超過 `660 entry-BB`。
+- AI wrapper 載入順序不得形成遞迴或卡死。
 
 ### 正式環境 Smoke
 
@@ -223,6 +299,7 @@ docs/ai-calibration-v1-9.md
 docs/ai-v2-public-range-equity.md
 docs/ai-tiered-multiway-equity-v2-7.md
 docs/ai-gameplay-calibration-v2-7.md
+docs/economy-fold-defense-v1.md
 docs/production-backend-smoke.md
 ```
 
@@ -244,7 +321,7 @@ docs/production-backend-smoke.md
 - PR #9：已由 PR #82 取代。
 - PR #32：舊公平 Boss 修正。
 - PR #46：舊 Range Continuation V1.3。
-- PR #86：玩家領先加速盲注，已由 G1 取代。
+- PR #86：玩家領先加速盲注，已由 G1 與有限 Boss 追趕取代。
 - PR #89：舊 16 位 F1 模擬，已由正式 19 位 G1 取代。
 
 詳細狀態、已知風險與下一步請看 `PROJECT_STATUS.md`。
