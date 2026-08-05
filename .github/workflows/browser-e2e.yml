@@ -34,6 +34,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "24"
+          cache: npm
 
       - name: Install locked test dependencies
         run: npm ci
@@ -41,11 +42,38 @@ jobs:
       - name: Install ${{ matrix.browser }}
         run: npx playwright install --with-deps ${{ matrix.browser }}
 
-      - name: Run all E2E scenarios on ${{ matrix.browser }}
-        run: npx playwright test --project=${{ matrix.browser }}
+      - name: Run all E2E scenarios on chromium
+        if: ${{ matrix.browser == 'chromium' }}
+        run: npx playwright test --project=chromium
+
+      # Pull requests use a focused Safari/WebKit regression pack. The full
+      # WebKit suite still runs after merge to main and on manual dispatch.
+      - name: Run critical E2E scenarios on webkit
+        if: ${{ matrix.browser == 'webkit' && github.event_name == 'pull_request' }}
+        run: >-
+          npx playwright test
+          tests/e2e/poker-smoke.spec.js
+          tests/e2e/poker-betting.spec.js
+          tests/e2e/poker-settlement.spec.js
+          tests/e2e/game-mode-controls-v2.spec.js
+          tests/e2e/google-auth.spec.js
+          tests/e2e/layout-refresh-stability.spec.js
+          tests/e2e/official-layout-migration.spec.js
+          tests/e2e/desktop-accessibility.spec.js
+          tests/e2e/topbar-account-layout.spec.js
+          tests/e2e/topbar-seat-polish.spec.js
+          tests/e2e/street-transition-performance.spec.js
+          tests/e2e/hero-card-render-stability.spec.js
+          tests/e2e/hole-card-motion-scope.spec.js
+          tests/e2e/tournament-summary-layout.spec.js
+          --project=webkit
+
+      - name: Run all E2E scenarios on webkit
+        if: ${{ matrix.browser == 'webkit' && github.event_name != 'pull_request' }}
+        run: npx playwright test --project=webkit
 
       - name: Upload Playwright report
-        if: ${{ !cancelled() }}
+        if: ${{ failure() && !cancelled() }}
         uses: actions/upload-artifact@v5
         with:
           name: playwright-report-${{ matrix.browser }}-${{ github.run_id }}
