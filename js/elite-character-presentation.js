@@ -33,7 +33,7 @@
   );
   loadOnce(
     'script[data-ai-action-memory]',
-    "js/ai-action-memory-v1.js?v=multi-street-ai-v1-1",
+    "js/ai-action-memory-v1.js?v=public-action-history-v2-2",
     "aiActionMemory",
   );
   loadOnce(
