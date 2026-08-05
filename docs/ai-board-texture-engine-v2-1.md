@@ -8,7 +8,7 @@
 
 ```text
 js/ai-board-texture-engine-v1.js
-AiBoardTextureEngineV1 1.0.0
+AiBoardTextureEngineV1 1.0.1
 ```
 
 測試：
