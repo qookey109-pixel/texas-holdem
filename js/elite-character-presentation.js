@@ -102,6 +102,11 @@
     "aiRangeDecisionV24",
   );
   loadOnce(
+    'script[data-ai-board-intelligence-v2-5]',
+    "js/ai-board-intelligence-v2-5.js?v=mid-elite-board-intelligence-v2-5",
+    "aiBoardIntelligenceV25",
+  );
+  loadOnce(
     'script[data-ai-repeated-allin-counter]',
     "js/ai-repeated-allin-counter-v1.js?v=repeated-allin-counter-v1-6-1",
     "aiRepeatedAllinCounter",
