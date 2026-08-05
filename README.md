@@ -1,6 +1,6 @@
 # 德州撲克網頁遊戲
 
-純 HTML、CSS、JavaScript 製作的德州撲克網頁遊戲，支援一般牌局、19 位永久淘汰賽、公平 Boss、Gemini 後端、牌局覆盤與可調整牌桌介面。
+純 HTML、CSS、JavaScript 製作的德州撲克網頁遊戲，支援一般牌局、19 位永久淘汰賽、公平 Boss、Gemini 後端、牌局覆盤、雲端存檔、可調整牌桌介面與桌機鍵盤無障礙。
 
 ## 線上網站
 
@@ -49,11 +49,11 @@ qoo109/texas-holdem
 - 童趣手繪／午夜牌組收藏
 - AI 情緒表情、座位發光、BGM 與音效分離控制
 - Safari 音訊恢復與公共牌街道轉場效能優化
-- 同一手牌中，玩家底牌只建立與發牌一次；FLOP／TURN／RIVER 只處理公共牌
+- 同一手牌中，玩家與 AI 底牌只建立及發牌一次；FLOP／TURN／RIVER 只處理公共牌
 
 ### AI 難度主線
 
-目前中階與高階角色載入：
+目前正式策略堆疊：
 
 ```text
 獨立角色策略 V1
@@ -62,10 +62,23 @@ qoo109/texas-holdem
 → 分街玩家模型 V1.3
 → 長期安全記憶 V1.4
 → 多人公開範圍與決策 V1.5
-→ 固定種子校準工具 V1.6
-→ Oracle／Chronos 公平 Boss
+→ 固定種子校準 V1.6
+→ 初階連續牌力與 Pot 相對尺寸 V1.7
+→ 淨 EV、有效籌碼、SPR 與 All-in 單一調整鏈 V1.8
+→ 公平 Boss 精確河牌與多人聯合 Equity V1.9
+→ 公開行動條件化對手範圍 V2
 → Gemini
 ```
+
+AI V1.9／V2 目前包含：
+
+- 河牌單挑 `990` 組精確枚舉
+- Oracle `360`／Chronos `480` 次多人聯合樣本
+- Call／Raise 淨 EV 與 called-pot 會計
+- Call 範圍與再加注跟注範圍分離
+- 依公開位置、街道、行動與下注尺寸加權對手範圍
+- 公平 legacy fallback
+- 固定種子公平性、行動分布與效能校準
 
 AI 僅可使用：
 
@@ -98,6 +111,25 @@ Supabase migrations：
 supabase/migrations/20260803_create_tournament_saves_v1.sql
 supabase/migrations/20260804_allow_tournament_save_v2.sql
 ```
+
+### 桌機鍵盤與焦點無障礙
+
+正式模組：
+
+```text
+DesktopAccessibilityFocus 2.1.0
+```
+
+支援：
+
+- AI 座位 Enter／Space 操作
+- AI 資訊卡關閉後回到原座位
+- 教學與本輪結算焦點接管
+- Tab／Shift+Tab focus trap
+- Escape 關閉與焦點還原
+- `render()` 重建座位或資訊卡後仍保留正確焦點
+- `aria-controls`、`aria-expanded` 與 dialog 語意
+- 清楚一致的 `:focus-visible` 外框
 
 ## 開始工作前
 
@@ -159,35 +191,49 @@ npx playwright install chromium webkit
 npm run test:e2e
 ```
 
-GitHub Actions 的 `Browser E2E` 會分別執行 Chromium 與 WebKit。涉及下注流程、AI、淘汰賽、雲端、街道切換或 UI 互動的修改，兩個瀏覽器都必須通過。
+GitHub Actions 的 `Browser E2E` 會分別執行 Chromium 與 WebKit。涉及下注流程、AI、淘汰賽、雲端、街道切換、UI 互動或焦點管理的修改，兩個瀏覽器都必須通過。
 
-## AI 難度校準 V1.6
-
-只執行 Chromium 校準矩陣：
+## AI 固定種子校準
 
 ```bash
 npm run test:ai-calibration
 ```
 
-校準內容包括完整 169 種起手牌類別、1,326 種實際組合權重、位置開池、面對開池與 3-bet、Squeeze，以及固定翻牌後詐唬、價值下注、Bluff Catch 與多人底池情境。
+校準內容包括：
 
-Playwright 報表會附加 JSON 與 Markdown 結果。校準器位於 `tests/support/`，不由正式網站載入，也不直接修改 AI 參數。詳細設計請看 `docs/ai-calibration-v1-6.md`。
+- V1.6 的 169 種起手牌類別、1,326 種實際組合權重、位置開池、面對開池、3-bet 與 Squeeze
+- 固定翻牌後詐唬、價值下注、Bluff Catch 與多人底池情境
+- V1.9／V2 的 Oracle／Chronos 行動分布、精確枚舉、多人人數樣本、公平性、fallback 與耗時
+- 相同種子重複執行的 deterministic fingerprint
+
+Playwright 報表會附加 JSON 與 Markdown 結果。校準器位於 `tests/support/`，不由正式網站載入，也不直接修改 AI 參數。
+
+相關文件：
+
+```text
+docs/ai-calibration-v1-6.md
+docs/ai-calibration-v1-9.md
+docs/ai-v2-public-range-equity.md
+```
 
 ## 分支與發布流程
 
 1. 重新核對最新 `main`。
 2. 從最新 `main` 建立新分支。
 3. 只修改本次需求需要的檔案。
-4. 執行 `npm run validate` 與必要 E2E。
+4. 執行 `npm run validate` 與必要 E2E／AI Calibration。
 5. 建立 Pull Request。
 6. 確認 PR head 未變且分支沒有落後。
-7. 確認 Static、Chromium、WebKit 全綠。
+7. 確認 Static、Chromium、WebKit 及必要校準全綠。
 8. 合併後重新核對正式 `main`。
 9. 正式網站更新後檢查 Console、Network、診斷頁、雲端存檔與核心流程。
 
 ## 過時 PR 注意事項
 
-- PR #32 與 PR #46 已被後續正式架構取代，不得直接合併。
-- PR #9 的無障礙功能仍可重新評估，但必須從最新 `main` 重新移植與測試。
+以下舊 PR 已被後續正式架構取代，不得直接合併：
+
+- PR #9：已由 PR #82 的桌機鍵盤與焦點無障礙 V2.1.0 取代
+- PR #32：舊公平 Boss 修正
+- PR #46：舊 Range Continuation V1.3
 
 詳細狀態、已知風險與下一步請看 `PROJECT_STATUS.md`。

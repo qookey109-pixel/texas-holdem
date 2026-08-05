@@ -1,6 +1,6 @@
 # 德州撲克專案狀態
 
-核對日期：`2026-08-04`
+核對日期：`2026-08-05`
 
 ## 專案資訊
 
@@ -14,13 +14,15 @@
 
 ## 目前正式基準
 
-本次整理開始時，最新正式 `main` 為：
+最新正式 `main`：
 
 ```text
-96195405721fdb22e57717cc35a267a6f5e0af11
+a3742e758e7d1bb27d59068a0f073da1ea5e3c38
 ```
 
-該版本已包含 PR #64 的核心底牌／公共牌動畫旗標分離。這個 SHA 只代表本次整理起點；每次開始工作仍須重新讀取 GitHub `main`。
+該版本已包含 AI V2 公開範圍模型、Raise EV 修正、固定種子校準基礎，以及桌機鍵盤與焦點無障礙 V2.1.0。每次開始工作仍須重新讀取 GitHub `main`，不得把此 SHA 視為永久最新版本。
+
+最新 GitHub Pages 建置已成功發布同一 commit，來源為 `main / root`。
 
 ## 已完成的主要功能
 
@@ -33,6 +35,7 @@
 - 牌桌版面編輯、官方預設版面與尺寸控制。
 - 童趣手繪／午夜牌組收藏。
 - AI 情緒、座位發光、BGM／音效分離與 Safari 音訊恢復。
+- 同一手內玩家與 AI 底牌只建立及發牌一次；FLOP／TURN／RIVER 只追加公共牌。
 
 ### AI 難度主線
 
@@ -45,14 +48,41 @@
 → 分街玩家模型 V1.3
 → 長期安全記憶 V1.4
 → 多人公開範圍與決策 V1.5
-→ 固定種子校準工具 V1.6
+→ 固定種子校準 V1.6
+→ 初階連續牌力與 Pot 相對尺寸 V1.7
+→ 淨 EV、有效籌碼、SPR 與 All-in 單一調整鏈 V1.8
+→ 公平 Boss 精確河牌與多人聯合 Equity V1.9
+→ 公開行動條件化對手範圍與 Raise-call 範圍分離 V2
 ```
 
 AI 僅可使用自己的底牌、公共牌、公開位置、公開下注行動與聚合後的玩家統計。不得讀取對手隱藏底牌、實際牌堆順序、未來公共牌或預定勝負答案。
 
+### AI V1.9／V2 已完成內容
+
+- Call／Raise 使用淨 EV 會計。
+- Raise EV 會計包含至少一名對手跟注加注後投入的額外籌碼。
+- 有效籌碼、SPR 與連續 All-in 使用單一調整鏈。
+- 河牌單挑精確枚舉 `990` 組未知底牌。
+- 多人底池使用同一樣本內的聯合抽牌，不重複使用牌張。
+- Oracle 多人樣本 `360`，Chronos 多人樣本 `480`。
+- Call 範圍與「面對再加注仍會跟注」的更強範圍分離。
+- 對手範圍依公開位置、街道、行動與下注尺寸加權，仍保留非零詐唬尾端。
+- 引擎異常時保留公平 legacy fallback，不得回退到全知模式。
+
+固定種子最終基準包含：
+
+```text
+河牌堅果：Oracle／Chronos 100% Raise
+河牌頂對抓詐唬：Oracle／Chronos 100% Call
+隱藏底牌讀取：0
+Legacy fallback：0
+```
+
+校準結果是固定情境回歸基準，不代表完整 GTO 或所有實戰頻率。
+
 ### 公平 Boss 與 Gemini
 
-- Oracle、Chronos 使用公開資訊與公平策略，不具全知能力。
+- Oracle、Chronos 使用公開資訊、公平 Equity 與條件化對手範圍，不具全知能力。
 - 不得重新加入 `omniscient: true`、隱藏底牌讀取或未來牌面答案。
 - Gemini 使用安全後端或玩家自行設定的相容 Provider。
 - Gemini 後端／備援與本機中高階 AI 是不同系統。
@@ -64,68 +94,51 @@ AI 僅可使用自己的底牌、公共牌、公開位置、公開下注行動�
 - Google 登入與 Supabase 淘汰賽雲端存檔。
 - 雲端存檔 V2 保存挑戰進度、玩家籌碼與累積 session 統計。
 - V1 舊存檔仍可讀取並遷移已知手數。
+- 正式 Supabase migration 已允許 `save_version` 1 與 2，預設為 2。
 - 不保存底牌、牌堆、未來牌面或完整逐步牌局紀錄。
 
-## 2026-08-04 已確認與修正
+### 桌機鍵盤與焦點無障礙
 
-### 淘汰賽雲端存檔 V2 資料庫約束
+PR #82 已從最新主線重新實作並正式合併，舊 PR #9 已註明被取代並關閉。
 
-問題：
+正式功能：
 
-- 前端已寫入 `save_version = 2`。
-- 正式 Supabase 一度仍限制 `CHECK (save_version = 1)`。
-- 正式 Postgres 日誌已出現多次 constraint violation，導致新版資料只保留在瀏覽器本機備份。
+- AI 座位可使用 Enter／Space 開啟角色資訊。
+- AI 資訊卡關閉後回到原 AI 座位。
+- 教學與本輪結算開啟後自動接管焦點。
+- Tab／Shift+Tab 限制在目前對話框內。
+- Escape 關閉並還原焦點。
+- AI 座位與資訊卡經 `render()` 重建後仍保留正確焦點。
+- `aria-controls`、`aria-expanded` 與 dialog 語意同步。
+- 全站主要鍵盤操作元素具有清楚的 `:focus-visible` 外框。
 
-處理：
-
-- 正式 Supabase 已套用 `allow_tournament_save_v2` migration。
-- `save_version` 預設值已改為 `2`。
-- constraint 現在允許 `1` 與 `2`，既有 V1 存檔不會被刪除。
-- Repository 新增：
-
-```text
-supabase/migrations/20260804_allow_tournament_save_v2.sql
-```
-
-### 公共牌與底牌渲染
-
-近期 PR 已完成：
-
-- PR #49：Safari 公共牌先繪製。
-- PR #53：淘汰賽結算版面溢出與重疊修正。
-- PR #56：移除公共牌街道的第二次整桌重畫。
-- PR #62：玩家底牌同一手內維持原 DOM 節點。
-- PR #63：FLOP／TURN／RIVER 鎖定玩家與 AI 底牌動畫。
-- PR #64：核心分離底牌與公共牌動畫旗標。
-
-目前預期規則：
+正式模組版本：
 
 ```text
-新的一手 → 玩家與 AI 底牌發牌一次
-FLOP     → 只發三張公共牌
-TURN     → 只追加第四張公共牌
-RIVER    → 只追加第五張公共牌
+DesktopAccessibilityFocus 2.1.0
 ```
 
-### Build Manifest 與診斷覆蓋
+### Build Manifest 與部署診斷
 
-本次整理將近期正式資產補入 `build-manifest.json`，包括：
+目前 Build ID：
 
-- `topbar-control-alignment-v2.css`
-- `session-summary-layout-fix.css`
-- `js/official-layout-preset.js`
-- `js/hero-card-render-stability.js`
-- `js/hole-card-motion-scope.js`
-- `js/ui-text-write-guard.js`
-- `js/ai-profile-position.js`
-- 淘汰賽雲端存檔 V2 migration
+```text
+desktop-main-ai-v2-accessibility-focus-2026-08-05
+```
 
-新增 `scripts/validate-deployment-contracts.mjs`，CI 會檢查：
+`build-manifest.json` 已覆蓋：
 
-- 首頁直接載入的本機 JS／CSS 是否存在且已登記於 Manifest。
-- `config.js` 與 `events-boot.js` 動態載入的正式資產是否受診斷頁覆蓋。
-- 前端淘汰賽存檔 schemaVersion 是否有對應 Supabase migration。
-- migration 是否保留舊版本並允許目前版本。
+- AI V1.7～V2 決策與 Boss Equity 模組。
+- `js/accessibility-focus.js`。
+- 淘汰賽雲端存檔 V1／V2 migrations。
+- 首頁直接載入及動態載入的正式 JS／CSS。
+
+部署契約檢查會確認：
+
+- 正式引用資產存在且已登記於 Manifest。
+- 動態載入模組受診斷頁覆蓋。
+- 前端淘汰賽存檔 schemaVersion 有對應 migration。
+- migration 保留舊版本並允許目前版本。
 
 ## 驗證方式
 
@@ -135,20 +148,13 @@ RIVER    → 只追加第五張公共牌
 npm run validate
 ```
 
-內容包括：
-
-- HTML、CSS、JavaScript 引用與語法。
-- Build Manifest 結構與資產存在性。
-- 正式載入資產是否全部受診斷頁覆蓋。
-- 淘汰賽雲端存檔前端／資料庫版本契約。
-
 ### Browser E2E
 
 ```bash
 npm run test:e2e
 ```
 
-GitHub Actions 會分別執行 Chromium 與 WebKit。涉及遊戲流程、下注、UI、淘汰賽、雲端、街道轉場或渲染的修改，兩個瀏覽器都必須通過。
+GitHub Actions 會分別執行 Chromium 與 WebKit。涉及遊戲流程、下注、UI、淘汰賽、雲端、街道轉場、渲染或焦點管理的修改，兩個瀏覽器都必須通過。
 
 ### AI 固定種子校準
 
@@ -156,7 +162,7 @@ GitHub Actions 會分別執行 Chromium 與 WebKit。涉及遊戲流程、下注
 npm run test:ai-calibration
 ```
 
-V1.6 用於比較角色頻率與版本差異，不等同 GTO／solver，也不應為了讓報表好看而硬寫答案。
+校準包含 V1.6 角色矩陣與 V1.9／V2 Boss 公平性、行動分布、Equity 樣本、fallback 與耗時報表。不得為了讓報表好看而硬寫答案或直接調高角色侵略率。
 
 ## 尚未完成
 
@@ -177,23 +183,23 @@ V1.6 用於比較角色頻率與版本差異，不等同 GTO／solver，也不�
 目前 Browser E2E 使用 Supabase mock。仍需建立不寫入私人資料的正式環境 smoke test，確認：
 
 - migration 與前端版本一致。
-- 登入後 V2 寫入與讀回正常。
+- 登入後 V2 寫入、讀回、暫停、恢復與刪除正常。
 - GitHub Pages 發布後的正式載入檔版本正確。
 
-### 第三優先：桌機鍵盤與焦點無障礙
-
-PR #9 建立於舊主線，不可直接合併。若採用，需從最新 `main` 重新移植：
-
-- dialog focus trap。
-- Escape 關閉與焦點還原。
-- AI 資訊卡鍵盤操作。
-- 清楚一致的 `:focus-visible` 外框。
-
-### 仍需驗證的規則細節
+### 第三優先：規則與結算細節
 
 - 多人平分底池的奇數籌碼應明確依莊家左側順序分配。
 - 多主池／邊池勝者動畫金額應與各自實領一致。
 - 動態模組載入失敗應提供統一錯誤與診斷訊號，不應完全靜默忽略。
+
+### AI V2 後續提升
+
+以下屬於增強功能，不是目前阻塞 Bug：
+
+- Board Texture Engine：乾燥、濕潤、同花、順子與 Pair Board 分類。
+- 下注尺寸與 Range 聯動。
+- Blocker／Unblocker 決策。
+- 跨街行動歷史的完整範圍收窄鏈。
 
 ## 已知風險
 
@@ -207,12 +213,16 @@ PR #9 建立於舊主線，不可直接合併。若採用，需從最新 `main` 
 
 ### 已被取代，不得直接合併
 
+- PR #9：舊桌機無障礙分支，已由 PR #82 取代並關閉。
 - PR #32：舊公平 Boss 修正。
 - PR #46：舊 Range Continuation V1.3。
 
-### 可重新評估，但必須從最新 main 移植
+### 近期正式合併
 
-- PR #9：桌機鍵盤與焦點無障礙。
+- PR #78：AI V1.9 校準、CI 與發布基準。
+- PR #79：Raise EV called-pot 會計修正。
+- PR #80：AI V2 公開資訊條件化對手範圍。
+- PR #82：桌機鍵盤與焦點無障礙 V2.1.0。
 
 ## 開發規則
 
