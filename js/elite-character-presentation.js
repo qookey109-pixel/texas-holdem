@@ -171,4 +171,9 @@
     "js/ai-provider-client-v1.js?v=custom-ai-provider-v1",
     "aiProviderClient",
   );
+  loadOnce(
+    'script[data-ai-tiered-multiway-equity-v2-7]',
+    "js/ai-tiered-multiway-equity-v2-7.js?v=tiered-multiway-equity-v2-7",
+    "aiTieredMultiwayEquityV27",
+  );
 })();
