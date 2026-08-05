@@ -1,0 +1,60 @@
+name: Production smoke
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    # GitHub cron uses UTC: Saturday 19:10 = Sunday 03:10 in Taiwan (UTC+8).
+    - cron: "10 19 * * 6"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: pages + auth + save isolation + Gemini Worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Validate local production contracts
+        run: npm run validate:production-contract
+
+      - name: Allow GitHub Pages deployment to propagate
+        if: ${{ github.event_name == 'push' }}
+        run: sleep 60
+
+      - name: Run non-destructive live smoke
+        run: >-
+          node scripts/production-backend-smoke.mjs
+          --live
+          --retries=6
+          --retry-delay-ms=15000
+          | tee production-smoke-report.json
+
+      - name: Upload production smoke report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: production-smoke-${{ github.run_id }}
+          path: production-smoke-report.json
+          if-no-files-found: warn
+          retention-days: 14
