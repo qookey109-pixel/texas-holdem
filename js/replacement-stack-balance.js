@@ -186,11 +186,16 @@
     if (!appearance) return null;
 
     const nextHandNumber = Math.max(1, Number(state?.handNumber || 0) + 1);
-    const contextKey = `${nextHandNumber}:${state.players.length}:${state.tournament.eliminated?.length || 0}`;
-    if (!tournamentEntryContext || tournamentEntryContext.key !== contextKey) {
+    const playersRef = state.players;
+    if (
+      !tournamentEntryContext
+      || tournamentEntryContext.nextHandNumber !== nextHandNumber
+      || tournamentEntryContext.playersRef !== playersRef
+    ) {
       tournamentEntryContext = {
-        key: contextKey,
-        runningChips: positiveStacks(state.players).reduce((sum, stack) => sum + stack, 0),
+        nextHandNumber,
+        playersRef,
+        runningChips: positiveStacks(playersRef).reduce((sum, stack) => sum + stack, 0),
         handledAppearances: new Set(),
       };
     }
