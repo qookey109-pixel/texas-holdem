@@ -8,15 +8,75 @@
   const BUY_IN_RATIO_CAP = 0.60;
   const MAX_BIG_BLINDS = 40;
   const MIN_BIG_BLINDS = 10;
+  const CHIP_SHARE_PRESSURE = [
+    { minimumShare: 0.70, bonusHands: 6 },
+    { minimumShare: 0.55, bonusHands: 4 },
+    { minimumShare: 0.40, bonusHands: 2 },
+  ];
+  const ELIMINATION_PRESSURE = [
+    { minimumEliminated: 12, bonusHands: 2 },
+    { minimumEliminated: 6, bonusHands: 1 },
+  ];
+  const MAX_PRESSURE_HANDS = 8;
   const INSTALL_RETRY_MS = 25;
   const INSTALL_RETRY_LIMIT = 240;
 
   let installed = false;
   let retryCount = 0;
+  let originalBlindLevelForHand = null;
   let originalBuildNextAiSeats = null;
   let originalStartHand = null;
   let originalLog = null;
   const latestNormalReplacementStacks = new Map();
+
+  function tournamentIsActive() {
+    return Boolean(window.TournamentMode?.isActive?.());
+  }
+
+  function tournamentPressure(players = state?.players) {
+    if (!tournamentIsActive() || !Array.isArray(players) || players.length < 2) {
+      return { bonusHands: 0, heroShare: 0, eliminated: 0 };
+    }
+
+    const positivePlayers = players.filter(player => Number(player?.stack) > 0);
+    const totalChips = positivePlayers.reduce(
+      (sum, player) => sum + Number(player.stack || 0),
+      0,
+    );
+    const hero = positivePlayers.find(player => player?.isHuman) || positivePlayers[0];
+    const heroShare = totalChips > 0 ? Number(hero?.stack || 0) / totalChips : 0;
+    const eliminated = Array.isArray(state?.tournament?.eliminated)
+      ? state.tournament.eliminated.length
+      : 0;
+
+    const shareBonus = CHIP_SHARE_PRESSURE.find(rule => heroShare >= rule.minimumShare)?.bonusHands || 0;
+    const eliminationBonus = ELIMINATION_PRESSURE.find(
+      rule => eliminated >= rule.minimumEliminated,
+    )?.bonusHands || 0;
+
+    return {
+      bonusHands: Math.min(MAX_PRESSURE_HANDS, shareBonus + eliminationBonus),
+      heroShare,
+      eliminated,
+    };
+  }
+
+  function installTournamentBlindPressure() {
+    if (typeof blindLevelForHand !== "function") return false;
+    if (blindLevelForHand.__tournamentChipLeaderPressure === true) return true;
+
+    originalBlindLevelForHand = blindLevelForHand;
+    const pressuredBlindLevelForHand = function pressuredBlindLevelForHand(handNumber) {
+      const pressure = tournamentPressure();
+      const effectiveHand = Math.max(1, Number(handNumber || 1) + pressure.bonusHands);
+      return originalBlindLevelForHand.call(this, effectiveHand);
+    };
+
+    pressuredBlindLevelForHand.__tournamentChipLeaderPressure = true;
+    pressuredBlindLevelForHand.__original = originalBlindLevelForHand;
+    blindLevelForHand = pressuredBlindLevelForHand;
+    return true;
+  }
 
   function levelForBalance({ nextHand = false } = {}) {
     const handNumber = Math.max(
@@ -95,7 +155,7 @@
 
     originalStartHand = startHand;
     const balancedStartHand = function balancedStartHand(...args) {
-      const tournamentActive = Boolean(window.TournamentMode?.isActive?.());
+      const tournamentActive = tournamentIsActive();
       const previousPlayers = Array.isArray(state?.players) ? state.players : [];
 
       if (!tournamentActive || !previousPlayers.length) {
@@ -152,14 +212,16 @@
   function install() {
     if (installed) return true;
 
+    const blindPressureReady = installTournamentBlindPressure();
     const normalReady = installNormalModeBalance();
     const tournamentReady = installTournamentModeBalance();
     const logReady = installLogCorrection();
 
-    if (!normalReady || !tournamentReady || !logReady) return false;
+    if (!blindPressureReady || !normalReady || !tournamentReady || !logReady) return false;
 
     installed = true;
     document.documentElement.dataset.replacementStackBalance = "active";
+    document.documentElement.dataset.tournamentBlindPressure = "active";
     return true;
   }
 
@@ -171,16 +233,22 @@
   }
 
   window.ReplacementStackBalance = {
-    version: "1.0.0",
+    version: "1.1.0",
     install,
     calculate(players, options = {}) {
       return calculateReplacementStack(players, options);
+    },
+    pressure(players = state?.players) {
+      return tournamentPressure(players);
     },
     rules: {
       tableAverageRatio: TABLE_AVERAGE_RATIO,
       buyInRatioCap: BUY_IN_RATIO_CAP,
       maxBigBlinds: MAX_BIG_BLINDS,
       minBigBlinds: MIN_BIG_BLINDS,
+      chipSharePressure: CHIP_SHARE_PRESSURE.map(rule => ({ ...rule })),
+      eliminationPressure: ELIMINATION_PRESSURE.map(rule => ({ ...rule })),
+      maxPressureHands: MAX_PRESSURE_HANDS,
     },
     isInstalled() {
       return installed;
