@@ -1,4 +1,20 @@
 /* Stable topbar control geometry, loaded directly to avoid stale dynamic auth CSS. */
+
+/* Prevent the saved or official table layout from visibly jumping during boot. */
+html:not([data-layout-ready="true"]) #arena {
+  visibility: hidden;
+  animation: reveal-layout-failsafe 0s 2s forwards;
+}
+
+html[data-layout-ready="true"] #arena {
+  visibility: visible;
+  animation: none;
+}
+
+@keyframes reveal-layout-failsafe {
+  to { visibility: visible; }
+}
+
 .top-bar-actions {
   --topbar-control-gap: 8px;
   align-items: center !important;

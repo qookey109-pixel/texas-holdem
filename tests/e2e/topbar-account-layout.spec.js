@@ -59,7 +59,7 @@ test("1536px Safari 尺寸下帳號在設定左側、間距一致且所有按鈕
   await expect(accountButton.locator(".auth-account-label")).toBeVisible();
   await expect(settingsShell).toBeVisible();
   await expect(settingsButton).toBeVisible();
-  await expect(page.locator('link[href="topbar-control-alignment-v2.css?v=settings-shell-align-v2"]')).toHaveCount(1);
+  await expect(page.locator('link[href^="topbar-control-alignment-v2.css?v="]')).toHaveCount(1);
 
   const layout = await page.evaluate(() => {
     const topbar = document.querySelector(".top-bar").getBoundingClientRect();
