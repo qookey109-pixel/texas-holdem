@@ -35,11 +35,11 @@ concurrency:
 
 jobs:
   stress:
-    name: state stress (${{ github.event_name == 'workflow_dispatch' && github.event.inputs.hands || '25' }} hands + tournament replacements)
+    name: state stress (${{ github.event_name == 'pull_request' && '25' || github.event_name == 'workflow_dispatch' && github.event.inputs.hands || '100' }} hands + tournament replacements)
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      NATURAL_STRESS_HANDS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.hands || '25' }}
+      NATURAL_STRESS_HANDS: ${{ github.event_name == 'pull_request' && '25' || github.event_name == 'workflow_dispatch' && github.event.inputs.hands || '100' }}
 
     steps:
       - name: Check out repository
