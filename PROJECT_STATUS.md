@@ -17,12 +17,10 @@
 最新正式 `main`：
 
 ```text
-a3742e758e7d1bb27d59068a0f073da1ea5e3c38
+79fd4d1a77a2223033440085e99e7b431b0cfd64
 ```
 
-該版本已包含 AI V2 公開範圍模型、Raise EV 修正、固定種子校準基礎，以及桌機鍵盤與焦點無障礙 V2.1.0。每次開始工作仍須重新讀取 GitHub `main`，不得把此 SHA 視為永久最新版本。
-
-最新 GitHub Pages 建置已成功發布同一 commit，來源為 `main / root`。
+此版本已包含 AI V2.2、G1 淘汰賽經濟，以及一般模式 100 手與 19 位淘汰賽 13 次補位循環的自動壓力測試。每次開始工作仍須重新讀取 GitHub `main`，不得把此 SHA 視為永久最新版本。
 
 ## 已完成的主要功能
 
@@ -52,97 +50,59 @@ a3742e758e7d1bb27d59068a0f073da1ea5e3c38
 → 初階連續牌力與 Pot 相對尺寸 V1.7
 → 淨 EV、有效籌碼、SPR 與 All-in 單一調整鏈 V1.8
 → 公平 Boss 精確河牌與多人聯合 Equity V1.9
-→ 公開行動條件化對手範圍與 Raise-call 範圍分離 V2
+→ 公開行動條件化對手範圍 V2
+→ Board Texture 與公開跨街範圍診斷 V2.1／V2.2
 ```
 
 AI 僅可使用自己的底牌、公共牌、公開位置、公開下注行動與聚合後的玩家統計。不得讀取對手隱藏底牌、實際牌堆順序、未來公共牌或預定勝負答案。
 
-### AI V1.9／V2 已完成內容
-
-- Call／Raise 使用淨 EV 會計。
-- Raise EV 會計包含至少一名對手跟注加注後投入的額外籌碼。
-- 有效籌碼、SPR 與連續 All-in 使用單一調整鏈。
-- 河牌單挑精確枚舉 `990` 組未知底牌。
-- 多人底池使用同一樣本內的聯合抽牌，不重複使用牌張。
-- Oracle 多人樣本 `360`，Chronos 多人樣本 `480`。
-- Call 範圍與「面對再加注仍會跟注」的更強範圍分離。
-- 對手範圍依公開位置、街道、行動與下注尺寸加權，仍保留非零詐唬尾端。
-- 引擎異常時保留公平 legacy fallback，不得回退到全知模式。
-
-固定種子最終基準包含：
-
-```text
-河牌堅果：Oracle／Chronos 100% Raise
-河牌頂對抓詐唬：Oracle／Chronos 100% Call
-隱藏底牌讀取：0
-Legacy fallback：0
-```
-
-校準結果是固定情境回歸基準，不代表完整 GTO 或所有實戰頻率。
-
 ### 公平 Boss 與 Gemini
 
 - Oracle、Chronos 使用公開資訊、公平 Equity 與條件化對手範圍，不具全知能力。
+- 河牌單挑精確枚舉 `990` 組未知底牌。
+- Oracle 多人樣本 `360`，Chronos 多人樣本 `480`。
 - 不得重新加入 `omniscient: true`、隱藏底牌讀取或未來牌面答案。
 - Gemini 使用安全後端或玩家自行設定的相容 Provider。
-- Gemini 後端／備援與本機中高階 AI 是不同系統。
 
-### 淘汰賽與雲端
+### G1 淘汰賽經濟
 
-- 19 位永久淘汰賽，Gemini 最後登場。
-- 分層候補、角色替換與對稱縮桌。
+- 19 位永久淘汰賽，6 位開局、13 位依序補位，Gemini 最後登場。
+- 一般模式維持既有補位規則；G1 只套用淘汰賽。
+- 淘汰賽採純手數盲注，不依玩家籌碼占比加速。
+- 補位籌碼依當前大盲、全桌總 BB 與角色階級動態計算。
+- 全桌目標深度 `170BB`，動態反應 `15%`。
+- 中階 `25／35／45BB`；高階 `30／40／50BB`；特殊 Boss `35／45／60BB`；Gemini `40／50／70BB`。
+- 正式 13 位補位角色的理論最大累積注入為 `660 entry-BB`。
+- 支援同一手多位淘汰依序計算，並防止同一角色重複消費補位索引。
+- 玩家籌碼、玩家籌碼占比、勝率與籌碼王狀態不進入補位公式。
+
+正式模組：
+
+```text
+ReplacementStackBalance 2.1.0
+```
+
+### 淘汰賽雲端存檔
+
 - Google 登入與 Supabase 淘汰賽雲端存檔。
 - 雲端存檔 V2 保存挑戰進度、玩家籌碼與累積 session 統計。
 - V1 舊存檔仍可讀取並遷移已知手數。
-- 正式 Supabase migration 已允許 `save_version` 1 與 2，預設為 2。
+- 正式 migration 允許 `save_version` 1 與 2，預設為 2。
 - 不保存底牌、牌堆、未來牌面或完整逐步牌局紀錄。
 
 ### 桌機鍵盤與焦點無障礙
 
-PR #82 已從最新主線重新實作並正式合併，舊 PR #9 已註明被取代並關閉。
-
-正式功能：
-
-- AI 座位可使用 Enter／Space 開啟角色資訊。
-- AI 資訊卡關閉後回到原 AI 座位。
-- 教學與本輪結算開啟後自動接管焦點。
-- Tab／Shift+Tab 限制在目前對話框內。
-- Escape 關閉並還原焦點。
-- AI 座位與資訊卡經 `render()` 重建後仍保留正確焦點。
-- `aria-controls`、`aria-expanded` 與 dialog 語意同步。
-- 全站主要鍵盤操作元素具有清楚的 `:focus-visible` 外框。
-
-正式模組版本：
+正式模組：
 
 ```text
 DesktopAccessibilityFocus 2.1.0
 ```
 
-### Build Manifest 與部署診斷
-
-目前 Build ID：
-
-```text
-desktop-main-ai-v2-accessibility-focus-2026-08-05
-```
-
-`build-manifest.json` 已覆蓋：
-
-- AI V1.7～V2 決策與 Boss Equity 模組。
-- `js/accessibility-focus.js`。
-- 淘汰賽雲端存檔 V1／V2 migrations。
-- 首頁直接載入及動態載入的正式 JS／CSS。
-
-部署契約檢查會確認：
-
-- 正式引用資產存在且已登記於 Manifest。
-- 動態載入模組受診斷頁覆蓋。
-- 前端淘汰賽存檔 schemaVersion 有對應 migration。
-- migration 保留舊版本並允許目前版本。
+包含 AI 座位鍵盤操作、Dialog focus trap、Escape 關閉與焦點還原，以及 `aria-controls`、`aria-expanded` 與 `:focus-visible`。
 
 ## 驗證方式
 
-### 完整靜態與部署契約檢查
+### 靜態與部署契約
 
 ```bash
 npm run validate
@@ -154,7 +114,7 @@ npm run validate
 npm run test:e2e
 ```
 
-GitHub Actions 會分別執行 Chromium 與 WebKit。涉及遊戲流程、下注、UI、淘汰賽、雲端、街道轉場、渲染或焦點管理的修改，兩個瀏覽器都必須通過。
+GitHub Actions 分別執行 Chromium 與 WebKit。
 
 ### AI 固定種子校準
 
@@ -162,44 +122,55 @@ GitHub Actions 會分別執行 Chromium 與 WebKit。涉及遊戲流程、下注
 npm run test:ai-calibration
 ```
 
-校準包含 V1.6 角色矩陣與 V1.9／V2 Boss 公平性、行動分布、Equity 樣本、fallback 與耗時報表。不得為了讓報表好看而硬寫答案或直接調高角色侵略率。
+### 長時間牌局壓力測試
+
+```bash
+npm run test:state-stress
+npm run test:state-stress:100
+```
+
+PR #84 已將以下驗證納入 CI：
+
+- 一般模式 100 手自然下注。
+- 牌張唯一、籌碼守恆、合法下注狀態、無負數籌碼、無卡死與殘留計時器。
+- G1 19 位角色與 13 次補位循環。
+- 盲注不得倒退、角色不得重複、Gemini 必須最後登場。
+- 累積補位深度不得超過 `660 entry-BB`。
+- 每日台北時間約 03:30 自動執行。
 
 ## 尚未完成
 
-### 第一優先：長時間牌局壓力測試
+### 第一優先：正式後端 smoke test
 
-需要快速模擬數百至數千手並檢查：
+目前 Browser E2E 使用 Supabase mock。仍需建立不寫入私人資料的正式環境 smoke test，確認 migration、登入後 V2 寫入／讀回／暫停／恢復／刪除，以及 GitHub Pages 正式載入版本。
 
-- 籌碼總量守恆。
-- 無負數籌碼與不合法加注。
-- All-in、主池與邊池正確。
-- 公共牌與牌組不重複。
-- 每手都能完成，沒有無限等待或殘留計時器。
-- AI 記憶不會無限制膨脹。
-- 淘汰賽縮桌、替換與恢復不會卡死。
+### 第二優先：更長與更多種子壓力測試
 
-### 第二優先：真實後端 smoke test
+目前正式 CI 基準為一般模式 100 手與固定 13 次淘汰賽補位循環。後續可加入：
 
-目前 Browser E2E 使用 Supabase mock。仍需建立不寫入私人資料的正式環境 smoke test，確認：
-
-- migration 與前端版本一致。
-- 登入後 V2 寫入、讀回、暫停、恢復與刪除正常。
-- GitHub Pages 發布後的正式載入檔版本正確。
+- 多種隨機種子。
+- 500～1,000 手以上長跑。
+- 真實縮桌、恢復與多主池／邊池組合。
+- 長時間 DOM、動畫與瀏覽器記憶體監測。
 
 ### 第三優先：規則與結算細節
 
-- 多人平分底池的奇數籌碼應明確依莊家左側順序分配。
-- 多主池／邊池勝者動畫金額應與各自實領一致。
-- 動態模組載入失敗應提供統一錯誤與診斷訊號，不應完全靜默忽略。
+- 多人平分底池的奇數籌碼依莊家左側順序分配。
+- 多主池／邊池勝者動畫金額與實領一致。
+- 動態模組載入失敗提供統一錯誤與診斷訊號。
 
-### AI V2 後續提升
+### AI 後續增強
 
-以下屬於增強功能，不是目前阻塞 Bug：
-
-- Board Texture Engine：乾燥、濕潤、同花、順子與 Pair Board 分類。
-- 下注尺寸與 Range 聯動。
+- Board Texture 與下注尺寸／Range 更深入聯動。
 - Blocker／Unblocker 決策。
-- 跨街行動歷史的完整範圍收窄鏈。
+- 將 V2.2 公開跨街歷史逐步接入正式決策，而不是只作診斷基礎。
+
+### G1 實戰觀察
+
+- 快速、一般、慢速淘汰節奏的實際手感。
+- Oracle／Chronos 與 Gemini 登場深度。
+- 高盲注下 K／M 籌碼顯示與 BB 輔助資訊。
+- 在 G1 實戰資料不足前，不重新加入玩家籌碼王懲罰或玩家領先加速盲注。
 
 ## 已知風險
 
@@ -213,16 +184,18 @@ npm run test:ai-calibration
 
 ### 已被取代，不得直接合併
 
-- PR #9：舊桌機無障礙分支，已由 PR #82 取代並關閉。
+- PR #9：舊桌機無障礙分支，已由 PR #82 取代。
 - PR #32：舊公平 Boss 修正。
 - PR #46：舊 Range Continuation V1.3。
+- PR #86：玩家籌碼領先加速盲注，已由 G1 取代並關閉。
+- PR #89：舊 16 位 F1 經濟研究，已由正式 19 位 G1 取代並關閉。
 
 ### 近期正式合併
 
-- PR #78：AI V1.9 校準、CI 與發布基準。
-- PR #79：Raise EV called-pot 會計修正。
-- PR #80：AI V2 公開資訊條件化對手範圍。
 - PR #82：桌機鍵盤與焦點無障礙 V2.1.0。
+- PR #91：G1 淘汰賽經濟與正式 19 位角色補位。
+- PR #92：AI V2.2 公開跨街歷史與範圍診斷。
+- PR #84：一般模式與 G1 淘汰賽長時間狀態壓力測試。
 
 ## 開發規則
 
@@ -234,6 +207,6 @@ npm run test:ai-calibration
 6. 不得讓任何 AI 讀取對手底牌、實際牌堆或未來公共牌。
 7. 提交前執行 `npm run validate`。
 8. 涉及遊戲流程或 UI 時執行完整 Browser E2E。
-9. AI 策略調整前先執行固定種子校準並保存可比較報表。
-10. 合併前確認 PR head 未變、分支未落後、Static／Chromium／WebKit 全綠。
+9. AI 策略調整前執行固定種子校準並保存可比較報表。
+10. 合併前確認 PR head 未變、分支未落後且必要 CI 全綠。
 11. 合併後重新核對正式 `main`、GitHub Pages、診斷頁與正式後端狀態。
