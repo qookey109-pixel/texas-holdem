@@ -4,7 +4,7 @@ test.describe("AI V2.1 board texture foundation", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("./");
     await page.addScriptTag({ path: "js/ai-board-texture-engine-v1.js" });
-    await expect.poll(() => page.evaluate(() => window.AiBoardTextureEngineV1?.version || "")).toBe("1.0.0");
+    await expect.poll(() => page.evaluate(() => window.AiBoardTextureEngineV1?.version || "")).toBe("1.0.1");
   });
 
   test("classifies A-7-2 rainbow as dry and static", async ({ page }) => {
