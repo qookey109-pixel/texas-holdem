@@ -42,6 +42,11 @@
     "aiRangeTools",
   );
   loadOnce(
+    'script[data-ai-range-weight]',
+    "js/ai-range-weight-v1.js?v=range-weight-v2-2",
+    "aiRangeWeight",
+  );
+  loadOnce(
     'script[data-ai-character-strategies]',
     "js/ai-character-strategies-v1.js?v=independent-ai-v1",
     "aiCharacterStrategies",
