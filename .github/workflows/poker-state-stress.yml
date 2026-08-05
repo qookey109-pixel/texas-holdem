@@ -2,6 +2,28 @@ name: Poker state stress
 
 on:
   workflow_dispatch:
+    inputs:
+      hands:
+        description: Number of natural betting hands to simulate
+        required: false
+        default: "100"
+        type: choice
+        options:
+          - "10"
+          - "25"
+          - "50"
+          - "100"
+  pull_request:
+    paths:
+      - "app.js"
+      - "js/**"
+      - "tests/e2e/natural-betting-state-stress.spec.js"
+      - "tests/e2e/tournament-replacement-state-stress.spec.js"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/poker-state-stress.yml"
+  schedule:
+    - cron: "30 19 * * *"
 
 permissions:
   contents: read
@@ -12,9 +34,11 @@ concurrency:
 
 jobs:
   stress:
-    name: natural betting stress (chromium)
+    name: state stress (${{ github.event.inputs.hands || '100' }} hands + tournament replacements)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
+    env:
+      NATURAL_STRESS_HANDS: ${{ github.event.inputs.hands || '100' }}
 
     steps:
       - name: Check out repository
@@ -31,14 +55,18 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Run 50-hand natural betting stress
-        run: npm run test:state-stress
+      - name: Run natural betting and tournament replacement stress
+        run: >-
+          npx playwright test
+          tests/e2e/natural-betting-state-stress.spec.js
+          tests/e2e/tournament-replacement-state-stress.spec.js
+          --project=chromium --retries=0
 
       - name: Upload Playwright stress report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v5
         with:
-          name: poker-state-stress-${{ github.run_id }}
+          name: poker-state-stress-${{ github.run_id }}-${{ env.NATURAL_STRESS_HANDS }}-hands
           path: |
             playwright-report/
             test-results/
