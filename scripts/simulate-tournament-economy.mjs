@@ -29,6 +29,12 @@ const BLIND_SCHEDULES = Object.freeze({
     levels: [20, 40, 100, 200, 400],
     starts: [1, 6, 11, 16, 21],
   },
+  balancedClock: {
+    label: "候選 D：前段每 4 手、後段每 5 手，16,000 封頂",
+    everyHands: null,
+    levels: [20, 30, 50, 80, 120, 200, 300, 400, 600, 800, 1200, 1600, 2400, 3200, 4800, 6400, 9600, 12800, 16000],
+    starts: [1, 5, 9, 13, 17, 21, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85],
+  },
   smooth6Capped: {
     label: "候選 B：每 6 手平滑，1,600 封頂",
     everyHands: null,
