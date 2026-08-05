@@ -288,7 +288,7 @@
     ))[0];
   }
 
-  function desiredValueFraction(texture, blockers, context, equity, tier, thinValue) {
+  function desiredValueFraction(texture, blockers, context, equity, tier, thinValue, sizingSkill = 0.6) {
     let target = thinValue ? 0.44 : 0.62;
     if (texture.wetness >= 0.58 || texture.dynamic) target += thinValue ? 0.08 : 0.18;
     if (texture.dryness >= 0.65) target -= thinValue ? 0.06 : 0.1;
@@ -296,15 +296,17 @@
     if (texture.cardCount === 5 && thinValue) target -= 0.04;
     target += blockers.callingUnblocker * (thinValue ? 0.04 : 0.08);
     if (Number(context?.activeOpponents) >= 2) target += thinValue ? -0.05 : 0.07;
+    target += (clamp(sizingSkill) - 0.6) * 0.12;
     if (tier === "elite") target += equity >= 0.84 ? 0.05 : 0;
     return clamp(target, 0.28, tier === "elite" ? 1.2 : 0.98);
   }
 
-  function desiredBluffFraction(texture, blockers, tier) {
+  function desiredBluffFraction(texture, blockers, tier, bluffSkill = 0.5) {
     let target = texture.cardCount === 5 ? 0.72 : 0.52;
     target += blockers.bluffQuality * 0.22;
     if (texture.dynamic) target += 0.08;
     if (texture.paired && texture.dryness >= 0.45) target += 0.06;
+    target += (clamp(bluffSkill) - 0.5) * 0.1;
     if (tier === "elite") target += 0.06;
     return clamp(target, 0.38, tier === "elite" ? 1.15 : 0.92);
   }
@@ -346,7 +348,8 @@
     const thickValue = valueReady && !thinValue;
 
     const originalCallScore = Number(decision.callScore) || 0;
-    const boardRisk = texture.wetness * 0.5 + texture.dynamicScore * 0.38 + (texture.fourFlush ? 0.12 : 0);
+    const boardRisk = (texture.wetness * 0.5 + texture.dynamicScore * 0.38 + (texture.fourFlush ? 0.12 : 0))
+      * (0.82 + role.boardDiscipline * 0.18);
     const weakMadeHand = !valueReady && draw < 0.09 && equity < 0.6;
     let callAdjustment = 0;
     if (needed > 0 && weakMadeHand) {
@@ -418,8 +421,8 @@
 
     if (decision.action === "raise" && (valueReady || pureBluff || semiBluff)) {
       let target = 0;
-      if (valueReady) target = desiredValueFraction(texture, blockers, context, equity, role.tier, thinValue);
-      else if (pureBluff) target = desiredBluffFraction(texture, blockers, role.tier);
+      if (valueReady) target = desiredValueFraction(texture, blockers, context, equity, role.tier, thinValue, role.sizingSkill);
+      else if (pureBluff) target = desiredBluffFraction(texture, blockers, role.tier, role.bluffSkill);
       else target = clamp(0.44 + texture.wetness * 0.18 + draw * 0.4, 0.36, role.tier === "elite" ? 0.82 : 0.72);
       const candidate = bestCandidate(decision, target);
       if (candidate) {
@@ -445,7 +448,7 @@
       && context.canRaise
       && role.sizingSkill >= 0.62
     ) {
-      const target = desiredValueFraction(texture, blockers, context, equity, role.tier, false);
+      const target = desiredValueFraction(texture, blockers, context, equity, role.tier, false, role.sizingSkill);
       const candidate = bestCandidate(decision, target);
       const trapRole = player.name === "Viper" || player.name === "Merlin";
       const keepTrap = trapRole && !texture.dynamic && texture.dryness >= 0.58;
