@@ -17,7 +17,7 @@ test.describe("淘汰賽 G1 補位循環壓力測試", () => {
       { timeout: 10_000 },
     ).toBe(true);
 
-    const report = await page.evaluate(() => {
+    const browserReport = await page.evaluate(() => {
       TournamentMode.setMode("tournament");
       state.autoNewHand = false;
       state.isMuted = true;
@@ -109,10 +109,10 @@ test.describe("淘汰賽 G1 補位循環壓力測試", () => {
         theoreticalCeilingBb: ReplacementStackBalance.tournamentConfig.theoreticalReplacementCeilingBb,
         duplicateNames,
         failures,
-        pageErrors,
       };
     });
 
+    const report = { ...browserReport, pageErrors };
     await testInfo.attach("tournament-replacement-state-stress.json", {
       body: Buffer.from(JSON.stringify(report, null, 2)),
       contentType: "application/json",
