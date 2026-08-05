@@ -1,19 +1,23 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-main-ai-v2-2-g1-state-stress-2026-08-05",
+  "buildId": "desktop-main-ai-v2-7-calibration-production-smoke-2026-08-05",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
   "assets": [
     { "path": "index.html", "label": "首頁" },
+    { "path": "diagnostics.html", "label": "線上診斷頁" },
     { "path": "styles.css", "label": "主樣式" },
     { "path": "topbar-control-alignment-v2.css", "label": "頂部控制列排列樣式" },
     { "path": "session-summary-layout-fix.css", "label": "淘汰賽結算版面修正" },
     { "path": "app.js", "label": "主程式" },
+    { "path": "README.md", "label": "專案說明" },
+    { "path": "PROJECT_STATUS.md", "label": "專案正式狀態" },
+    { "path": "package.json", "label": "Node 驗證與測試指令" },
     { "path": "js/audio.js", "label": "音訊核心" },
     { "path": "js/cards-data.js", "label": "撲克牌資料" },
     { "path": "js/ai-data.js", "label": "AI 人物資料" },
-    { "path": "js/config.js", "label": "遊戲設定" },
+    { "path": "js/config.js", "label": "遊戲設定與正式動態載入器" },
     { "path": "js/accessibility-focus.js", "label": "桌機鍵盤與焦點管理" },
     { "path": "js/official-layout-preset.js", "label": "官方預設牌桌版面" },
     { "path": "js/google-auth.js", "label": "Google 登入與玩家身分" },
@@ -24,6 +28,9 @@
     { "path": "supabase/migrations/20260804_allow_tournament_save_v2.sql", "label": "淘汰賽存檔 V2 資料庫升級" },
     { "path": "js/tutorial-data.js", "label": "教學資料" },
     { "path": "js/layout-ui.js", "label": "版面介面" },
+    { "path": "js/layout-size-controls.js", "label": "版面尺寸控制" },
+    { "path": "js/layout-corner-resize.js", "label": "牌桌角落拖曳與縮放" },
+    { "path": "js/layout-readability-trial.js", "label": "牌桌可讀性調整" },
     { "path": "js/card-engine.js", "label": "牌型引擎" },
     { "path": "js/dialogue.js", "label": "AI 對話與牌局速度" },
     { "path": "js/positions.js", "label": "位置系統" },
@@ -31,6 +38,7 @@
     { "path": "js/ai-tier-boss-system.js", "label": "AI 階級、專屬框線與七星 Boss" },
     { "path": "js/ai-action-memory-v1.js", "label": "AI 公開行動記憶" },
     { "path": "js/ai-range-tools-v1.js", "label": "AI 公開牌面、聽牌與阻擋牌工具" },
+    { "path": "js/ai-range-weight-v1.js", "label": "AI 公開 Range 權重" },
     { "path": "js/ai-character-strategies-v1.js", "label": "10 位角色獨立策略" },
     { "path": "js/ai-character-strategies-v1-1.js", "label": "AI 多街策略 V1.1" },
     { "path": "js/ai-preflop-range-engine-v1.js", "label": "AI 翻牌前位置化範圍引擎" },
@@ -43,12 +51,23 @@
     { "path": "js/ai-repeated-allin-counter-v1.js", "label": "AI 連續 All-in 公開行為調整" },
     { "path": "js/ai-ev-accounting-v1.js", "label": "AI Call／Raise 淨 EV 會計" },
     { "path": "js/ai-effective-stack-spr-v1.js", "label": "AI 有效籌碼與 SPR 決策" },
+    { "path": "js/ai-role-strength-balance-v1.js", "label": "AI 角色強度分層校準" },
+    { "path": "js/ai-opening-strategies-v2-3.js", "label": "AI V2.3 中高階開局策略" },
+    { "path": "js/ai-range-decision-integration-v2-4.js", "label": "AI V2.4 公開 Range 決策整合" },
+    { "path": "js/ai-board-intelligence-v2-5.js", "label": "AI V2.5 Board、Blocker 與 Sizing" },
+    { "path": "js/ai-mid-elite-decision-chain-v2-5.js", "label": "AI V2.6 完整中高階決策鏈" },
+    { "path": "js/ai-middle-range-decision-v2-6.js", "label": "AI V2.6 中階有界公開 Range" },
+    { "path": "js/ai-tiered-multiway-equity-v2-7.js", "label": "AI V2.7 分級決定性多人 Equity" },
+    { "path": "js/ai-board-texture-engine-v1.js", "label": "AI 公開 Board Texture 引擎" },
+    { "path": "js/ai-postflop-texture-policy-v1.js", "label": "AI 翻牌後 Board Texture 策略" },
     { "path": "js/fair-special-bosses.js", "label": "特殊 Boss 公開攤牌記憶、範圍推理與機率模擬" },
+    { "path": "js/fair-boss-core-guard.js", "label": "公平 Boss 核心防作弊保護" },
     { "path": "js/boss-public-range-model-v1.js", "label": "Boss 公開行動條件化對手範圍" },
     { "path": "js/boss-equity-engine-v1.js", "label": "Boss 精確河牌與多人聯合 Equity 引擎" },
     { "path": "js/boss-equity-integration-v1.js", "label": "Oracle／Chronos 公平 Equity 決策整合" },
     { "path": "js/coach.js", "label": "撲克教練" },
     { "path": "js/coach-hand-review-integration.js", "label": "教練牌局復盤整合與開關" },
+    { "path": "js/coach-review-placement.js", "label": "教練覆盤位置" },
     { "path": "js/tutorial-ui.js", "label": "教學介面" },
     { "path": "js/game-flow.js", "label": "牌局流程" },
     { "path": "js/showdown-actions.js", "label": "攤牌結算" },
@@ -70,9 +89,10 @@
     { "path": "js/tournament-seat-balance.js", "label": "淘汰賽縮桌座位平均分配" },
     { "path": "js/tournament-mode-visible-entry.js", "label": "淘汰賽入口相容載入器" },
     { "path": "js/street-transition-performance.js", "label": "Safari 公共牌街道轉場效能 V2" },
-    { "path": "js/game-mode-controls-v2.js", "label": "遊戲模式統一控制" },
+    { "path": "js/game-mode-controls-v2.js", "label": "遊戲模式統一控制與 observer 範圍保護" },
     { "path": "js/tournament-gemini-bridge.js", "label": "淘汰賽 Gemini 後端橋接" },
     { "path": "js/replacement-stack-balance.js", "label": "G1 淘汰賽動態補位籌碼與延伸盲注" },
+    { "path": "js/tournament-observation-memory-v1.js", "label": "淘汰賽公開觀察記憶" },
     { "path": "js/session-summary.js", "label": "本輪結算" },
     { "path": "js/hand-review.js", "label": "牌局覆盤" },
     { "path": "js/hand-review-analysis.js", "label": "覆盤分析" },
@@ -83,111 +103,87 @@
     { "path": "js/sfx-volume-engine.js", "label": "音效音量引擎" },
     { "path": "js/audio-controls-split.js", "label": "BGM／音效分離控制" },
     { "path": "js/audio-recovery.js", "label": "Safari 音訊恢復" },
-    { "path": "js/layout-size-controls.js", "label": "版面尺寸控制" },
     { "path": "js/ai-emotion-face-ui.js", "label": "AI 表情介面" },
     { "path": "js/ai-timing.js", "label": "AI 行動節奏" },
-    { "path": "js/ai-turn-indicator.js", "label": "AI 行動提示" }
+    { "path": "js/ai-turn-indicator.js", "label": "AI 行動提示" },
+    { "path": "tests/support/ai-gameplay-calibration-v2-7.js", "label": "AI V2.7 實戰校準實驗室" },
+    { "path": "tests/e2e/ai-gameplay-calibration-v2-7.spec.js", "label": "AI V2.7 實戰校準 E2E" },
+    { "path": "tests/e2e/ai-tiered-multiway-equity-v2-7.spec.js", "label": "AI V2.7 多人 Equity E2E" },
+    { "path": "scripts/production-backend-smoke.mjs", "label": "正式 Pages、Supabase 與 Gemini Smoke" },
+    { "path": "docs/ai-tiered-multiway-equity-v2-7.md", "label": "AI V2.7 分級多人 Equity 文件" },
+    { "path": "docs/ai-gameplay-calibration-v2-7.md", "label": "AI V2.7 實戰校準文件" },
+    { "path": "docs/production-backend-smoke.md", "label": "正式後端 Smoke 文件" },
+    { "path": ".github/workflows/ai-calibration.yml", "label": "AI 固定種子校準 workflow" },
+    { "path": ".github/workflows/browser-e2e.yml", "label": "Chromium 與 WebKit E2E workflow" },
+    { "path": ".github/workflows/poker-state-stress.yml", "label": "每週牌局狀態壓力 workflow" },
+    { "path": ".github/workflows/production-smoke.yml", "label": "正式環境 Smoke workflow" },
+    { "path": ".github/workflows/static-site-check.yml", "label": "靜態網站驗證 workflow" }
   ],
   "features": [
     {
       "id": "core-game",
-      "label": "核心牌桌與牌局",
-      "assets": ["index.html", "styles.css", "topbar-control-alignment-v2.css", "app.js", "js/config.js", "js/card-engine.js", "js/game-flow.js", "js/showdown-actions.js", "js/render-ui.js", "js/events-boot.js"]
+      "label": "核心牌桌、合法下注、牌型、流程與結算",
+      "assets": ["index.html", "styles.css", "app.js", "js/config.js", "js/card-engine.js", "js/game-flow.js", "js/showdown-actions.js", "js/render-ui.js", "js/events-boot.js"]
     },
     {
-      "id": "google-auth",
-      "label": "Google 第三方登入與玩家身分",
-      "assets": ["js/google-auth.js", "js/google-auth.css", "js/config.js"]
+      "id": "auth-cloud-save",
+      "label": "Google 登入、Supabase V2 雲端存檔與每位玩家 RLS 隔離",
+      "assets": ["js/google-auth.js", "js/google-auth.css", "js/tournament-cloud-save.js", "js/tournament-cloud-save.css", "supabase/migrations/20260803_create_tournament_saves_v1.sql", "supabase/migrations/20260804_allow_tournament_save_v2.sql"]
     },
     {
-      "id": "tournament-cloud-save",
-      "label": "登入玩家的淘汰賽 V1／V2 自動存檔、暫停、恢復與刪除",
-      "assets": ["js/tournament-cloud-save.js", "js/tournament-cloud-save.css", "js/tournament-mode.js", "js/tournament-mode-visible-entry.js", "js/google-auth.js", "supabase/migrations/20260803_create_tournament_saves_v1.sql", "supabase/migrations/20260804_allow_tournament_save_v2.sql"]
+      "id": "ai-strategy-stack-v2-7",
+      "label": "AI V1～V2.7 位置、Range、EV、Board、Blocker、SPR 與分級多人 Equity",
+      "assets": ["js/ai-data.js", "js/ai-logic.js", "js/ai-action-memory-v1.js", "js/ai-range-tools-v1.js", "js/ai-range-weight-v1.js", "js/ai-character-strategies-v1.js", "js/ai-character-strategies-v1-1.js", "js/ai-preflop-range-engine-v1.js", "js/ai-character-strategies-v1-2.js", "js/ai-player-model-v1.js", "js/ai-player-model-memory-v1.js", "js/ai-character-strategies-v1-3.js", "js/ai-multiway-range-model-v1.js", "js/ai-character-strategies-v1-5.js", "js/ai-repeated-allin-counter-v1.js", "js/ai-ev-accounting-v1.js", "js/ai-effective-stack-spr-v1.js", "js/ai-role-strength-balance-v1.js", "js/ai-opening-strategies-v2-3.js", "js/ai-range-decision-integration-v2-4.js", "js/ai-board-intelligence-v2-5.js", "js/ai-mid-elite-decision-chain-v2-5.js", "js/ai-middle-range-decision-v2-6.js", "js/ai-tiered-multiway-equity-v2-7.js", "js/elite-character-presentation.js"]
     },
     {
-      "id": "ai-strategy-stack",
-      "label": "AI V1.1～V2.2 多街、位置範圍、玩家模型、Board Texture 與公開跨街診斷",
-      "assets": ["js/ai-data.js", "js/ai-logic.js", "js/ai-action-memory-v1.js", "js/ai-range-tools-v1.js", "js/ai-character-strategies-v1.js", "js/ai-character-strategies-v1-1.js", "js/ai-preflop-range-engine-v1.js", "js/ai-character-strategies-v1-2.js", "js/ai-player-model-v1.js", "js/ai-player-model-memory-v1.js", "js/ai-character-strategies-v1-3.js", "js/ai-multiway-range-model-v1.js", "js/ai-character-strategies-v1-5.js", "js/elite-character-presentation.js"]
+      "id": "ai-v2-7-calibration",
+      "label": "10 位中高階、6 種局面、5 組種子與 300 次決策校準",
+      "assets": ["tests/support/ai-gameplay-calibration-v2-7.js", "tests/e2e/ai-gameplay-calibration-v2-7.spec.js", "tests/e2e/ai-tiered-multiway-equity-v2-7.spec.js", "docs/ai-tiered-multiway-equity-v2-7.md", "docs/ai-gameplay-calibration-v2-7.md", ".github/workflows/ai-calibration.yml", "package.json"]
     },
     {
-      "id": "ai-decision-core-v2",
-      "label": "AI V1.7～V2.2 淨 EV、有效籌碼、公開範圍與公平 Boss Equity",
-      "assets": ["js/elite-character-presentation.js", "js/ai-repeated-allin-counter-v1.js", "js/ai-ev-accounting-v1.js", "js/ai-effective-stack-spr-v1.js", "js/fair-special-bosses.js", "js/boss-public-range-model-v1.js", "js/boss-equity-engine-v1.js", "js/boss-equity-integration-v1.js"]
+      "id": "fair-bosses",
+      "label": "Oracle、Chronos 公開 Range、公平 Equity 與核心防作弊保護",
+      "assets": ["js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/fair-boss-core-guard.js", "js/boss-public-range-model-v1.js", "js/boss-equity-engine-v1.js", "js/boss-equity-integration-v1.js"]
     },
     {
-      "id": "ai-tier-bosses",
-      "label": "AI 星等分層、中階框線、高階強化與公平七星 Boss V2",
-      "assets": ["js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/boss-public-range-model-v1.js", "js/boss-equity-engine-v1.js", "js/boss-equity-integration-v1.js", "js/elite-character-presentation.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-data.js", "js/ai-logic.js", "js/render-ui.js", "js/tournament-mode.js"]
-    },
-    {
-      "id": "elite-characters",
-      "label": "高階角色外觀、登場提示、資訊卡定位與 Vlad",
-      "assets": ["js/elite-character-presentation.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-profile-position.js", "js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/config.js", "js/ai-data.js", "js/render-ui.js", "js/tournament-mode.js"]
+      "id": "gemini-boss",
+      "label": "Gemini 安全 Worker、非同步下注與本地 AI 備援",
+      "assets": ["js/gemini-final-boss.js", "js/gemini-backend-client-v2.js", "js/ai-provider-legacy-worker-migration.js", "js/ai-provider-client-v1.js", "js/gemini-async-betting-loop.js", "js/game-mode-controls-v2.js", "js/tournament-gemini-bridge.js"]
     },
     {
       "id": "tournament-mode",
       "label": "19 位永久淘汰賽、G1 動態補位、純手數盲注與對稱縮桌",
-      "assets": ["js/tournament-mode.js", "js/tournament-seat-balance.js", "js/tournament-mode-visible-entry.js", "js/game-mode-controls-v2.js", "js/tournament-gemini-bridge.js", "js/replacement-stack-balance.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-tier-boss-system.js", "js/fair-special-bosses.js", "js/ai-data.js", "js/game-flow.js", "js/session-summary.js"]
+      "assets": ["js/tournament-mode.js", "js/tournament-seat-balance.js", "js/tournament-mode-visible-entry.js", "js/game-mode-controls-v2.js", "js/tournament-gemini-bridge.js", "js/replacement-stack-balance.js", "js/tournament-observation-memory-v1.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/session-summary.js"]
     },
     {
-      "id": "street-transition-performance",
-      "label": "Safari 公共牌先繪製、底牌穩定與後續完整牌桌更新",
-      "assets": ["js/street-transition-performance.js", "js/hero-card-render-stability.js", "js/hole-card-motion-scope.js", "js/ui-text-write-guard.js", "js/tournament-mode-visible-entry.js", "js/render-ui.js", "js/game-flow.js"]
+      "id": "ui-stability",
+      "label": "Safari 街道轉場、底牌 DOM、文字寫入與 observer 閒置穩定",
+      "assets": ["js/street-transition-performance.js", "js/hero-card-render-stability.js", "js/hole-card-motion-scope.js", "js/ui-text-write-guard.js", "js/game-mode-controls-v2.js", "js/table-status-dock.js", "js/render-ui.js"]
     },
     {
-      "id": "table-status-dock",
-      "label": "公共牌淨空與牌局提示",
-      "assets": ["js/table-status-dock.js", "js/config.js", "js/render-ui.js", "styles.css"]
+      "id": "layout-accessibility",
+      "label": "官方版面、拖曳縮放、尺寸控制與桌機鍵盤焦點",
+      "assets": ["js/official-layout-preset.js", "js/layout-ui.js", "js/layout-size-controls.js", "js/layout-corner-resize.js", "js/layout-readability-trial.js", "js/accessibility-focus.js", "js/positions.js", "topbar-control-alignment-v2.css"]
     },
     {
-      "id": "replacement-stack-balance",
-      "label": "G1 全桌目標 170BB、15% 反應與 660 entry-BB 理論上限",
-      "assets": ["js/replacement-stack-balance.js", "js/config.js", "js/game-flow.js", "js/tournament-mode.js"]
+      "id": "coach-review",
+      "label": "撲克教練、覆盤、教學與本輪結算",
+      "assets": ["js/coach.js", "js/coach-hand-review-integration.js", "js/coach-review-placement.js", "js/hand-review.js", "js/hand-review-analysis.js", "js/tutorial-data.js", "js/tutorial-ui.js", "js/session-summary.js", "session-summary-layout-fix.css"]
     },
     {
-      "id": "game-speed",
-      "label": "本地牌局速度控制",
-      "assets": ["js/dialogue.js", "js/ai-timing.js", "js/game-flow.js", "js/showdown-actions.js"]
-    },
-    {
-      "id": "ai-experience",
-      "label": "AI 對話、表情、資訊卡與行動節奏",
-      "assets": ["js/ai-data.js", "js/dialogue.js", "js/ai-emotion-face-ui.js", "js/ai-timing.js", "js/ai-turn-indicator.js", "js/ai-profile-position.js"]
-    },
-    {
-      "id": "audio",
-      "label": "音訊與 Safari 恢復",
-      "assets": ["js/audio.js", "js/bgm-light-continuous.js", "js/sfx-volume-engine.js", "js/audio-controls-split.js", "js/audio-recovery.js"]
-    },
-    {
-      "id": "layout",
-      "label": "官方預設版面、編輯與尺寸控制",
-      "assets": ["js/official-layout-preset.js", "js/layout-ui.js", "js/layout-size-controls.js", "js/positions.js", "js/tournament-seat-balance.js", "topbar-control-alignment-v2.css"]
-    },
-    {
-      "id": "desktop-accessibility",
-      "label": "桌機鍵盤焦點、對話框導覽與焦點還原",
-      "assets": ["js/accessibility-focus.js", "js/config.js", "js/tutorial-ui.js", "js/session-summary.js", "js/render-ui.js", "js/events-boot.js"]
-    },
-    {
-      "id": "coach-tutorial",
-      "label": "撲克教練、牌局復盤與新手教學",
-      "assets": ["js/coach.js", "js/coach-hand-review-integration.js", "js/hand-review.js", "js/hand-review-analysis.js", "js/tutorial-data.js", "js/tutorial-ui.js"]
-    },
-    {
-      "id": "review-session",
-      "label": "攤牌、結算與覆盤",
-      "assets": ["js/showdown-actions.js", "js/session-summary.js", "session-summary-layout-fix.css", "js/hand-review.js", "js/hand-review-analysis.js", "js/coach-hand-review-integration.js"]
-    },
-    {
-      "id": "gemini-boss",
-      "label": "Gemini 最終 Boss 與可切換 AI 引擎",
-      "assets": ["js/gemini-final-boss.js", "js/gemini-backend-client-v2.js", "js/ai-provider-legacy-worker-migration.js", "js/ai-provider-client-v1.js", "js/gemini-async-betting-loop.js", "js/game-mode-controls-v2.js", "js/tournament-gemini-bridge.js"]
+      "id": "audio-experience",
+      "label": "BGM、音效、Safari 恢復、AI 表情與行動節奏",
+      "assets": ["js/audio.js", "js/bgm-light-continuous.js", "js/sfx-volume-engine.js", "js/audio-controls-split.js", "js/audio-recovery.js", "js/dialogue.js", "js/ai-emotion-face-ui.js", "js/ai-timing.js", "js/ai-turn-indicator.js", "js/ai-profile-position.js"]
     },
     {
       "id": "card-collection",
       "label": "牌組收藏與相容層",
       "assets": ["js/cards-data.js", "js/card-theme-ui.js", "js/card-collection-owned-only.js"]
+    },
+    {
+      "id": "production-validation",
+      "label": "靜態、雙瀏覽器、AI 校準、每週壓力與正式後端零寫入 Smoke",
+      "assets": ["scripts/production-backend-smoke.mjs", "docs/production-backend-smoke.md", ".github/workflows/static-site-check.yml", ".github/workflows/browser-e2e.yml", ".github/workflows/ai-calibration.yml", ".github/workflows/poker-state-stress.yml", ".github/workflows/production-smoke.yml", "README.md", "PROJECT_STATUS.md", "diagnostics.html", "package.json"]
     }
   ]
 }
