@@ -41,7 +41,9 @@ test.describe("淘汰賽 G1 補位循環壓力測試", () => {
 
         state.handNumber = 1 + cycle * 8;
         state.blindLevel = blindLevelForHand(state.handNumber);
+        const safetyStack = state.blindLevel.big * 100;
         state.players.forEach(player => {
+          player.stack = Math.max(player.stack, safetyStack);
           player.bet = 0;
           player.allIn = false;
         });
