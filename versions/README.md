@@ -205,7 +205,7 @@ PR #102～#106 — 每週排程與 25／100 手成本調整
 - 每次同時驗證 19 位角色與 13 次 G1 補位循環。
 - 牌張唯一、籌碼守恆、Pot／Contribution／Current Bet、合法 Actor、非負籌碼、卡死與殘留計時器檢查。
 - Gemini 最後登場、盲注不得倒退、角色不得重複。
-- 累積補位不得超過 `660 entry-BB`。
+- G1 基礎補位累積不得超過 `660 entry-BB`。
 
 ### UI observer 穩定化 — 2026-08-05
 
@@ -218,59 +218,40 @@ PR #107 — observer idle 測試基準穩定化
 
 目前模式控制只在設定面板、淘汰賽按鈕、Gemini 按鈕與 Gemini 人物卡等相關 DOM 變動時同步。完整 Chromium 與 WebKit 回歸已通過。
 
-## 目前正式功能基準
+### 籌碼經濟與長期棄牌反制 V1 — 2026-08-06
 
-本次整合分支建立前的正式 `main`：
+整合 PR：
 
 ```text
-5d2179b917b86b8b187a1936918ab6dbd32fee3a
+PR #109 — Balance rebuys and counter persistent overfolding
 ```
 
-截至該基準，正式 `main` 已包含：
+包含：
 
-- Chromium／WebKit 完整 Browser E2E。
-- 19 位永久淘汰賽、G1 動態補位與延伸純手數盲注。
-- Google 登入與 Supabase 淘汰賽雲端存檔 V2。
-- Oracle／Chronos 公平七星 Boss。
-- Gemini 安全後端與本地備援。
-- AI V1.1～V2.7 策略、公開 Range、Board／Blocker、SPR 與分級多人 Equity。
-- Safari 公共牌街道轉場與 UI observer 穩定化。
-- DesktopAccessibilityFocus 2.1.0。
-- PR 25 手與每週 100 手 G1 狀態壓力測試。
+- 一般模式玩家與 AI 改用相同重新買入公式。
+- 目標為正籌碼牌桌平均 `70%`，並受完整買入 `60%`、最低 `20BB`、最高 `50BB` 約束。
+- 初始籌碼 `2,000` 與初始盲注 `10 / 20` 不變。
+- 玩家籌碼至少為最大 AI 的 `1.8 倍`時，Oracle／Chronos 與 Gemini 才啟動有限入場追趕。
+- Oracle／Chronos 為 `40／55／75BB`，Gemini 為 `50／65／90BB`。
+- 至少觀察 `8` 手後，以 VPIP `<= 18%` 或翻牌前棄牌率 `>= 70%` 偵測偏緊被動打法。
+- 初中高階角色依性格使用小尺寸後位偷盲與乾燥牌面壓力。
+- Gemini Worker 白名單清理並保留 `tournamentObservation` 公開聚合統計。
+- 不傳遞對手隱藏底牌、牌堆順序、未來公共牌或原始攤牌牌張清單。
+- 修正棄牌反制與 AI V2.7 wrapper 載入順序，避免遞迴與卡死。
 
-此 SHA 只代表本次整合開始前的正式發布點。接續工作前必須重新讀取 GitHub `main`；本次 PR 合併後以新 commit 為準。
+正式模組與文件：
 
-## 已被取代的研究與 PR
+```text
+js/economy-fold-defense-v1.js
+EconomyFoldDefenseV1 1.0.1
+docs/economy-fold-defense-v1.md
+tests/e2e/economy-fold-defense-v1.spec.js
+tests/e2e/replacement-stack-balance.spec.js
+```
 
-不得直接重新合併：
+驗收範圍：
 
-- PR #9：已由 PR #82 取代。
-- PR #32：舊公平 Boss 修正。
-- PR #46：舊 Range Continuation V1.3。
-- PR #86：玩家籌碼領先加速盲注，已由 G1 取代。
-- PR #89：舊 16 位 F1 經濟研究，已由正式 19 位 G1 取代。
-
-## 回退原則
-
-優先使用 Git 與已驗證 commit 回退，不要把舊資料夾內容直接覆蓋到 root。
-
-正確流程：
-
-1. 確認問題與最後正常 commit。
-2. 從最新 `main` 建立修復或回退分支。
-3. 使用 Git 還原指定檔案或 cherry-pick 安全修正。
-4. 執行 Static、Chromium、WebKit 與必要 AI Calibration／State Stress／Production Smoke。
-5. 透過 Pull Request 合併。
-
-## 未來快照建議
-
-若建立新快照，至少記錄：
-
-- 基準 commit SHA。
-- Build ID。
-- 主要新增功能。
-- CI、AI Calibration、State Stress 與 Production Smoke 結果。
-- 需要一起還原的模組清單。
-- 是否包含資料庫 migration 或後端設定。
-
-實際程式仍以 Git commit／tag 為主，`versions/` 只作人工可讀的輔助紀錄。
+- Static Site Check。
+- Chromium 全套 Browser E2E。
+- WebKit 關鍵回歸。
+- 一般模式 25 手自然下注與 G1 13 次補位壓力測試。
