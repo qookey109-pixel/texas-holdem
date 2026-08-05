@@ -14,8 +14,8 @@
     "test:ai-calibration": "AI_V19_CALIBRATION=1 playwright test tests/e2e/ai-calibration-v1-6.spec.js tests/e2e/ai-calibration-v1-9.spec.js --project=chromium",
     "test:ai-calibration:v1.6": "playwright test tests/e2e/ai-calibration-v1-6.spec.js --project=chromium",
     "test:ai-calibration:v1.9": "AI_V19_CALIBRATION=1 playwright test tests/e2e/ai-calibration-v1-9.spec.js --project=chromium",
-    "test:state-stress": "NATURAL_STRESS_HANDS=50 playwright test tests/e2e/natural-betting-state-stress.spec.js --project=chromium --retries=0",
-    "test:state-stress:100": "NATURAL_STRESS_HANDS=100 playwright test tests/e2e/natural-betting-state-stress.spec.js --project=chromium --retries=0"
+    "test:state-stress": "NATURAL_STRESS_HANDS=50 playwright test tests/e2e/natural-betting-state-stress.spec.js tests/e2e/tournament-replacement-state-stress.spec.js --project=chromium --retries=0",
+    "test:state-stress:100": "NATURAL_STRESS_HANDS=100 playwright test tests/e2e/natural-betting-state-stress.spec.js tests/e2e/tournament-replacement-state-stress.spec.js --project=chromium --retries=0"
   },
   "devDependencies": {
     "@playwright/test": "1.61.0"

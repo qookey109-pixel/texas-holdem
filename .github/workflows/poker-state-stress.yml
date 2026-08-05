@@ -18,6 +18,7 @@ on:
       - "app.js"
       - "js/**"
       - "tests/e2e/natural-betting-state-stress.spec.js"
+      - "tests/e2e/tournament-replacement-state-stress.spec.js"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/poker-state-stress.yml"
@@ -33,9 +34,9 @@ concurrency:
 
 jobs:
   stress:
-    name: natural betting stress (${{ github.event.inputs.hands || '100' }} hands)
+    name: state stress (${{ github.event.inputs.hands || '100' }} hands + tournament replacements)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       NATURAL_STRESS_HANDS: ${{ github.event.inputs.hands || '100' }}
 
@@ -54,8 +55,12 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Run natural betting state stress
-        run: npx playwright test tests/e2e/natural-betting-state-stress.spec.js --project=chromium --retries=0
+      - name: Run natural betting and tournament replacement stress
+        run: >-
+          npx playwright test
+          tests/e2e/natural-betting-state-stress.spec.js
+          tests/e2e/tournament-replacement-state-stress.spec.js
+          --project=chromium --retries=0
 
       - name: Upload Playwright stress report
         if: ${{ !cancelled() }}

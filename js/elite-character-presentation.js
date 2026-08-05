@@ -33,12 +33,12 @@
   );
   loadOnce(
     'script[data-ai-action-memory]',
-    "js/ai-action-memory-v1.js?v=multi-street-ai-v1-1",
+    "js/ai-action-memory-v1.js?v=public-action-history-v2-2",
     "aiActionMemory",
   );
   loadOnce(
     'script[data-ai-range-tools]',
-    "js/ai-range-tools-v1.js?v=multi-street-ai-v1-1",
+    "js/ai-range-tools-v1.js?v=range-history-filter-v2-2",
     "aiRangeTools",
   );
   loadOnce(
@@ -120,6 +120,11 @@
     'script[data-boss-equity-integration]',
     "js/boss-equity-integration-v1.js?v=public-range-equity-integration-v1-1",
     "bossEquityIntegration",
+  );
+  loadOnce(
+    'script[data-ai-role-strength-balance]',
+    "js/ai-role-strength-balance-v1.js?v=role-strength-rebalance-v1",
+    "aiRoleStrengthBalance",
   );
   loadOnce(
     'script[data-tournament-observation-memory]',

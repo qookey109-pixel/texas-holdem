@@ -13,6 +13,7 @@ test("V1.1 載入公開行動記憶、範圍工具與難度層", async ({ page }
 
   const result = await page.evaluate(() => ({
     memoryVersion: AiActionMemory.version,
+    memorySchemaVersion: AiActionMemory.schemaVersion,
     rangeVersion: AiRangeTools.version,
     difficultyVersion: AiCharacterStrategiesV11.version,
     decisionInstalled: Boolean(window.__aiCharacterStrategyV11Installed),
@@ -33,16 +34,21 @@ test("V1.1 載入公開行動記憶、範圍工具與難度層", async ({ page }
   }));
 
   expect(result).toMatchObject({
-    memoryVersion: "1.0.0",
+    memoryVersion: "1.1.0",
+    memorySchemaVersion: "2.2.0",
     rangeVersion: "1.0.0",
     difficultyVersion: "1.1.0",
     decisionInstalled: true,
   });
   expect(result.memoryPolicy).toMatchObject({
     publicActionsOnly: true,
+    publicPositions: true,
+    publicBetSizes: true,
+    publicBoardAtActionTime: true,
     hiddenCards: false,
     actualDeckOrder: false,
     futureBoardAnswer: false,
+    predeterminedWinner: false,
   });
   expect(result.rangePolicy).toMatchObject({
     ownHoleCards: true,

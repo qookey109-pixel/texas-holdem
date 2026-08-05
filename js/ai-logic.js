@@ -1,5 +1,33 @@
 // AI decision logic
-const AI_STRENGTH_MODEL_VERSION = "1.7.0";
+const AI_STRENGTH_MODEL_VERSION = "2.1.0";
+
+function ensureAiTextureDecisionModules() {
+  const scripts = [
+    {
+      ready: () => window.AiBoardTextureEngineV1?.version,
+      selector: 'script[data-ai-board-texture-engine]',
+      src: 'js/ai-board-texture-engine-v1.js?v=board-texture-v1-0-1',
+      dataset: 'aiBoardTextureEngine',
+    },
+    {
+      ready: () => window.AiPostflopTexturePolicyV1?.version,
+      selector: 'script[data-ai-postflop-texture-policy]',
+      src: 'js/ai-postflop-texture-policy-v1.js?v=postflop-texture-policy-v1',
+      dataset: 'aiPostflopTexturePolicy',
+    },
+  ];
+
+  scripts.forEach(definition => {
+    if (definition.ready() || document.querySelector(definition.selector)) return;
+    const script = document.createElement('script');
+    script.src = definition.src;
+    script.async = false;
+    script.dataset[definition.dataset] = 'true';
+    document.head.appendChild(script);
+  });
+}
+
+ensureAiTextureDecisionModules();
 
 function clampAiValue(value, minimum = 0, maximum = 1) {
   return Math.min(maximum, Math.max(minimum, Number(value) || 0));
@@ -75,6 +103,24 @@ function estimateStrength(player) {
     : estimatePreflopStrength(player);
 }
 
+function aiTextureDecisionContext(player, strength, needed) {
+  const board = state?.board || [];
+  if (board.length < 3) return null;
+  const textureEngine = window.AiBoardTextureEngineV1;
+  const texturePolicy = window.AiPostflopTexturePolicyV1;
+  if (!textureEngine?.analyze || !texturePolicy?.adjust) return null;
+
+  const texture = textureEngine.analyze(board);
+  const adjustment = texturePolicy.adjust({
+    texture,
+    strength,
+    drawPotential: aiDrawPotential(player),
+    activeOpponents: aiActiveOpponentCount(player),
+    amountToCall: needed,
+  });
+  return Object.freeze({ texture, adjustment });
+}
+
 function beginnerRaiseFraction() {
   const pool = [0.45, 0.7, 1.0];
   return pool[Math.floor(Math.random() * pool.length)] || pool[0];
@@ -90,16 +136,30 @@ function botAction(player) {
   const noise = (Math.random() - 0.5) * 0.08;
   const positionBonus = { BTN: 0.08, CO: 0.06, HJ: 0.04, MP: 0.02, UTG: -0.03, SB: -0.02, BB: 0 }[positionLabel(player)] || 0;
   const emotion = aiEmotionMeta(player.emotion);
-  const bluffRate = Math.min(0.42, player.bluffRate * emotion.bluff);
-  const aggression = Math.min(0.95, player.aggression * emotion.aggression);
+  const textureDecision = aiTextureDecisionContext(player, strength, needed);
+  const textureAdjustment = textureDecision?.adjustment || {
+    strengthDelta: 0,
+    bluffMultiplier: 1,
+    aggressionMultiplier: 1,
+    callMarginDelta: 0,
+    protectionPressure: 0,
+    tags: [],
+  };
+  const bluffRate = Math.min(0.42, player.bluffRate * emotion.bluff * textureAdjustment.bluffMultiplier);
+  const aggression = Math.min(0.95, player.aggression * emotion.aggression * textureAdjustment.aggressionMultiplier);
   const patience = Math.min(0.98, player.patience * emotion.patience);
   const bigBlind = currentBigBlind();
   const stackInBigBlinds = player.stack / bigBlind;
   const isBluffing = stackInBigBlinds > 20
     && needed <= player.stack * 0.12
     && Math.random() < bluffRate;
-  const adjustedStrength = clampAiValue(strength + noise + positionBonus, 0, 1);
-  const shouldCall = needed === 0 || adjustedStrength + (1 - patience) * 0.08 > potOdds - 0.05;
+  const adjustedStrength = clampAiValue(
+    strength + noise + positionBonus + textureAdjustment.strengthDelta,
+    0,
+    1,
+  );
+  const shouldCall = needed === 0
+    || adjustedStrength + (1 - patience) * 0.08 > potOdds - 0.05 - textureAdjustment.callMarginDelta;
   const availableRaise = Math.max(0, player.stack - needed);
   const canRaise = !player.raiseLocked && availableRaise >= minimumRaiseBy();
   const canRaiseWithoutJamming = canRaise && availableRaise >= minimumRaiseBy() + bigBlind;
@@ -117,8 +177,11 @@ function botAction(player) {
     && needed >= bigBlind
     && Math.random() < aggression * 0.28;
   const shouldJam = canRaise && (shortStackJam || premiumJam);
+  const protectionRaise = textureAdjustment.protectionPressure > 0
+    && adjustedStrength >= 0.68
+    && Math.random() < textureAdjustment.protectionPressure;
   const shouldRaise = shouldJam || (canMakeNormalRaise
-    && (adjustedStrength > 0.64 || isBluffing)
+    && (adjustedStrength > 0.64 || isBluffing || protectionRaise)
     && Math.random() < aggression);
 
   player.lastStrengthEstimate = {
@@ -132,6 +195,20 @@ function botAction(player) {
       bluff: Number(emotion.bluff) || 1,
       patience: Number(emotion.patience) || 1,
     },
+    texture: textureDecision ? {
+      engineVersion: textureDecision.texture.version,
+      policyVersion: textureAdjustment.version,
+      dryness: textureDecision.texture.dryness,
+      wetness: textureDecision.texture.wetness,
+      tags: [...textureDecision.texture.textureTags],
+      policyTags: [...textureAdjustment.tags],
+      strengthDelta: textureAdjustment.strengthDelta,
+      bluffMultiplier: textureAdjustment.bluffMultiplier,
+      aggressionMultiplier: textureAdjustment.aggressionMultiplier,
+      callMarginDelta: textureAdjustment.callMarginDelta,
+      protectionPressure: textureAdjustment.protectionPressure,
+      publicInformationOnly: true,
+    } : null,
   };
 
   if (needed > 0 && !shouldCall && !isBluffing) {
