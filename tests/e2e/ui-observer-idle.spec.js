@@ -25,6 +25,13 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
     () => page.evaluate(() => Boolean(window.TournamentCloudSave?.version)),
     { timeout: 12_000 },
   ).toBe(true);
+  // EconomyFoldDefenseV1 is a dynamically loaded compatibility layer. Wait for
+  // its final wrapper installation before establishing the observer baseline,
+  // so legitimate one-time module setup is never counted as idle UI churn.
+  await expect.poll(
+    () => page.evaluate(() => window.EconomyFoldDefenseV1?.status?.().installed === true),
+    { timeout: 12_000 },
+  ).toBe(true);
 
   await page.evaluate(() => {
     window.AiTimingController?.clear?.();

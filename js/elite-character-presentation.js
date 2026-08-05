@@ -171,6 +171,13 @@
     "js/ai-provider-client-v1.js?v=custom-ai-provider-v1",
     "aiProviderClient",
   );
+  // The pressure layer must install before V2.7 so V2.7 remains the outer
+  // diagnostics wrapper and later refreshes cannot create a wrapper cycle.
+  loadOnce(
+    'script[data-economy-fold-defense-v1]',
+    "js/economy-fold-defense-v1.js?v=economy-fold-defense-v1-0-1",
+    "economyFoldDefenseV1",
+  );
   loadOnce(
     'script[data-ai-tiered-multiway-equity-v2-7]',
     "js/ai-tiered-multiway-equity-v2-7.js?v=tiered-multiway-equity-v2-7",
