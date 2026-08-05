@@ -4,7 +4,7 @@
   const base = window.AiGameplayCalibrationV27;
   if (!base?.version || base.fingerprintVersion) return;
 
-  const SCENARIO_VERSION = "1.0.1";
+  const SCENARIO_VERSION = "1.0.2";
   const FINGERPRINT_VERSION = "1.0.1";
 
   function hashString(value) {
@@ -62,6 +62,13 @@
     if (state.board.length > 0) return;
 
     const facingOpen = state.currentBet >= 80;
+    if (!facingOpen) {
+      actor.cards = [
+        { value: 14, suit: "s" },
+        { value: 14, suit: "h" },
+      ];
+    }
+
     opponents.forEach((player, index) => {
       const position = index + 1;
       if (position === 1) {
