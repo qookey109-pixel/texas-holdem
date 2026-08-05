@@ -9,6 +9,14 @@
   const NORMAL_MODE = "normal";
   const TOURNAMENT_MODE = "tournament";
   const DECISION_PATH = "/v1/decision";
+  const OBSERVED_CONTROL_SELECTOR = [
+    "#settingsMenuPanel",
+    "#tournamentModeButton",
+    "#geminiBossButton",
+    "#aiProfilePanel",
+    "#geminiInstantStopButton",
+  ].join(",");
+  const OBSERVED_CONTROL_ROOT_SELECTOR = "#settingsMenuPanel,#aiProfilePanel";
 
   let syncScheduled = false;
   let observer = null;
@@ -319,12 +327,34 @@
     });
   }
 
+  function nodeTouchesObservedControls(node) {
+    if (!(node instanceof Element)) return false;
+    return node.matches(OBSERVED_CONTROL_SELECTOR)
+      || Boolean(node.querySelector(OBSERVED_CONTROL_SELECTOR));
+  }
+
+  function mutationsTouchObservedControls(records) {
+    return records.some(record => {
+      const target = record.target;
+      if (
+        target instanceof Element
+        && (target.matches(OBSERVED_CONTROL_ROOT_SELECTOR)
+          || Boolean(target.closest(OBSERVED_CONTROL_ROOT_SELECTOR)))
+      ) {
+        return true;
+      }
+      return [...record.addedNodes, ...record.removedNodes].some(nodeTouchesObservedControls);
+    });
+  }
+
   installDecisionAbortBridge();
   installGeminiRetirementGuard();
   forceNormalModeOnPageLoad();
   syncUi();
 
-  observer = new MutationObserver(scheduleSync);
+  observer = new MutationObserver(records => {
+    if (mutationsTouchObservedControls(records)) scheduleSync();
+  });
   observer.observe(document.body, { childList: true, subtree: true });
   window.addEventListener("resize", scheduleSync, { passive: true });
   document.addEventListener("visibilitychange", () => {
