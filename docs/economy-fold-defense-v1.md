@@ -13,8 +13,10 @@
 
 ```text
 js/economy-fold-defense-v1.js
-EconomyFoldDefenseV1 1.0.0
+EconomyFoldDefenseV1 1.0.1
 ```
+
+`1.0.1` 固定模組載入順序：棄牌反制先接入既有策略鏈，AI V2.7 再作為最外層診斷包裝，避免後續 refresh 形成互相遞迴。
 
 ## 一般模式重新買入
 
@@ -111,4 +113,6 @@ tests/e2e/economy-fold-defense-v1.spec.js
 - 公平資訊政策。
 - Gemini Worker 保留公開觀察並移除隱藏欄位。
 
-完整驗證仍以 Pull Request 的 Static Site Check、Chromium 全套 E2E 與 WebKit 關鍵回歸為準。
+此外，既有自然牌局壓力測試會驗證 AI 策略包裝不會產生遞迴、卡死或殘留計時器。
+
+完整驗證仍以 Pull Request 的 Static Site Check、Chromium 全套 E2E、WebKit 關鍵回歸，以及 Poker State Stress 為準。
