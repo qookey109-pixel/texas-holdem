@@ -38,7 +38,7 @@
   );
   loadOnce(
     'script[data-ai-range-tools]',
-    "js/ai-range-tools-v1.js?v=multi-street-ai-v1-1",
+    "js/ai-range-tools-v1.js?v=range-history-filter-v2-2",
     "aiRangeTools",
   );
   loadOnce(
