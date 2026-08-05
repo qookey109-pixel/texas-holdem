@@ -147,6 +147,11 @@
     "aiRoleStrengthBalance",
   );
   loadOnce(
+    'script[data-ai-mid-elite-decision-chain-v2-5]',
+    "js/ai-mid-elite-decision-chain-v2-5.js?v=complete-mid-elite-chain-v2-5-1",
+    "aiMidEliteDecisionChainV25",
+  );
+  loadOnce(
     'script[data-tournament-observation-memory]',
     "js/tournament-observation-memory-v1.js?v=shared-public-observation-v1",
     "tournamentObservationMemory",
