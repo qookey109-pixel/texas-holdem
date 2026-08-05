@@ -3,6 +3,7 @@ const MAX_BODY_CHARS = 40_000;
 const UPSTREAM_TIMEOUT_MS = 12_000;
 const ACTIONS = new Set(["fold", "check", "call", "raise", "all_in"]);
 const EMOTIONS = new Set(["calm", "confident", "cautious", "tilted"]);
+const OBSERVATION_STREETS = ["preflop", "flop", "turn", "river"];
 
 function json(data, { status = 200, headers = {} } = {}) {
   return new Response(JSON.stringify(data), {
@@ -50,6 +51,18 @@ function finiteInteger(value, name, { min = 0, max = 1_000_000 } = {}) {
   return value;
 }
 
+function boundedInteger(value, { min = 0, max = 1_000_000 } = {}) {
+  const number = Math.trunc(Number(value));
+  if (!Number.isFinite(number)) return min;
+  return Math.min(max, Math.max(min, number));
+}
+
+function boundedRate(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.min(1, Math.max(0, Math.round(number * 1000) / 1000));
+}
+
 function cleanText(value, maxLength) {
   return String(value || "")
     .replace(/[\u0000-\u001f\u007f]/g, " ")
@@ -65,6 +78,122 @@ function validateCard(card, name) {
     throw Object.assign(new Error(`${name} contains an invalid card.`), { status: 400 });
   }
   return { rank, suit };
+}
+
+function sanitizeObservationProfile(raw = {}) {
+  return {
+    actions: boundedInteger(raw.actions, { max: 100_000 }),
+    pressureSamples: boundedInteger(raw.pressureSamples, { max: 100_000 }),
+    checkedPressureSamples: boundedInteger(raw.checkedPressureSamples, { max: 100_000 }),
+    aggressionRate: boundedRate(raw.aggressionRate),
+    foldToPressure: boundedRate(raw.foldToPressure),
+    callVsPressure: boundedRate(raw.callVsPressure),
+    raiseVsPressure: boundedRate(raw.raiseVsPressure),
+    checkFoldRate: boundedRate(raw.checkFoldRate),
+    checkRaiseRate: boundedRate(raw.checkRaiseRate),
+    smallBetRate: boundedRate(raw.smallBetRate),
+    largeBetRate: boundedRate(raw.largeBetRate),
+    openRate: boundedRate(raw.openRate),
+    threeBetRate: boundedRate(raw.threeBetRate),
+    fourBetRate: boundedRate(raw.fourBetRate),
+    limpRate: boundedRate(raw.limpRate),
+    confidence: boundedRate(raw.confidence),
+  };
+}
+
+function sanitizeTournamentObservation(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+
+  const byStreetSource = raw.playerModel?.byStreet;
+  const byStreet = Object.fromEntries(OBSERVATION_STREETS.map(street => [
+    street,
+    sanitizeObservationProfile(byStreetSource?.[street]),
+  ]));
+  const byPosition = Array.isArray(raw.playerModel?.byPosition)
+    ? raw.playerModel.byPosition.slice(0, 8).map(item => ({
+        position: cleanText(item?.position, 8),
+        ...sanitizeObservationProfile(item),
+      }))
+    : [];
+  const recentPublicEvents = Array.isArray(raw.playerModel?.recentPublicEvents)
+    ? raw.playerModel.recentPublicEvents.slice(-16).map(event => ({
+        handNumber: boundedInteger(event?.handNumber, { max: 100_000 }),
+        street: cleanText(event?.street, 16),
+        position: cleanText(event?.position, 8),
+        action: cleanText(event?.action, 24),
+        sizeFraction: Math.min(5, Math.max(0, Number(event?.sizeFraction) || 0)),
+        facedAggression: Boolean(event?.facedAggression),
+        checkedBefore: Boolean(event?.checkedBefore),
+        priorRaises: boundedInteger(event?.priorRaises, { max: 12 }),
+      }))
+    : [];
+  const heroSession = raw.heroSession && typeof raw.heroSession === "object"
+    ? {
+        hands: boundedInteger(raw.heroSession.hands, { max: 100_000 }),
+        vpipRate: boundedRate(raw.heroSession.vpipRate),
+        foldRate: boundedRate(raw.heroSession.foldRate),
+        callRate: boundedRate(raw.heroSession.callRate),
+        raiseRate: boundedRate(raw.heroSession.raiseRate),
+        checkRate: boundedRate(raw.heroSession.checkRate),
+        allInRate: boundedRate(raw.heroSession.allInRate),
+        showdownRate: boundedRate(raw.heroSession.showdownRate),
+        winRate: boundedRate(raw.heroSession.winRate),
+      }
+    : null;
+  const repeated = raw.repeatedPreflopAllIn && typeof raw.repeatedPreflopAllIn === "object"
+    ? {
+        windowHands: boundedInteger(raw.repeatedPreflopAllIn.windowHands, { max: 100 }),
+        observedHands: boundedInteger(raw.repeatedPreflopAllIn.observedHands, { max: 100 }),
+        jamHands: boundedInteger(raw.repeatedPreflopAllIn.jamHands, { max: 100 }),
+        weightedJamRate: boundedRate(raw.repeatedPreflopAllIn.weightedJamRate),
+        consecutiveJams: boundedInteger(raw.repeatedPreflopAllIn.consecutiveJams, { max: 100 }),
+      }
+    : null;
+  const bucketCountsSource = raw.revealedShowdowns?.bucketCounts;
+  const bucketCounts = bucketCountsSource && typeof bucketCountsSource === "object" && !Array.isArray(bucketCountsSource)
+    ? Object.fromEntries(Object.entries(bucketCountsSource).slice(0, 12).map(([key, value]) => [
+        cleanText(key, 24),
+        boundedInteger(value, { max: 100_000 }),
+      ]))
+    : {};
+
+  return {
+    schemaVersion: boundedInteger(raw.schemaVersion, { min: 1, max: 10 }),
+    scope: "shared-public-tournament-observation",
+    actor: cleanText(raw.actor, 32) || null,
+    actorArrival: raw.actorArrival && typeof raw.actorArrival === "object"
+      ? {
+          arrivalHand: boundedInteger(raw.actorArrival.arrivalHand, { max: 100_000 }),
+          observedHandsBeforeArrival: boundedInteger(raw.actorArrival.observedHandsBeforeArrival, { max: 100_000 }),
+          tier: cleanText(raw.actorArrival.tier, 16),
+        }
+      : null,
+    tournament: raw.tournament && typeof raw.tournament === "object"
+      ? {
+          mode: cleanText(raw.tournament.mode, 16),
+          handNumber: boundedInteger(raw.tournament.handNumber, { max: 100_000 }),
+          blindLevel: boundedInteger(raw.tournament.blindLevel, { max: 10_000 }),
+          appearedCount: Array.isArray(raw.tournament.appeared) ? Math.min(24, raw.tournament.appeared.length) : 0,
+          eliminatedCount: Array.isArray(raw.tournament.eliminated) ? Math.min(24, raw.tournament.eliminated.length) : 0,
+          queueRemaining: boundedInteger(raw.tournament.queueRemaining, { max: 24 }),
+          finished: Boolean(raw.tournament.finished),
+        }
+      : null,
+    playerModel: {
+      handsObserved: boundedInteger(raw.playerModel?.handsObserved, { max: 100_000 }),
+      actionsObserved: boundedInteger(raw.playerModel?.actionsObserved, { max: 100_000 }),
+      byStreet,
+      byPosition,
+      recentPublicEvents,
+    },
+    heroSession,
+    repeatedPreflopAllIn: repeated,
+    revealedShowdowns: {
+      samples: boundedInteger(raw.revealedShowdowns?.samples, { max: 100_000 }),
+      bucketCounts,
+    },
+    guidance: "Historical public evidence only. Treat rates as uncertain tendencies, never as knowledge of current hidden cards.",
+  };
 }
 
 function validateRequest(input) {
@@ -129,6 +258,7 @@ function validateRequest(input) {
     playerBet: finiteInteger(input.playerBet ?? 0, "playerBet"),
     legalActions,
     players,
+    tournamentObservation: sanitizeTournamentObservation(input.tournamentObservation),
   };
 }
 
@@ -157,6 +287,8 @@ function systemInstruction() {
     "Choose exactly one action from legalActions and obey all numeric bounds.",
     "You only know your two private cards and public table information in the request.",
     "Never claim knowledge of hidden opponent cards or undealt cards.",
+    "tournamentObservation contains sanitized historical public tendencies only; use it probabilistically and ignore it when samples are weak.",
+    "Against reliably low-VPIP or overfolding play, prefer controlled small-pressure lines rather than reckless oversized bluffs.",
     "Play a patient, balanced, high-pressure strategy rather than always choosing the strongest-looking action.",
     "For action=raise, raiseTo is the total bet after raising and must be between minRaiseTo and maxRaiseTo.",
     "For every other action, set raiseTo to 0.",
