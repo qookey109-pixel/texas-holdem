@@ -17,6 +17,7 @@
     { "path": "js/config.js", "label": "遊戲設定與正式動態載入器" },
     { "path": "js/cards-data.js", "label": "撲克牌與牌組資料" },
     { "path": "js/card-engine.js", "label": "牌型引擎" },
+    { "path": "js/positions.js", "label": "座位位置系統" },
     { "path": "js/game-flow.js", "label": "牌局流程" },
     { "path": "js/showdown-actions.js", "label": "攤牌結算" },
     { "path": "js/render-ui.js", "label": "牌桌渲染" },
@@ -93,6 +94,7 @@
     { "path": "js/ai-emotion-face-ui.js", "label": "AI 表情介面" },
     { "path": "js/ai-timing.js", "label": "AI 行動節奏" },
     { "path": "js/ai-turn-indicator.js", "label": "AI 行動提示" },
+    { "path": "js/ai-profile-position.js", "label": "AI 資訊卡定位" },
     { "path": "js/card-theme-ui.js", "label": "牌組收藏介面" },
     { "path": "js/card-collection-owned-only.js", "label": "牌組快取相容層" },
     { "path": "tests/support/ai-gameplay-calibration-v2-7.js", "label": "AI V2.7 實戰校準實驗室" },
@@ -100,15 +102,15 @@
     { "path": "tests/e2e/ai-gameplay-calibration-v2-7.spec.js", "label": "AI V2.7 實戰校準 E2E" },
     { "path": "tests/e2e/ai-tiered-multiway-equity-v2-7.spec.js", "label": "AI V2.7 多人 Equity E2E" },
     { "path": "scripts/production-backend-smoke.mjs", "label": "正式 Pages、Supabase 與 Gemini Smoke" },
-    { "path": "docs/ai-tiered-multiway-equity-v2-7.md", "label": "AI V2.7 分級多人 Equity文件" },
+    { "path": "docs/ai-tiered-multiway-equity-v2-7.md", "label": "AI V2.7 分級多人 Equity 文件" },
     { "path": "docs/ai-gameplay-calibration-v2-7.md", "label": "AI V2.7 實戰校準文件" },
     { "path": "docs/production-backend-smoke.md", "label": "正式後端 Smoke 文件" }
   ],
   "features": [
     {
       "id": "core-game",
-      "label": "核心牌桌、合法下注、牌型、流程與結算",
-      "assets": ["index.html", "styles.css", "app.js", "js/config.js", "js/cards-data.js", "js/card-engine.js", "js/game-flow.js", "js/showdown-actions.js", "js/render-ui.js", "js/events-boot.js"]
+      "label": "核心牌桌、合法下注、牌型、位置、流程與結算",
+      "assets": ["index.html", "styles.css", "app.js", "js/config.js", "js/cards-data.js", "js/card-engine.js", "js/positions.js", "js/game-flow.js", "js/showdown-actions.js", "js/render-ui.js", "js/events-boot.js"]
     },
     {
       "id": "ai-strategy-stack-v2-7",
@@ -137,8 +139,8 @@
     },
     {
       "id": "ui-layout-accessibility",
-      "label": "Safari 轉場、DOM 穩定、官方版面與鍵盤焦點",
-      "assets": ["js/street-transition-performance.js", "js/hero-card-render-stability.js", "js/hole-card-motion-scope.js", "js/ui-text-write-guard.js", "js/table-status-dock.js", "js/official-layout-preset.js", "js/layout-ui.js", "js/layout-size-controls.js", "js/accessibility-focus.js", "topbar-control-alignment-v2.css"]
+      "label": "Safari 轉場、DOM 穩定、官方版面、鍵盤焦點與 AI 資訊卡",
+      "assets": ["js/street-transition-performance.js", "js/hero-card-render-stability.js", "js/hole-card-motion-scope.js", "js/ui-text-write-guard.js", "js/table-status-dock.js", "js/official-layout-preset.js", "js/layout-ui.js", "js/layout-size-controls.js", "js/accessibility-focus.js", "js/ai-profile-position.js", "topbar-control-alignment-v2.css"]
     },
     {
       "id": "coach-review-audio",
