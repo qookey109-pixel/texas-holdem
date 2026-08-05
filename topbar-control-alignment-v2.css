@@ -471,7 +471,7 @@ html[data-layout-ready="true"] #arena {
 
   body.is-mobile-v1-landscape .mobile-v1-dock {
     position: fixed;
-    z-index: 40;
+    z-index: 43;
     right: max(6px, env(safe-area-inset-right));
     bottom: max(5px, env(safe-area-inset-bottom));
     display: grid;
