@@ -37,6 +37,10 @@ test.describe("AI V2.7 gameplay calibration", () => {
       { timeout: 10_000 },
     ).toBe("1.0.0");
     await expect.poll(
+      () => page.evaluate(() => window.AiGameplayCalibrationV27?.scenarioVersion || ""),
+      { timeout: 10_000 },
+    ).toBe("1.0.2");
+    await expect.poll(
       () => page.evaluate(() => window.AiGameplayCalibrationV27?.fingerprintVersion || ""),
       { timeout: 10_000 },
     ).toBe("1.0.1");
@@ -65,6 +69,7 @@ test.describe("AI V2.7 gameplay calibration", () => {
     expect(result.first).toMatchObject({
       schemaVersion: 1,
       labVersion: "1.0.0",
+      scenarioVersion: "1.0.2",
       fingerprintVersion: "1.0.1",
       scenarioCount: 6,
       roleCount: 10,
@@ -97,6 +102,7 @@ test.describe("AI V2.7 gameplay calibration", () => {
     expect(elite.maximumAbsoluteEquityAdjustment).toBeLessThanOrEqual(0.115001);
     expect(middle.publicInformationOnly).toBe(true);
     expect(elite.publicInformationOnly).toBe(true);
+    expect(middle.openRaiseProxy + elite.openRaiseProxy).toBeGreaterThan(0);
 
     for (const tier of [middle, elite]) {
       expectRate(tier.vpipProxy);
