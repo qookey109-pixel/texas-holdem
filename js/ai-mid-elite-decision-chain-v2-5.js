@@ -1,10 +1,10 @@
-// AI V2.5 decision-chain bridge: preserve net EV, role calibration, and SPR after board intelligence.
+// AI V2.6 decision-chain bridge: tier range, net EV, role calibration, board intelligence, and SPR.
 (() => {
   "use strict";
 
-  if (window.AiMidEliteDecisionChainV25?.version) return;
+  if (window.AiMidEliteDecisionChainV26?.version) return;
 
-  const VERSION = "2.5.1";
+  const VERSION = "2.6.0";
   const MIDDLE_NAMES = Object.freeze(["Ace", "Momo", "Nori", "Bruno", "Dodo", "Viper"]);
   const ELITE_NAMES = Object.freeze(["Nova", "Unit-9", "Merlin", "Vlad"]);
   const SUPPORTED_NAMES = Object.freeze([...MIDDLE_NAMES, ...ELITE_NAMES]);
@@ -30,6 +30,16 @@
       return window.AiRangeDecisionIntegrationV24.chooseDecision(player, options);
     }
     return window.AiCharacterStrategiesV15?.chooseDecision?.(player, options) || null;
+  }
+
+  function applyTierRange(player, decision, options = {}) {
+    if (!decision || decision.action === "fallback") return decision;
+    if (!MIDDLE_NAMES.includes(player?.name)) return decision;
+    try {
+      return window.AiMiddleRangeDecisionV26?.enhanceDecision?.(player, decision, options) || decision;
+    } catch (_) {
+      return decision;
+    }
   }
 
   function applyNetEv(player, decision) {
@@ -72,8 +82,8 @@
     decision.raiseBy = 0;
     decision.sizeFraction = 0;
     decision.reason = needed > 0 && callEv < 0
-      ? "V2.5 淨 EV 安全閘停止負期望投入"
-      : "V2.5 淨 EV 安全閘保留跟注／過牌線";
+      ? "V2.6 淨 EV 安全閘停止負期望投入"
+      : "V2.6 淨 EV 安全閘保留跟注／過牌線";
     decision.decisionChainAdjustment = "net-ev-guard";
     decision.bluffing = false;
     return decision;
@@ -117,7 +127,7 @@
       decision.action = "call";
       decision.raiseBy = 0;
       decision.sizeFraction = 0;
-      decision.reason = "V2.5 深 SPR 保留邊緣牌與聽牌實現率";
+      decision.reason = "V2.6 深 SPR 保留邊緣牌與聽牌實現率";
       decision.decisionChainAdjustment = "deep-spr-pot-control";
     }
     if (
@@ -130,7 +140,7 @@
       decision.action = needed > 0 ? "fold" : "call";
       decision.raiseBy = 0;
       decision.sizeFraction = 0;
-      decision.reason = "V2.5 淺 SPR 取消低實現率純詐唬";
+      decision.reason = "V2.6 淺 SPR 取消低實現率純詐唬";
       decision.decisionChainAdjustment = "shallow-spr-suppress-air";
       decision.bluffing = false;
     }
@@ -142,6 +152,7 @@
     let decision = baseDecisionFor(player, options);
     if (!decision || decision.action === "fallback") return decision || { action: "fallback", strategyVersion: VERSION };
 
+    decision = applyTierRange(player, decision, options);
     decision = applyNetEv(player, decision);
     decision = applyRoleCalibration(player, decision);
     decision = window.AiBoardIntelligenceV25?.applyBoardIntelligence?.(player, decision, options) || decision;
@@ -204,6 +215,8 @@
       boardClass: decision.boardTexture?.className || "",
       blockerQuality: decision.blockerProfile?.bluffQuality || 0,
       rangeAdjustment: decision.rangeAdjustment || "",
+      rangeDecisionTier: decision.rangeDecisionTier || (ELITE_NAMES.includes(player?.name) ? "elite" : ""),
+      middleRangeEvidence: decision.middleRangeEvidence || 0,
       evAccountingVersion: decision.evAccountingVersion || "",
       effectiveStackSprVersion: decision.effectiveStackSprVersion || "",
       roleStrengthRating: decision.roleStrength?.rating || 0,
@@ -218,9 +231,10 @@
   }
 
   function installDecisionLayer() {
-    if (window.__aiMidEliteDecisionChainV25Installed) return true;
+    if (window.__aiMidEliteDecisionChainV26Installed) return true;
     if (
-      !window.AiBoardIntelligenceV25?.version
+      !window.AiMiddleRangeDecisionV26?.version
+      || !window.AiBoardIntelligenceV25?.version
       || !window.AiEvAccountingV1?.version
       || !window.AiEffectiveStackSprV1?.version
       || !window.AiRoleStrengthBalanceV1?.version
@@ -236,11 +250,11 @@
         if (!decision || decision.action === "fallback") return previousBotAction.apply(this, arguments);
         return executeDecision(player, decision);
       } catch (error) {
-        console.warn("AI V2.5 complete decision chain fallback", player?.name, error);
+        console.warn("AI V2.6 complete decision chain fallback", player?.name, error);
         return previousBotAction.apply(this, arguments);
       }
     };
-    window.__aiMidEliteDecisionChainV25Installed = true;
+    window.__aiMidEliteDecisionChainV26Installed = true;
     return true;
   }
 
@@ -255,7 +269,7 @@
     return installed;
   }
 
-  window.AiMidEliteDecisionChainV25 = Object.freeze({
+  const api = Object.freeze({
     version: VERSION,
     middleNames: [...MIDDLE_NAMES],
     eliteNames: [...ELITE_NAMES],
@@ -273,6 +287,7 @@
       predeterminedWinner: false,
     }),
     supports: name => SUPPORTED_NAMES.includes(name),
+    applyTierRange,
     applyNetEv,
     applyRoleCalibration,
     guardNetEv,
@@ -280,6 +295,9 @@
     composeDecision,
     refresh,
   });
+
+  window.AiMidEliteDecisionChainV26 = api;
+  window.AiMidEliteDecisionChainV25 = api;
 
   refresh();
   window.setTimeout(refresh, 0);
