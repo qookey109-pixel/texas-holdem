@@ -102,6 +102,11 @@
     "aiRangeDecisionV24",
   );
   loadOnce(
+    'script[data-ai-middle-range-decision-v2-6]',
+    "js/ai-middle-range-decision-v2-6.js?v=bounded-middle-range-v2-6",
+    "aiMiddleRangeDecisionV26",
+  );
+  loadOnce(
     'script[data-ai-board-intelligence-v2-5]',
     "js/ai-board-intelligence-v2-5.js?v=mid-elite-board-intelligence-v2-5",
     "aiBoardIntelligenceV25",
@@ -147,9 +152,9 @@
     "aiRoleStrengthBalance",
   );
   loadOnce(
-    'script[data-ai-mid-elite-decision-chain-v2-5]',
-    "js/ai-mid-elite-decision-chain-v2-5.js?v=complete-mid-elite-chain-v2-5-1",
-    "aiMidEliteDecisionChainV25",
+    'script[data-ai-mid-elite-decision-chain-v2-6]',
+    "js/ai-mid-elite-decision-chain-v2-5.js?v=complete-mid-elite-chain-v2-6",
+    "aiMidEliteDecisionChainV26",
   );
   loadOnce(
     'script[data-tournament-observation-memory]',
