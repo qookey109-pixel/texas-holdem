@@ -1,18 +1,6 @@
 name: Poker state stress
 
 on:
-  workflow_dispatch:
-    inputs:
-      hands:
-        description: Number of natural betting hands to simulate
-        required: false
-        default: "100"
-        type: choice
-        options:
-          - "10"
-          - "25"
-          - "50"
-          - "100"
   pull_request:
     paths:
       - "app.js"
@@ -35,11 +23,11 @@ concurrency:
 
 jobs:
   stress:
-    name: state stress (${{ github.event_name == 'pull_request' && '25' || github.event_name == 'workflow_dispatch' && github.event.inputs.hands || '100' }} hands + tournament replacements)
+    name: state stress (${{ github.event_name == 'pull_request' && '25' || '100' }} hands + tournament replacements)
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      NATURAL_STRESS_HANDS: ${{ github.event_name == 'pull_request' && '25' || github.event_name == 'workflow_dispatch' && github.event.inputs.hands || '100' }}
+      NATURAL_STRESS_HANDS: ${{ github.event_name == 'pull_request' && '25' || '100' }}
 
     steps:
       - name: Check out repository
