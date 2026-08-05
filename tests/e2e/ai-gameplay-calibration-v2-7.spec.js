@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const ENABLED = process.env.AI_V27_GAMEPLAY_CALIBRATION === "1";
 const LAB_SCRIPT = "/tests/support/ai-gameplay-calibration-v2-7.js";
+const DETERMINISM_SCRIPT = "/tests/support/ai-gameplay-calibration-v2-7-determinism.js";
 
 function expectRate(value) {
   expect(Number.isFinite(value)).toBe(true);
@@ -30,10 +31,15 @@ test.describe("AI V2.7 gameplay calibration", () => {
     ).toBe("ready");
 
     await page.addScriptTag({ url: LAB_SCRIPT });
+    await page.addScriptTag({ url: DETERMINISM_SCRIPT });
     await expect.poll(
       () => page.evaluate(() => window.AiGameplayCalibrationV27?.version || ""),
       { timeout: 10_000 },
     ).toBe("1.0.0");
+    await expect.poll(
+      () => page.evaluate(() => window.AiGameplayCalibrationV27?.fingerprintVersion || ""),
+      { timeout: 10_000 },
+    ).toBe("1.0.1");
 
     const result = await page.evaluate(() => {
       const options = { seeds: [2711, 2717, 2729, 2741, 2753] };
@@ -41,6 +47,7 @@ test.describe("AI V2.7 gameplay calibration", () => {
       const second = window.AiGameplayCalibrationV27.run(options);
       return {
         first,
+        secondFingerprint: second.deterministicFingerprint,
         secondRecords: second.records,
         markdown: window.AiGameplayCalibrationV27.toMarkdown(first),
       };
@@ -58,6 +65,7 @@ test.describe("AI V2.7 gameplay calibration", () => {
     expect(result.first).toMatchObject({
       schemaVersion: 1,
       labVersion: "1.0.0",
+      fingerprintVersion: "1.0.1",
       scenarioCount: 6,
       roleCount: 10,
       decisionCount: 300,
@@ -72,6 +80,7 @@ test.describe("AI V2.7 gameplay calibration", () => {
       },
     });
 
+    expect(result.secondFingerprint).toBe(result.first.deterministicFingerprint);
     expect(deterministicRecords(result.secondRecords)).toEqual(
       deterministicRecords(result.first.records),
     );
