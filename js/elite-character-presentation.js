@@ -183,4 +183,11 @@
     "js/ai-tiered-multiway-equity-v2-7.js?v=tiered-multiway-equity-v2-7",
     "aiTieredMultiwayEquityV27",
   );
+  // V2.8 is intentionally last: it consumes the complete V2.7 chain and
+  // becomes the single tier-quality execution layer for local AI characters.
+  loadOnce(
+    'script[data-ai-tier-strategy-v2-8]',
+    "js/ai-tier-strategy-v2-8.js?v=tier-quality-v2-8",
+    "aiTierStrategyV28",
+  );
 })();
