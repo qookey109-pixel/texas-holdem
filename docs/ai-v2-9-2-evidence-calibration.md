@@ -25,21 +25,35 @@ Oracle and Chronos met the hand-count, profile-coverage, statistical-profit and 
 ### Oracle and Chronos
 
 - Keep V2.8 public-range equity, fold-equity and sizing candidates.
-- Reject any final call whose recorded `callEv` is below the telemetry negative-EV boundary of `-0.04 BB`.
+- Reject any final paid call whose recorded `callEv` is below `-0.04 × big blind`, exactly matching the V2.9 telemetry definition.
 - Keep ratings at `9.6` and `9.8`; no automatic promotion to `10.0`.
 
-### Pao and Shark
+### Pao
 
-- Keep their calling-station and precision-guard identities.
-- Add absolute preflop equity floors.
-- Raise the defense floor against raises and reraises.
-- Add multiway and position adjustments.
-- Stop clearly negative-EV turn calls.
-- Require a positive river safety margin when the hand is not value-ready.
+Pao keeps the calling-station identity, but paid preflop calls now require at least:
+
+- `0.46` equity for a normal price.
+- `0.52` when facing at least a 4BB price or a normal raise.
+- `0.58` when facing at least an 8BB price, a detected reraise, or a call costing at least 18% of the remaining stack.
+
+### Shark
+
+Shark keeps the precision-guard identity with stricter floors:
+
+- `0.48` equity for a normal price.
+- `0.55` when facing at least a 4BB price or a normal raise.
+- `0.62` when facing at least an 8BB price, a detected reraise, or a call costing at least 16% of the remaining stack.
+
+Both Pao and Shark also:
+
+- Reject calls below the telemetry negative-EV boundary.
+- Stop any negative-EV turn or river payment.
+- Require a small positive river safety margin when the hand is not value-ready.
+- Add a modest multiway premium without reading hidden information.
 
 ## Scope and fairness
 
-V2.9.2 changes only `Pao`, `Shark`, `Oracle`, and `Chronos`. The other fourteen local AI characters continue using V2.8 unchanged.
+V2.9.2 changes only `Pao`, `Shark`, `Oracle`, and `Chronos`. The other fourteen local AI characters continue using V2.8 unchanged. The target ratings remain Pao `6.7`, Shark `7.5`, Oracle `9.6`, and Chronos `9.8`.
 
 Allowed information remains limited to the AI's own cards and public game information. Hidden opponent cards, actual deck order, future board cards and predetermined winners remain forbidden.
 
