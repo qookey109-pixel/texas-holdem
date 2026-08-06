@@ -1,0 +1,15 @@
+AI V2.9.4 opening balance and telemetry-integrity evidence run.
+
+Baseline:
+- V2.9.3 run 31092298333 completed 50 × 500 hands successfully.
+- Toto, Foxy, Leo and Wolf remained materially over-loose and losing.
+- Legacy WTSD included preflop all-in automatic runouts, inflating the metric.
+
+This trigger launches a fresh 50 × 500-hand run after merge with:
+- bounded public-information-only entry and call discipline for Toto, Foxy, Leo and Wolf;
+- Pao, Shark, Oracle and Chronos left on their existing validated paths;
+- corrected WTSD based on postflop showdown opportunities excluding preflop all-in runouts;
+- V2.9.2 runtime coverage and fairness gates preserved;
+- V2.9.4 role VPIP, PFR and corrected-WTSD bounds enforced for the full run.
+
+Previous valid full run: 31092298333
