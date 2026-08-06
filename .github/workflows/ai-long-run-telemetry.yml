@@ -7,7 +7,7 @@ on:
       - "js/ai-*.js"
       - "js/game-flow.js"
       - "js/showdown-actions.js"
-      - "tests/support/ai-long-run-telemetry-v2-9.js"
+      - "tests/support/ai-long-run-telemetry-v2-9.part-*"
       - "tests/e2e/ai-long-run-telemetry-v2-9.spec.js"
       - "scripts/aggregate-ai-long-run-telemetry-v2-9.mjs"
       - "package.json"
