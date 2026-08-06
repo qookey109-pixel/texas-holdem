@@ -189,11 +189,17 @@
     "js/ai-tier-strategy-v2-8.js?v=tier-quality-v2-8",
     "aiTierStrategyV28",
   );
-  // V2.9.2 is intentionally last and only applies evidence-backed guards to
-  // Pao, Shark, Oracle and Chronos without changing the remaining strategies.
+  // V2.9.2 applies evidence-backed guards to Pao, Shark, Oracle and Chronos.
   loadOnce(
     'script[data-ai-tier-strategy-v2-9-2]',
     "js/ai-tier-strategy-v2-9-2.js?v=evidence-calibration-v2-9-2",
     "aiTierStrategyV292",
+  );
+  // The dispatcher is loaded last so the betting loop always resolves the
+  // current outer AI strategy rather than a stale global function binding.
+  loadOnce(
+    'script[data-ai-action-dispatcher-v1]',
+    "js/ai-action-dispatcher-v1.js?v=ai-action-dispatcher-v1",
+    "aiActionDispatcherV1",
   );
 })();
