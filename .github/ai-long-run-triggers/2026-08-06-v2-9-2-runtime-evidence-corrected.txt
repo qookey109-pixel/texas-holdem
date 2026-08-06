@@ -1,0 +1,15 @@
+AI V2.9.2 corrected post-calibration evidence run.
+
+Reason:
+- Run 31076069779 completed 25,000 hands but reproduced the baseline artifacts byte-for-byte.
+- That run proved state/fairness stability but did not prove the V2.9.2 action path was active.
+
+This trigger launches a fresh paired 25,000-hand run on main with:
+- the same deterministic seed base 26890246;
+- 50 shards × 500 hands;
+- per-action V2.9.2 runtime coverage evidence;
+- aggregate gates requiring Pao, Shark, Oracle and Chronos to be observed through V2.9.2;
+- full-run gates requiring actual calibration adjustments for all four roles.
+
+Baseline evidence run: 31072973185
+Invalid post-calibration run: 31076069779
