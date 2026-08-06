@@ -5,6 +5,7 @@
   if (window.AiLongRunTelemetryIntegrityV294?.version) return;
 
   const VERSION = "2.9.4";
+  const DEFINITION = "postflop-showdown-hands/showdown-eligible-hands-excluding-preflop-all-in";
   const ROLE_NAMES = Object.freeze([
     "Leo", "Toto", "Foxy", "Wolf", "Pao", "Shark",
     "Ace", "Momo", "Nori", "Bruno", "Dodo", "Viper",
@@ -12,11 +13,6 @@
   ]);
   const POSTFLOP_STREETS = Object.freeze(["flop", "turn", "river"]);
 
-  let installed = false;
-  let originalStartHand = null;
-  let originalLogActionDescriptor = null;
-  let assignedLogAction = null;
-  let wrappedLogAction = null;
   let activeHand = null;
   let completedHands = 0;
   let roles = createRoleMap();
@@ -68,6 +64,7 @@
   }
 
   function beginHand() {
+    finalizeHand();
     const players = Array.isArray(state?.players) ? state.players : [];
     const flags = new Map();
     for (const player of players) {
@@ -85,91 +82,54 @@
     };
   }
 
+  function recordAction(player, action) {
+    if (!activeHand || !player || !activeHand.flags.has(player.name)) return;
+    try {
+      const flags = activeHand.flags.get(player.name);
+      const street = streetKey();
+      const normalized = normalizeAction(action);
+      if (!normalized) return;
+      if (normalized === "fold" && !flags.foldedStreet) flags.foldedStreet = street;
+      if (street === "preflop" && (normalized === "allin" || player.allIn)) {
+        flags.preflopAllIn = true;
+      }
+    } catch (error) {
+      errors.push(`record-action:${error?.message || error}`);
+    }
+  }
+
   function finalizeHand() {
     if (!activeHand || activeHand.finalized) return;
     activeHand.finalized = true;
-    const players = Array.isArray(state?.players) ? state.players : [];
-    const activeAtEnd = players.filter(player => !player?.folded);
-    const showdown = (state?.board?.length || 0) === 5 && activeAtEnd.length >= 2;
+    try {
+      const players = Array.isArray(state?.players) ? state.players : [];
+      const activeAtEnd = players.filter(player => !player?.folded);
+      const showdown = (state?.board?.length || 0) === 5 && activeAtEnd.length >= 2;
 
-    for (const player of players) {
-      const metric = roles[player?.name];
-      const flags = activeHand.flags.get(player?.name);
-      if (!metric || !flags) continue;
+      for (const player of players) {
+        const metric = roles[player?.name];
+        const flags = activeHand.flags.get(player?.name);
+        if (!metric || !flags) continue;
 
-      const sawFlop = (state?.board?.length || 0) >= 3 && flags.foldedStreet !== "preflop";
-      const wentShowdown = showdown && !player.folded;
-      const showdownEligible = sawFlop && !flags.preflopAllIn;
-      const postflopShowdown = wentShowdown && showdownEligible;
-      const preflopAllInShowdown = wentShowdown && flags.preflopAllIn;
-      const postflopFold = POSTFLOP_STREETS.includes(flags.foldedStreet);
+        const sawFlop = (state?.board?.length || 0) >= 3 && flags.foldedStreet !== "preflop";
+        const wentShowdown = showdown && !player.folded;
+        const showdownEligible = sawFlop && !flags.preflopAllIn;
+        const postflopShowdown = wentShowdown && showdownEligible;
+        const preflopAllInShowdown = wentShowdown && flags.preflopAllIn;
+        const postflopFold = POSTFLOP_STREETS.includes(flags.foldedStreet);
 
-      if (sawFlop) metric.sawFlopHands += 1;
-      if (wentShowdown) metric.showdownHands += 1;
-      if (showdownEligible) metric.showdownEligibleHands += 1;
-      if (postflopShowdown) metric.postflopShowdownHands += 1;
-      if (flags.preflopAllIn) metric.preflopAllInHands += 1;
-      if (preflopAllInShowdown) metric.preflopAllInShowdownHands += 1;
-      if (postflopFold) metric.postflopFoldHands += 1;
-    }
-    completedHands += 1;
-  }
-
-  function recordAction(player, action) {
-    if (!activeHand || !player || !activeHand.flags.has(player.name)) return;
-    const flags = activeHand.flags.get(player.name);
-    const street = streetKey();
-    const normalized = normalizeAction(action);
-    if (!normalized) return;
-    if (normalized === "fold" && !flags.foldedStreet) flags.foldedStreet = street;
-    if (street === "preflop" && (normalized === "allin" || player.allIn)) {
-      flags.preflopAllIn = true;
-    }
-  }
-
-  function wrapLogAction(callback) {
-    if (typeof callback !== "function") return callback;
-    return function telemetryIntegrityLogAction(player, action, ...args) {
-      try {
-        recordAction(player, action);
-      } catch (error) {
-        errors.push(`record-action:${error?.message || error}`);
+        if (sawFlop) metric.sawFlopHands += 1;
+        if (wentShowdown) metric.showdownHands += 1;
+        if (showdownEligible) metric.showdownEligibleHands += 1;
+        if (postflopShowdown) metric.postflopShowdownHands += 1;
+        if (flags.preflopAllIn) metric.preflopAllInHands += 1;
+        if (preflopAllInShowdown) metric.preflopAllInShowdownHands += 1;
+        if (postflopFold) metric.postflopFoldHands += 1;
       }
-      return callback.call(this, player, action, ...args);
-    };
-  }
-
-  function install() {
-    if (installed) return true;
-    if (typeof window.startHand !== "function" || typeof window.logAction !== "function") return false;
-
-    originalStartHand = window.startHand;
-    originalLogActionDescriptor = Object.getOwnPropertyDescriptor(window, "logAction");
-    assignedLogAction = window.logAction;
-    wrappedLogAction = wrapLogAction(assignedLogAction);
-
-    Object.defineProperty(window, "logAction", {
-      configurable: true,
-      enumerable: originalLogActionDescriptor?.enumerable ?? true,
-      get() {
-        return wrappedLogAction;
-      },
-      set(callback) {
-        assignedLogAction = callback;
-        wrappedLogAction = wrapLogAction(callback);
-      },
-    });
-
-    window.startHand = function telemetryIntegrityStartHand(...args) {
-      finalizeHand();
-      const result = originalStartHand.apply(this, args);
-      beginHand();
-      return result;
-    };
-
-    installed = true;
-    document.documentElement.dataset.aiTelemetryIntegrityV294 = "ready";
-    return true;
+      completedHands += 1;
+    } catch (error) {
+      errors.push(`finalize-hand:${error?.message || error}`);
+    }
   }
 
   function reset() {
@@ -212,8 +172,8 @@
     return {
       version: VERSION,
       schemaVersion: 1,
-      definition: "postflop-showdown-hands/showdown-eligible-hands-excluding-preflop-all-in",
-      installed,
+      definition: DEFINITION,
+      hookMode: "explicit-lab-hooks",
       completedHands,
       roles: summaries,
       integrityPassed: errors.length === 0 && roleErrors.length === 0,
@@ -221,28 +181,15 @@
     };
   }
 
-  function uninstall() {
-    if (!installed) return true;
-    finalizeHand();
-    window.startHand = originalStartHand;
-    if (originalLogActionDescriptor) {
-      Object.defineProperty(window, "logAction", originalLogActionDescriptor);
-    } else {
-      delete window.logAction;
-      window.logAction = assignedLogAction;
-    }
-    installed = false;
-    document.documentElement.dataset.aiTelemetryIntegrityV294 = "idle";
-    return true;
-  }
-
   window.AiLongRunTelemetryIntegrityV294 = Object.freeze({
     version: VERSION,
-    definition: "postflop-showdown-hands/showdown-eligible-hands-excluding-preflop-all-in",
+    definition: DEFINITION,
     roleNames: [...ROLE_NAMES],
-    install,
+    beginHand,
+    recordAction,
+    finalizeHand,
     reset,
     snapshot,
-    uninstall,
   });
+  document.documentElement.dataset.aiTelemetryIntegrityV294 = "ready";
 })();
