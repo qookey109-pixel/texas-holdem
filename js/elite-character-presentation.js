@@ -175,7 +175,7 @@
   // diagnostics wrapper and later refreshes cannot create a wrapper cycle.
   loadOnce(
     'script[data-economy-fold-defense-v1]',
-    "js/economy-fold-defense-v1.js?v=economy-fold-defense-v1-0-1",
+    "js/economy-fold-defense-v1.js?v=economy-fold-defense-v1-1-0",
     "economyFoldDefenseV1",
   );
   loadOnce(

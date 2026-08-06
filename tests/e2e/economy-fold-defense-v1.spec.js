@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import geminiWorker from "../../backend/gemini-worker/src/index.js";
 
 test.describe("Economy and persistent-fold defense V1", () => {
-  test("normal rebuys are symmetric, boss catch-up is bounded, and tight play triggers controlled pressure", async ({ page }) => {
+  test("normal rebuys are symmetric, boss catch-up is progressive and bounded, and tight play triggers controlled pressure", async ({ page }) => {
     const pageErrors = [];
     page.on("pageerror", error => pageErrors.push(error.message));
 
@@ -23,12 +23,36 @@ test.describe("Economy and persistent-fold defense V1", () => {
         { stack: 100 },
         { stack: 100 },
       ], { bigBlind: 20, buyIn: 2000 });
-      const oracle = api.calculateBossCatchup({
+      const oracleWarning = api.calculateBossCatchup({
+        name: "Oracle",
+        baseStack: 4500,
+        bigBlind: 100,
+        smallBlind: 50,
+        heroStack: 17500,
+        secondStack: 10000,
+      });
+      const oracleStandard = api.calculateBossCatchup({
         name: "Oracle",
         baseStack: 4500,
         bigBlind: 100,
         smallBlind: 50,
         heroStack: 18000,
+        secondStack: 10000,
+      });
+      const oracleTarget = api.calculateBossCatchup({
+        name: "Oracle",
+        baseStack: 4500,
+        bigBlind: 100,
+        smallBlind: 50,
+        heroStack: 20000,
+        secondStack: 10000,
+      });
+      const oraclePressure = api.calculateBossCatchup({
+        name: "Oracle",
+        baseStack: 4500,
+        bigBlind: 100,
+        smallBlind: 50,
+        heroStack: 22000,
         secondStack: 10000,
       });
       const gemini = api.calculateBossCatchup({
@@ -44,7 +68,7 @@ test.describe("Economy and persistent-fold defense V1", () => {
         baseStack: 4500,
         bigBlind: 100,
         smallBlind: 50,
-        heroStack: 16000,
+        heroStack: 16900,
         secondStack: 10000,
       });
       const tight = api.classifyHeroTightness({
@@ -103,12 +127,16 @@ test.describe("Economy and persistent-fold defense V1", () => {
       return {
         normalRebuy,
         minimumRebuy,
-        oracle,
+        oracleWarning,
+        oracleStandard,
+        oracleTarget,
+        oraclePressure,
         gemini,
         noCatchup,
         tight,
         balanced,
         pressurePlan,
+        config: api.config,
         policy: api.fairInformationPolicy,
         status: api.status(),
       };
@@ -116,12 +144,17 @@ test.describe("Economy and persistent-fold defense V1", () => {
 
     expect(report.normalRebuy).toBe(1000);
     expect(report.minimumRebuy).toBe(400);
-    expect(report.oracle.adjusted).toBe(true);
-    expect(report.oracle.actualEntryBb).toBe(55);
+    expect(report.oracleWarning.adjusted).toBe(true);
+    expect(report.oracleWarning.actualEntryBb).toBe(47.5);
+    expect(report.oracleStandard.actualEntryBb).toBe(50);
+    expect(report.oracleTarget.actualEntryBb).toBe(55);
+    expect(report.oraclePressure.actualEntryBb).toBe(60);
     expect(report.gemini.adjusted).toBe(true);
     expect(report.gemini.actualEntryBb).toBe(90);
     expect(report.noCatchup.adjusted).toBe(false);
     expect(report.noCatchup.stack).toBe(4500);
+    expect(report.config.catchup.heroLeadTrigger).toBe(1.7);
+    expect(report.config.catchup.softWarningRange).toEqual([1.7, 1.8]);
     expect(report.tight.tightPassive).toBe(true);
     expect(report.tight.lowVpip).toBe(true);
     expect(report.tight.highPreflopFold).toBe(true);
