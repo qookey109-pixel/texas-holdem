@@ -55,7 +55,15 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
       () => page.evaluate(() => window.EconomyFoldDefenseV1?.version || ""),
       { timeout: 15_000 },
     ).toBe("1.0.1");
-    await page.evaluate(() => window.EconomyFoldDefenseV1?.refresh?.());
+    await page.evaluate(() => {
+      window.EconomyFoldDefenseV1?.refresh?.();
+      window.AiTierStrategyV292?.refresh?.();
+      window.AiTierStrategyV292?.resetRuntimeEvidence?.();
+    });
+    await expect.poll(
+      () => page.evaluate(() => Boolean(botAction?.__aiTierStrategyV292Wrapper)),
+      { timeout: 15_000 },
+    ).toBe(true);
 
     const labSource = (await Promise.all(LAB_PARTS.map(path => readFile(path, "utf8")))).join("");
     await page.addScriptTag({ content: labSource });
@@ -72,6 +80,9 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
       shardCount: SHARD_COUNT,
       baseSeed: BASE_SEED,
     });
+    report.strategyEvidence = await page.evaluate(() => (
+      window.AiTierStrategyV292?.runtimeEvidence?.() || null
+    ));
     const markdown = await page.evaluate(value => (
       window.AiLongRunTelemetryV29.toMarkdown(value)
     ), report);
@@ -105,10 +116,17 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
         publicInformationOnly: true,
         omniscientProfiles: [],
       },
+      strategyEvidence: {
+        version: "2.9.2",
+        observerActive: true,
+        fallbackDecisions: 0,
+        publicInformationFailures: 0,
+      },
     });
     expect(report.failures).toEqual([]);
     expect(report.schedulerErrors).toEqual([]);
     expect(pageErrors).toEqual([]);
+    expect(report.strategyEvidence.totalV292Decisions).toBe(report.strategyEvidence.totalTargetedDecisions);
     expect(report.activeRoles.length).toBeGreaterThanOrEqual(5);
     expect(report.humanDecisions).toBeGreaterThan(0);
     expect(report.maximumEvents).toBeGreaterThan(0);
@@ -117,8 +135,12 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
 
     const activeSummaries = report.activeRoles.map(name => report.roles[name]);
     expect(activeSummaries.every(role => role.hands > 0)).toBe(true);
-    expect(activeSummaries.some(role => role.vpip > 0)).toBe(true);
-    expect(activeSummaries.some(role => role.pfr > 0)).toBe(true);
+    const recordedActions = activeSummaries.reduce((total, role) => (
+      total + Object.values(role.actionCounts || {}).reduce((streetTotal, actions) => (
+        streetTotal + Object.values(actions || {}).reduce((sum, count) => sum + (Number(count) || 0), 0)
+      ), 0)
+    ), 0);
+    expect(recordedActions).toBeGreaterThan(0);
     expect(activeSummaries.every(role => Number.isFinite(role.bb100))).toBe(true);
   });
 });

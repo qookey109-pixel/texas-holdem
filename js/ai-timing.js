@@ -5,7 +5,6 @@
   if (typeof window.continueBetting !== "function" || typeof window.botAction !== "function") return;
 
   const EXPERIENCE_KEY = "texasHoldemAiExperienceV1";
-  const originalBotAction = window.botAction;
   const portraitMedia = window.matchMedia("(max-width: 900px) and (orientation: portrait)");
   const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const recordedHands = new Set();
@@ -222,6 +221,19 @@
       && needsAction(actor);
   }
 
+  function runCurrentBotAction(actor) {
+    if (typeof window.AiActionDispatcherV1?.dispatch === "function") {
+      return window.AiActionDispatcherV1.dispatch(actor);
+    }
+    if (!window.botAction?.__aiTierStrategyV292Wrapper) {
+      window.AiTierStrategyV292?.refresh?.();
+    }
+    if (typeof window.botAction !== "function") {
+      throw new TypeError("AI timing could not resolve the current botAction");
+    }
+    return window.botAction(actor);
+  }
+
   function scheduleBotAction(actor) {
     const timing = thinkingDelay(actor);
     const handNumber = state.handNumber;
@@ -240,7 +252,7 @@
         return;
       }
 
-      originalBotAction(actor);
+      runCurrentBotAction(actor);
       recordDecision(actor, timing.context);
       state.currentActorIndex = nextPendingActor(position);
       render();

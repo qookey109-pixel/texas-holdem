@@ -15,6 +15,7 @@ on:
       - "tests/support/ai-long-run-telemetry-v2-9.part-*"
       - "tests/e2e/ai-long-run-telemetry-v2-9.spec.js"
       - "scripts/aggregate-ai-long-run-telemetry-v2-9.mjs"
+      - "scripts/validate-ai-v2-9-2-telemetry-evidence.mjs"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/ai-long-run-telemetry.yml"
@@ -155,6 +156,9 @@ jobs:
 
       - name: Aggregate role, tier, profile and Boss evidence
         run: node scripts/aggregate-ai-long-run-telemetry-v2-9.mjs telemetry-shards telemetry-summary
+
+      - name: Validate V2.9.2 runtime strategy evidence
+        run: node scripts/validate-ai-v2-9-2-telemetry-evidence.mjs telemetry-shards telemetry-summary
 
       - name: Publish Markdown to workflow summary
         if: ${{ always() }}
