@@ -1,0 +1,12 @@
+AI V2.9.2 post-calibration full evidence run
+
+source_commit=d99a85126e549f66d69fa356e50d403f15aa41bf
+strategy_version=2.9.2
+shard_count=50
+hands_per_shard=500
+expected_hands=25000
+seed_base=26890246
+comparison_run_id=31072973185
+requested_at=2026-08-06T13:54:00+08:00
+
+This marker starts a fresh 25,000-hand run after merge. The deterministic seed base matches the V2.9 baseline for paired before/after comparison, but all hands and artifacts are generated again under the V2.9.2 execution layer.
