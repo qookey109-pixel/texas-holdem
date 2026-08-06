@@ -1,4 +1,5 @@
 import {
+  existsSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -14,6 +15,10 @@ const expectedHands = Math.max(
   Number.parseInt(process.env.AI_LONG_RUN_EXPECTED_HANDS || "0", 10) || 0,
 );
 const TARGETS = ["Pao", "Shark", "Oracle", "Chronos"];
+const PARTICIPATION_TIERS = ["middle", "elite"];
+const MINIMUM_FULL_RUN_VPIP = 0.03;
+const MAXIMUM_FULL_RUN_VPIP = 0.55;
+const MINIMUM_FULL_RUN_PFR = 0.01;
 
 function walk(directory) {
   const files = [];
@@ -62,7 +67,7 @@ const files = walk(inputDirectory)
 if (!files.length) throw new Error(`No telemetry shard JSON files found under ${inputDirectory}`);
 
 const totals = {
-  version: "2.9.2",
+  version: "2.9.3",
   shards: files.length,
   expectedHands,
   targetedDecisions: 0,
@@ -71,6 +76,7 @@ const totals = {
   fallbackDecisions: 0,
   publicInformationFailures: 0,
   byRole: Object.fromEntries(TARGETS.map(name => [name, emptyRole()])),
+  tierParticipation: {},
 };
 const errors = [];
 
@@ -120,9 +126,42 @@ if (fullEvidence) {
     if (role.v292Decisions <= 0) errors.push(`${name}: no V2.9.2 decisions observed`);
     if (role.adjustedDecisions <= 0) errors.push(`${name}: no V2.9.2 calibration adjustment observed`);
   }
+
+  const aggregatePath = join(outputDirectory, "ai-long-run-telemetry-v2-9.json");
+  if (!existsSync(aggregatePath)) {
+    errors.push("full run is missing the aggregate telemetry report");
+  } else {
+    const aggregate = JSON.parse(readFileSync(aggregatePath, "utf8"));
+    for (const tier of PARTICIPATION_TIERS) {
+      const summary = aggregate.tiers?.[tier] || {};
+      const hands = Number(summary.hands) || 0;
+      const vpip = Number(summary.vpip) || 0;
+      const pfr = Number(summary.pfr) || 0;
+      totals.tierParticipation[tier] = { hands, vpip, pfr };
+      if (hands <= 0) errors.push(`${tier}: no full-run hands observed`);
+      if (vpip < MINIMUM_FULL_RUN_VPIP) {
+        errors.push(
+          `${tier}: full-run VPIP ${(vpip * 100).toFixed(3)}% is below the ${(MINIMUM_FULL_RUN_VPIP * 100).toFixed(1)}% participation floor`,
+        );
+      }
+      if (vpip > MAXIMUM_FULL_RUN_VPIP) {
+        errors.push(
+          `${tier}: full-run VPIP ${(vpip * 100).toFixed(3)}% exceeds the ${(MAXIMUM_FULL_RUN_VPIP * 100).toFixed(1)}% participation ceiling`,
+        );
+      }
+      if (pfr < MINIMUM_FULL_RUN_PFR) {
+        errors.push(
+          `${tier}: full-run PFR ${(pfr * 100).toFixed(3)}% is below the ${(MINIMUM_FULL_RUN_PFR * 100).toFixed(1)}% aggression floor`,
+        );
+      }
+    }
+  }
 }
 
 totals.fullEvidence = fullEvidence;
+totals.minimumFullRunVpip = MINIMUM_FULL_RUN_VPIP;
+totals.maximumFullRunVpip = MAXIMUM_FULL_RUN_VPIP;
+totals.minimumFullRunPfr = MINIMUM_FULL_RUN_PFR;
 totals.validationPassed = errors.length === 0;
 totals.validationErrors = errors;
 
@@ -133,7 +172,7 @@ writeFileSync(
   "utf8",
 );
 
-console.log("# AI V2.9.2 strategy evidence");
+console.log("# AI V2.9.3 strategy evidence");
 console.log(`- Shards: ${totals.shards}`);
 console.log(`- Targeted decisions: ${totals.targetedDecisions}`);
 console.log(`- V2.9.2 decisions: ${totals.v292Decisions}`);
@@ -141,6 +180,14 @@ console.log(`- Adjusted decisions: ${totals.adjustedDecisions}`);
 for (const name of TARGETS) {
   const role = totals.byRole[name];
   console.log(`- ${name}: ${role.v292Decisions} V2.9.2 decisions; ${role.adjustedDecisions} adjusted`);
+}
+for (const tier of PARTICIPATION_TIERS) {
+  const participation = totals.tierParticipation[tier];
+  if (participation) {
+    console.log(
+      `- ${tier}: ${participation.hands} hands; VPIP ${(participation.vpip * 100).toFixed(3)}%; PFR ${(participation.pfr * 100).toFixed(3)}%`,
+    );
+  }
 }
 console.log(`- Validation: ${errors.length ? "failed" : "passed"}`);
 if (errors.length) {
