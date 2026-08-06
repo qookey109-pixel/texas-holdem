@@ -55,7 +55,74 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
       () => page.evaluate(() => window.EconomyFoldDefenseV1?.version || ""),
       { timeout: 15_000 },
     ).toBe("1.0.1");
-    await page.evaluate(() => window.EconomyFoldDefenseV1?.refresh?.());
+    await page.evaluate(() => {
+      window.EconomyFoldDefenseV1?.refresh?.();
+      window.AiTierStrategyV292?.refresh?.();
+    });
+    await expect.poll(
+      () => page.evaluate(() => Boolean(botAction?.__aiTierStrategyV292Wrapper)),
+      { timeout: 15_000 },
+    ).toBe(true);
+
+    // Observe the actual action path rather than trusting only a ready marker.
+    // This evidence is persisted in every shard and aggregated by CI, so a
+    // stale V2.8 replay cannot be accepted as a valid V2.9.2 evidence run.
+    await page.evaluate(() => {
+      const targetNames = ["Pao", "Shark", "Oracle", "Chronos"];
+      const targets = new Set(targetNames);
+      const byRole = Object.fromEntries(targetNames.map(name => [name, {
+        targetedDecisions: 0,
+        v292Decisions: 0,
+        adjustedDecisions: 0,
+        fallbackDecisions: 0,
+        nonPublicDecisions: 0,
+        adjustments: {},
+      }]));
+      const evidence = {
+        version: "2.9.2",
+        observerActive: true,
+        targetedDecisions: 0,
+        v292Decisions: 0,
+        adjustedDecisions: 0,
+        fallbackDecisions: 0,
+        nonPublicDecisions: 0,
+        byRole,
+      };
+      const previous = botAction;
+      botAction = function botActionWithV292TelemetryEvidence(player) {
+        const targeted = targets.has(player?.name);
+        const result = previous.apply(this, arguments);
+        if (!targeted) return result;
+
+        const role = byRole[player.name];
+        const decision = player?.lastStrategyDecision || {};
+        const adjustment = String(decision.v292Adjustment || "");
+        evidence.targetedDecisions += 1;
+        role.targetedDecisions += 1;
+
+        if (decision.strategyVersion === "2.9.2") {
+          evidence.v292Decisions += 1;
+          role.v292Decisions += 1;
+        } else {
+          evidence.fallbackDecisions += 1;
+          role.fallbackDecisions += 1;
+        }
+
+        if (adjustment && adjustment !== "none") {
+          evidence.adjustedDecisions += 1;
+          role.adjustedDecisions += 1;
+          role.adjustments[adjustment] = (role.adjustments[adjustment] || 0) + 1;
+        }
+        if (decision.publicInformationOnly !== true) {
+          evidence.nonPublicDecisions += 1;
+          role.nonPublicDecisions += 1;
+        }
+        return result;
+      };
+      botAction.__aiV292TelemetryObserver = true;
+      botAction.__previousBotAction = previous;
+      window.__aiV292TelemetryEvidence = evidence;
+    });
 
     const labSource = (await Promise.all(LAB_PARTS.map(path => readFile(path, "utf8")))).join("");
     await page.addScriptTag({ content: labSource });
@@ -72,6 +139,9 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
       shardCount: SHARD_COUNT,
       baseSeed: BASE_SEED,
     });
+    report.strategyEvidence = await page.evaluate(() => (
+      JSON.parse(JSON.stringify(window.__aiV292TelemetryEvidence || {}))
+    ));
     const markdown = await page.evaluate(value => (
       window.AiLongRunTelemetryV29.toMarkdown(value)
     ), report);
@@ -105,10 +175,17 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
         publicInformationOnly: true,
         omniscientProfiles: [],
       },
+      strategyEvidence: {
+        version: "2.9.2",
+        observerActive: true,
+        nonPublicDecisions: 0,
+      },
     });
     expect(report.failures).toEqual([]);
     expect(report.schedulerErrors).toEqual([]);
     expect(pageErrors).toEqual([]);
+    expect(report.strategyEvidence.v292Decisions).toBe(report.strategyEvidence.targetedDecisions);
+    expect(report.strategyEvidence.fallbackDecisions).toBe(0);
     expect(report.activeRoles.length).toBeGreaterThanOrEqual(5);
     expect(report.humanDecisions).toBeGreaterThan(0);
     expect(report.maximumEvents).toBeGreaterThan(0);
