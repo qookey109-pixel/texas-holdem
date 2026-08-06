@@ -21,36 +21,36 @@
       riverEvPot: 0.002,
     }),
     Foxy: Object.freeze({
-      openFloor: 0.43,
-      callFloor: 0.50,
-      raiseFloor: 0.56,
-      reraiseFloor: 0.67,
+      openFloor: 0.40,
+      callFloor: 0.48,
+      raiseFloor: 0.54,
+      reraiseFloor: 0.66,
       lateDiscount: 0.065,
-      multiwayStep: 0.011,
+      multiwayStep: 0.010,
       priceEdge: 0.018,
       bluffFloor: 0.40,
       turnEvPot: 0,
       riverEvPot: 0.007,
     }),
     Leo: Object.freeze({
-      openFloor: 0.44,
-      callFloor: 0.51,
-      raiseFloor: 0.55,
-      reraiseFloor: 0.66,
+      openFloor: 0.41,
+      callFloor: 0.49,
+      raiseFloor: 0.53,
+      reraiseFloor: 0.65,
       lateDiscount: 0.055,
-      multiwayStep: 0.012,
+      multiwayStep: 0.011,
       priceEdge: 0.016,
       bluffFloor: 0.43,
       turnEvPot: 0.002,
       riverEvPot: 0.009,
     }),
     Wolf: Object.freeze({
-      openFloor: 0.47,
-      callFloor: 0.55,
-      raiseFloor: 0.60,
-      reraiseFloor: 0.70,
+      openFloor: 0.43,
+      callFloor: 0.52,
+      raiseFloor: 0.57,
+      reraiseFloor: 0.68,
       lateDiscount: 0.04,
-      multiwayStep: 0.014,
+      multiwayStep: 0.012,
       priceEdge: 0.02,
       bluffFloor: 0.48,
       turnEvPot: 0.004,
@@ -237,10 +237,13 @@
       guard.callFloor + multiwayPremium - positionDiscount * 0.45,
       context.potOdds + guard.priceEdge + multiwayPremium * 0.4,
     ), 0.2, 0.94);
+    const raiseBase = facingReraise
+      ? guard.reraiseFloor
+      : facingRaise
+        ? guard.raiseFloor
+        : guard.openFloor;
     const raiseFloor = clamp(
-      (facingReraise ? guard.reraiseFloor : facingRaise ? guard.raiseFloor : openFloor)
-      + multiwayPremium
-      - positionDiscount,
+      raiseBase + multiwayPremium - positionDiscount,
       0.2,
       0.96,
     );
@@ -322,8 +325,9 @@
         ? context.pot * guard.turnEvPot
         : -context.bigBlind * (player.name === "Toto" ? 0.05 : 0.025);
     const equityFloor = clamp(context.potOdds + guard.priceEdge * (
-      context.street === "river" ? 1.15 : context.street === "turn" ? 0.75 : 0.35
+      context.street === "river" ? 1.6 : context.street === "turn" ? 1.1 : 0.35
     ), 0.04, 0.92);
+    const lateStreet = context.street === "turn" || context.street === "river";
     decision.v294PostflopEvFloor = round(streetBuffer);
     decision.v294PostflopEquityFloor = round(equityFloor);
 
@@ -336,6 +340,14 @@
             ? "V2.9.4 轉牌停止負期望追擊"
             : "V2.9.4 翻牌控制明顯負期望跟注",
         `${context.street}-call-ev-discipline`,
+      );
+    }
+
+    if (lateStreet && equity < equityFloor && !decision.valueReady) {
+      return foldDecision(
+        decision,
+        "V2.9.4 公開牌力不足以支付轉河牌價格",
+        `${context.street}-equity-price-discipline`,
       );
     }
 
