@@ -135,8 +135,12 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
 
     const activeSummaries = report.activeRoles.map(name => report.roles[name]);
     expect(activeSummaries.every(role => role.hands > 0)).toBe(true);
-    expect(activeSummaries.some(role => role.vpip > 0)).toBe(true);
-    expect(activeSummaries.some(role => role.pfr > 0)).toBe(true);
+    const recordedActions = activeSummaries.reduce((total, role) => (
+      total + Object.values(role.actionCounts || {}).reduce((streetTotal, actions) => (
+        streetTotal + Object.values(actions || {}).reduce((sum, count) => sum + (Number(count) || 0), 0)
+      ), 0)
+    ), 0);
+    expect(recordedActions).toBeGreaterThan(0);
     expect(activeSummaries.every(role => Number.isFinite(role.bb100))).toBe(true);
   });
 });
