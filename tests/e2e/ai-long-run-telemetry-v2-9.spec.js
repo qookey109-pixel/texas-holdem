@@ -11,7 +11,10 @@ const BASE_SEED = Number.parseInt(process.env.AI_LONG_RUN_SEED_BASE || "26890246
 const LAB_PARTS = [1, 2, 3, 4].map(index => resolve(
   `tests/support/ai-long-run-telemetry-v2-9.part-${index}`,
 ));
-const TIMEOUT_MS = Math.max(120_000, HANDS * 1_000);
+// Full shards can spend more than one second per hand on Boss range-equity paths.
+// Keep the Playwright limit below the workflow job limit while leaving enough
+// headroom for report serialization, assertions and artifact attachment.
+const TIMEOUT_MS = Math.max(120_000, HANDS * 2_000);
 
 function padShard(value) {
   return String(value).padStart(3, "0");
