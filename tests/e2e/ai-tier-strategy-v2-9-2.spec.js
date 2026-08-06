@@ -20,6 +20,14 @@ test.describe("AI V2.9.2 evidence calibration", () => {
       const bossPlayer = { name: "Chronos", stack: 1800, bet: 40, folded: false, eliminated: false };
       const pao = { name: "Pao", stack: 1800, bet: 20, folded: false, eliminated: false };
       const shark = { name: "Shark", stack: 1600, bet: 80, folded: false, eliminated: false };
+      const wrapperInstalled = (() => {
+        let current = botAction;
+        for (let depth = 0; current && depth < 16; depth += 1) {
+          if (current.__aiTierStrategyV292Wrapper) return true;
+          current = current.__previousBotAction;
+        }
+        return false;
+      })();
 
       const bossNegative = api.calibrateBossDecision(bossPlayer, {
         action: "call",
@@ -156,7 +164,7 @@ test.describe("AI V2.9.2 evidence calibration", () => {
 
       return {
         version: api.version,
-        wrapperInstalled: Boolean(botAction.__aiTierStrategyV292Wrapper),
+        wrapperInstalled,
         evidence: api.evidence,
         openingGuards: api.openingGuards,
         calibratedOpeningNames: api.calibratedOpeningNames,
