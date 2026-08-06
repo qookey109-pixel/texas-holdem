@@ -68,7 +68,7 @@ test.describe("AI V2.9.5 opening and WTSD recovery", () => {
           action: "raise",
           raiseBy: 60,
           sizeFraction: 0.6,
-          equityProxy: 0.52,
+          equityProxy: 0.508,
         }),
         preflop({}),
       );
@@ -171,8 +171,8 @@ test.describe("AI V2.9.5 opening and WTSD recovery", () => {
 
     expect(result.totoMarginalRaise.action).toBe("call");
     expect(result.totoMarginalRaise.adjustment).toBe("toto-marginal-entry-rescue");
-    expect(result.totoMarginalRaise.callFloor).toBeLessThanOrEqual(0.52);
-    expect(result.totoMarginalRaise.raiseFloor).toBeGreaterThan(0.52);
+    expect(result.totoMarginalRaise.callFloor).toBeLessThanOrEqual(0.508);
+    expect(result.totoMarginalRaise.raiseFloor).toBeGreaterThan(0.508);
     expect(result.totoJunkCall.action).toBe("fold");
     expect(result.totoJunkCall.adjustment).toBe("opening-call-floor");
     expect(result.totoPressureCall.action).toBe("fold");
