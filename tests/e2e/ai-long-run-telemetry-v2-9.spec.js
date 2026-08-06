@@ -27,13 +27,18 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
 
     await page.goto("/", { waitUntil: "networkidle" });
     await expect.poll(
-      () => page.evaluate(() => Boolean(
-        window.AiTierStrategyV28?.version === "2.8.0"
-        && document.documentElement.dataset.aiTierStrategy === "ready"
-        && window.EconomyFoldDefenseV1?.status?.().installed === true
-      )),
+      () => page.evaluate(() => window.AiTierStrategyV28?.version || ""),
       { timeout: 15_000 },
-    ).toBe(true);
+    ).toBe("2.8.0");
+    await expect.poll(
+      () => page.evaluate(() => document.documentElement.dataset.aiTierStrategyV28 || ""),
+      { timeout: 15_000 },
+    ).toBe("ready");
+    await expect.poll(
+      () => page.evaluate(() => window.EconomyFoldDefenseV1?.version || ""),
+      { timeout: 15_000 },
+    ).toBe("1.0.1");
+    await page.evaluate(() => window.EconomyFoldDefenseV1?.refresh?.());
 
     const labSource = (await Promise.all(LAB_PARTS.map(path => readFile(path, "utf8")))).join("");
     await page.addScriptTag({ content: labSource });
