@@ -38,7 +38,7 @@ test.describe("AI V2.9.3 middle and elite preflop recovery", () => {
         state.street = "翻牌前";
         const middleDecision = window.AiMidEliteDecisionChainV27.composeDecision(middle);
         const eliteDecision = window.AiMidEliteDecisionChainV27.composeDecision(elite);
-        const openingDecision = window.AiMidEliteDecisionChainV27.composeDecision({
+        const openingDelegates = window.AiMidElitePreflopRecoveryV293.shouldDelegate({
           ...middle,
           name: "Shark",
         });
@@ -56,7 +56,7 @@ test.describe("AI V2.9.3 middle and elite preflop recovery", () => {
           ),
           middleDecision,
           eliteDecision,
-          openingAction: openingDecision?.action || "",
+          openingDelegates,
           postflopDelegates: window.AiMidElitePreflopRecoveryV293.shouldDelegate(middle),
           hiddenCardsAllowed: window.AiMidElitePreflopRecoveryV293
             .fairInformationPolicy.hiddenOpponentCards,
@@ -84,7 +84,7 @@ test.describe("AI V2.9.3 middle and elite preflop recovery", () => {
       preflopRecoveryVersion: "2.9.3",
       publicInformationOnly: true,
     });
-    expect(result.openingAction).not.toBe("fallback");
+    expect(result.openingDelegates).toBe(false);
     expect(result.postflopDelegates).toBe(false);
     expect(result.hiddenCardsAllowed).toBe(false);
     expect(result.futureBoardAllowed).toBe(false);
