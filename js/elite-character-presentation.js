@@ -209,6 +209,13 @@
     "js/ai-opening-balance-v2-9-4.js?v=opening-balance-v2-9-4",
     "aiOpeningBalanceV294",
   );
+  // V2.9.5 restores Toto’s reasonably priced entries and requires genuine
+  // turn/river value before the four opening roles continue to showdown.
+  loadOnce(
+    'script[data-ai-opening-balance-v2-9-5]',
+    "js/ai-opening-balance-v2-9-5.js?v=opening-wtsd-recovery-v2-9-5",
+    "aiOpeningBalanceV295",
+  );
   // The dispatcher is loaded last so the betting loop always resolves the
   // current outer AI strategy rather than a stale global function binding.
   loadOnce(

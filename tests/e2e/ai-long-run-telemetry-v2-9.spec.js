@@ -81,11 +81,19 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
       { timeout: 15_000 },
     ).toBe("ready");
     await expect.poll(
-      () => page.evaluate(() => Boolean(botAction?.__aiOpeningBalanceV294Wrapper)),
+      () => page.evaluate(() => window.AiOpeningBalanceV295?.version || ""),
+      { timeout: 15_000 },
+    ).toBe("2.9.5");
+    await expect.poll(
+      () => page.evaluate(() => document.documentElement.dataset.aiOpeningBalanceV295 || ""),
+      { timeout: 15_000 },
+    ).toBe("ready");
+    await expect.poll(
+      () => page.evaluate(() => Boolean(botAction?.__aiOpeningBalanceV295Wrapper)),
       { timeout: 15_000 },
     ).toBe(true);
     await expect.poll(
-      () => page.evaluate(() => Boolean(botAction?.__previousBotAction?.__aiTierStrategyV292Wrapper)),
+      () => page.evaluate(() => Boolean(botAction?.__previousBotAction?.__aiOpeningBalanceV294Wrapper)),
       { timeout: 15_000 },
     ).toBe(true);
     await expect.poll(
@@ -103,16 +111,18 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
       () => page.evaluate(() => document.documentElement.dataset.aiTelemetryIntegrityV294 || ""),
       { timeout: 10_000 },
     ).toBe("ready");
+
     await page.evaluate(() => {
       window.EconomyFoldDefenseV1?.refresh?.();
       window.AiTierStrategyV292?.refresh?.();
       window.AiOpeningBalanceV294?.refresh?.();
+      window.AiOpeningBalanceV295?.refresh?.();
       window.AiTierStrategyV292?.resetRuntimeEvidence?.();
-      window.AiOpeningBalanceV294?.resetRuntimeEvidence?.();
+      window.AiOpeningBalanceV295?.resetRuntimeEvidence?.();
       window.AiLongRunTelemetryIntegrityV294?.reset?.();
     });
     await expect.poll(
-      () => page.evaluate(() => Boolean(botAction?.__aiOpeningBalanceV294Wrapper)),
+      () => page.evaluate(() => Boolean(botAction?.__aiOpeningBalanceV295Wrapper)),
       { timeout: 15_000 },
     ).toBe(true);
 
@@ -136,7 +146,7 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
       window.AiTierStrategyV292?.runtimeEvidence?.() || null
     ));
     report.openingBalanceEvidence = await page.evaluate(() => (
-      window.AiOpeningBalanceV294?.runtimeEvidence?.() || null
+      window.AiOpeningBalanceV295?.runtimeEvidence?.() || null
     ));
     report.telemetryIntegrity = await page.evaluate(() => (
       window.AiLongRunTelemetryIntegrityV294?.snapshot?.({ finalize: true }) || null
@@ -181,7 +191,7 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
         publicInformationFailures: 0,
       },
       openingBalanceEvidence: {
-        version: "2.9.4",
+        version: "2.9.5",
         observerActive: true,
         fallbackDecisions: 0,
         publicInformationFailures: 0,
@@ -200,7 +210,7 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
     expect(report.schedulerErrors).toEqual([]);
     expect(pageErrors).toEqual([]);
     expect(report.strategyEvidence.totalV292Decisions).toBe(report.strategyEvidence.totalTargetedDecisions);
-    expect(report.openingBalanceEvidence.totalV294Decisions).toBe(
+    expect(report.openingBalanceEvidence.totalV295Decisions).toBe(
       report.openingBalanceEvidence.totalTargetedDecisions,
     );
     expect(report.openingBalanceEvidence.totalTargetedDecisions).toBeGreaterThanOrEqual(0);
