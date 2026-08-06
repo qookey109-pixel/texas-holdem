@@ -1,0 +1,13 @@
+AI V2.9.3 middle/elite preflop recovery evidence run.
+
+Reason:
+- Valid V2.9.2 run 31083682227 completed 25,000 hands and proved runtime strategy coverage.
+- That report exposed middle-tier VPIP 0.0018% and elite-tier VPIP 0.0000%.
+- V2.8 treated a missing preflop equity proxy as 0.001, causing the EV guard to fold almost every middle/elite preflop decision.
+
+This trigger launches a fresh 50 × 500-hand run after merge with:
+- V2.9.3 public-own-hand preflop proxy recovery;
+- the existing V2.9.2 coverage and fairness evidence;
+- full-run participation gates requiring middle and elite VPIP of at least 3%.
+
+Previous valid runtime-evidence run: 31083682227
