@@ -99,7 +99,7 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
     await expect.poll(
       () => page.evaluate(() => window.EconomyFoldDefenseV1?.version || ""),
       { timeout: 15_000 },
-    ).toBe("1.0.1");
+    ).toBe("1.1.0");
 
     const integritySource = await readFile(INTEGRITY_SCRIPT, "utf8");
     await page.addScriptTag({ content: integritySource });
