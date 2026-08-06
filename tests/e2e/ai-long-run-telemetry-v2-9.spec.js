@@ -37,6 +37,20 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
       () => page.evaluate(() => document.documentElement.dataset.aiTierStrategyV28 || ""),
       { timeout: 15_000 },
     ).toBe("ready");
+    // The post-calibration evidence run must not begin until V2.9.2 has
+    // captured the stable V2.8 wrapper and become the active outer layer.
+    await expect.poll(
+      () => page.evaluate(() => window.AiTierStrategyV292?.version || ""),
+      { timeout: 15_000 },
+    ).toBe("2.9.2");
+    await expect.poll(
+      () => page.evaluate(() => document.documentElement.dataset.aiTierStrategyV292 || ""),
+      { timeout: 15_000 },
+    ).toBe("ready");
+    await expect.poll(
+      () => page.evaluate(() => Boolean(botAction?.__aiTierStrategyV292Wrapper)),
+      { timeout: 15_000 },
+    ).toBe(true);
     await expect.poll(
       () => page.evaluate(() => window.EconomyFoldDefenseV1?.version || ""),
       { timeout: 15_000 },
