@@ -32,7 +32,7 @@ function emptyRole() {
     v292Decisions: 0,
     adjustedDecisions: 0,
     fallbackDecisions: 0,
-    nonPublicDecisions: 0,
+    publicInformationFailures: 0,
     adjustments: {},
   };
 }
@@ -43,7 +43,7 @@ function addRole(target, source = {}) {
     "v292Decisions",
     "adjustedDecisions",
     "fallbackDecisions",
-    "nonPublicDecisions",
+    "publicInformationFailures",
   ]) {
     target[field] += Number(source[field]) || 0;
   }
@@ -69,7 +69,7 @@ const totals = {
   v292Decisions: 0,
   adjustedDecisions: 0,
   fallbackDecisions: 0,
-  nonPublicDecisions: 0,
+  publicInformationFailures: 0,
   byRole: Object.fromEntries(TARGETS.map(name => [name, emptyRole()])),
 };
 const errors = [];
@@ -83,26 +83,22 @@ for (const path of files) {
     continue;
   }
 
-  for (const field of [
-    "targetedDecisions",
-    "v292Decisions",
-    "adjustedDecisions",
-    "fallbackDecisions",
-    "nonPublicDecisions",
-  ]) {
-    totals[field] += Number(evidence[field]) || 0;
-  }
-  if ((Number(evidence.v292Decisions) || 0) !== (Number(evidence.targetedDecisions) || 0)) {
-    errors.push(`${label}: V2.9.2 coverage ${evidence.v292Decisions}/${evidence.targetedDecisions}`);
-  }
-  if (Number(evidence.fallbackDecisions) || 0) {
-    errors.push(`${label}: fallback decisions ${evidence.fallbackDecisions}`);
-  }
-  if (Number(evidence.nonPublicDecisions) || 0) {
-    errors.push(`${label}: non-public decisions ${evidence.nonPublicDecisions}`);
-  }
+  const targeted = Number(evidence.totalTargetedDecisions) || 0;
+  const v292 = Number(evidence.totalV292Decisions) || 0;
+  const adjusted = Number(evidence.totalAdjustedDecisions) || 0;
+  const fallback = Number(evidence.fallbackDecisions) || 0;
+  const publicFailures = Number(evidence.publicInformationFailures) || 0;
+  totals.targetedDecisions += targeted;
+  totals.v292Decisions += v292;
+  totals.adjustedDecisions += adjusted;
+  totals.fallbackDecisions += fallback;
+  totals.publicInformationFailures += publicFailures;
 
-  for (const name of TARGETS) addRole(totals.byRole[name], evidence.byRole?.[name]);
+  if (v292 !== targeted) errors.push(`${label}: V2.9.2 coverage ${v292}/${targeted}`);
+  if (fallback) errors.push(`${label}: fallback decisions ${fallback}`);
+  if (publicFailures) errors.push(`${label}: public-information failures ${publicFailures}`);
+
+  for (const name of TARGETS) addRole(totals.byRole[name], evidence.roles?.[name]);
 }
 
 if (totals.targetedDecisions <= 0) errors.push("no calibrated-role decisions were observed");
@@ -110,7 +106,9 @@ if (totals.v292Decisions !== totals.targetedDecisions) {
   errors.push(`aggregate V2.9.2 coverage ${totals.v292Decisions}/${totals.targetedDecisions}`);
 }
 if (totals.fallbackDecisions) errors.push(`aggregate fallback decisions ${totals.fallbackDecisions}`);
-if (totals.nonPublicDecisions) errors.push(`aggregate non-public decisions ${totals.nonPublicDecisions}`);
+if (totals.publicInformationFailures) {
+  errors.push(`aggregate public-information failures ${totals.publicInformationFailures}`);
+}
 
 const fullEvidence = expectedHands >= 25_000;
 if (fullEvidence) {
