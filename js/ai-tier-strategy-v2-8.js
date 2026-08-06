@@ -28,7 +28,6 @@
     Oracle: { samples: 560, sizes: [0.28, 0.48, 0.72, 1.05], margin: 0.004, mix: 0.012 },
     Chronos: { samples: 800, sizes: [0.25, 0.45, 0.68, 0.95, 1.28], margin: 0.002, mix: 0.008 },
   });
-  let previousBotAction = null;
   let wrappedBotAction = null;
   let timer = 0;
   let attempts = 0;
@@ -400,7 +399,7 @@
   function install() {
     if (typeof botAction !== "function") return false;
     if (wrappedBotAction === botAction) return true;
-    previousBotAction = botAction;
+    const previous = botAction;
     wrappedBotAction = function botActionWithTierStrategyV28(player) {
       try {
         if (OPENING.includes(player?.name)) return perform(player, chooseOpeningDecision(player));
@@ -412,7 +411,7 @@
       } catch (error) {
         console.warn("AI V2.8 tier strategy fallback", player?.name, error);
       }
-      return previousBotAction.apply(this, arguments);
+      return previous.apply(this, arguments);
     };
     wrappedBotAction.__aiTierStrategyV28Wrapper = true;
     botAction = wrappedBotAction;
@@ -461,9 +460,13 @@
     refresh,
   });
 
-  const initiallyReady = refresh();
-  setTimeout(refresh, 0); setTimeout(refresh, 80); setTimeout(refresh, 300);
-  if (!initiallyReady) timer = setInterval(refresh, 25);
+  registerProfiles();
+  document.documentElement.dataset.aiTierStrategyV28 = "loading";
+  // V2.7 has bounded 0/80/300 ms compatibility refreshes. Install only after
+  // those settle so its legacy mutable wrapper cannot capture V2.8 and form a cycle.
+  setTimeout(() => {
+    if (!refresh() && !timer) timer = setInterval(refresh, 25);
+  }, 420);
   if (document.body && typeof MutationObserver === "function") {
     new MutationObserver(() => {
       if (profileFrame) return;
