@@ -183,11 +183,17 @@
     "js/ai-tiered-multiway-equity-v2-7.js?v=tiered-multiway-equity-v2-7",
     "aiTieredMultiwayEquityV27",
   );
-  // V2.8 is intentionally last: it consumes the complete V2.7 chain and
-  // becomes the single tier-quality execution layer for local AI characters.
+  // V2.8 consumes the complete V2.7 chain and remains the source strategy.
   loadOnce(
     'script[data-ai-tier-strategy-v2-8]',
     "js/ai-tier-strategy-v2-8.js?v=tier-quality-v2-8",
     "aiTierStrategyV28",
+  );
+  // V2.9.2 is intentionally last and only applies evidence-backed guards to
+  // Pao, Shark, Oracle and Chronos without changing the remaining strategies.
+  loadOnce(
+    'script[data-ai-tier-strategy-v2-9-2]',
+    "js/ai-tier-strategy-v2-9-2.js?v=evidence-calibration-v2-9-2",
+    "aiTierStrategyV292",
   );
 })();
