@@ -1,0 +1,10 @@
+AI V2.9 full evidence run
+
+profile=full
+shards=50
+hands_per_shard=500
+expected_hands=25000
+requested_at=2026-08-06T12:00:00+08:00
+source_commit=a13d4df55ab7397356254cf8c5a5455b69ddbdbd
+
+This marker intentionally triggers the main-branch AI long-run telemetry workflow after merge.
