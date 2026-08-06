@@ -1,4 +1,4 @@
-// AI V2.9.3: restore valid middle/elite preflop strength before V2.8 EV guards.
+// AI V2.9.3: route middle/elite preflop decisions back to the proven range chain.
 (() => {
   "use strict";
 
@@ -12,58 +12,22 @@
   let installTimer = 0;
   let installAttempts = 0;
 
-  function clamp(value, minimum = 0.01, maximum = 0.99) {
-    return Math.min(maximum, Math.max(minimum, Number(value) || 0));
+  function isPreflop() {
+    return (state?.board?.length || 0) < 3;
   }
 
-  function decisionStreet(decision) {
-    const explicit = String(decision?.context?.street || "").toLowerCase();
-    if (explicit) return explicit;
-    return (state?.board?.length || 0) >= 3 ? "postflop" : "preflop";
+  function shouldDelegate(player) {
+    return SUPPORTED_NAMES.includes(player?.name) && isPreflop();
   }
 
-  function usableProxy(value) {
-    const numeric = Number(value);
-    return Number.isFinite(numeric) && numeric > 0.001 ? clamp(numeric) : null;
-  }
-
-  function preflopStrengthProxy(player, decision) {
-    const existing = usableProxy(decision?.equityProxy)
-      ?? usableProxy(decision?.context?.equityProxy)
-      ?? usableProxy(decision?.hand?.score);
-    if (existing !== null) return { value: existing, source: "decision" };
-
-    try {
-      const estimated = usableProxy(typeof estimateStrength === "function" ? estimateStrength(player) : null);
-      if (estimated !== null) return { value: estimated, source: "public-own-hand-strength" };
-    } catch (_) {
-      // Fall through to the neutral proxy. The caller still receives a legal,
-      // public-information-only decision rather than the old 0.001 sentinel.
-    }
-
-    return { value: 0.5, source: "neutral-fallback" };
-  }
-
-  function recoverDecision(player, decision) {
-    if (!decision || decision.action === "fallback") return decision;
-    if (!SUPPORTED_NAMES.includes(player?.name)) return decision;
-    if (decisionStreet(decision) !== "preflop") return decision;
-
-    const proxy = preflopStrengthProxy(player, decision);
-    const context = decision.context || {};
-    decision.context = {
-      ...context,
-      equityProxy: proxy.value,
-      preflopEquityProxy: proxy.value,
+  function fallbackDecision(player) {
+    return {
+      action: "fallback",
+      reason: "v2-9-3-preflop-delegate",
+      tier: SUPPORTED_NAMES.slice(0, 6).includes(player?.name) ? "middle" : "elite",
+      preflopRecoveryVersion: VERSION,
+      publicInformationOnly: true,
     };
-    decision.equityProxy = proxy.value;
-    if (usableProxy(decision.raiseCalledEquity) === null) {
-      decision.raiseCalledEquity = proxy.value;
-    }
-    decision.preflopEquityProxySource = proxy.source;
-    decision.preflopRecoveryVersion = VERSION;
-    decision.publicInformationOnly = true;
-    return decision;
   }
 
   function patchDecisionChain() {
@@ -75,7 +39,8 @@
     const patched = Object.freeze({
       ...source,
       composeDecision(player, options = {}) {
-        return recoverDecision(player, originalComposeDecision(player, options));
+        if (shouldDelegate(player)) return fallbackDecision(player);
+        return originalComposeDecision(player, options);
       },
       preflopRecoveryVersion: VERSION,
       __aiMidElitePreflopRecoveryV293Patched: true,
@@ -110,7 +75,9 @@
       futureBoardAnswer: false,
       predeterminedWinner: false,
     }),
-    recoverDecision,
+    isPreflop,
+    shouldDelegate,
+    fallbackDecision,
     refresh,
   });
 
