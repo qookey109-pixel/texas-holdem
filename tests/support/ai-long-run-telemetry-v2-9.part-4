@@ -1,0 +1,202 @@
+              pendingTimers: scheduler.details(),
+            });
+            break;
+          }
+
+          maximumPendingTimers = Math.max(maximumPendingTimers, scheduler.size());
+          if (state.waitingForHuman && state.currentActorIndex === 0) {
+            chooseHeroAction(heroProfile, humanDecisions, random);
+            humanDecisions += 1;
+            events += 1;
+            continue;
+          }
+
+          const before = {
+            street: state.street,
+            actor: state.currentActorIndex,
+            pot: state.pot,
+            handOver: state.handOver,
+            pending: scheduler.size(),
+          };
+          const timer = scheduler.runNext();
+          if (!timer) {
+            window.continueBetting();
+            const unchanged = before.street === state.street
+              && before.actor === state.currentActorIndex
+              && before.pot === state.pot
+              && before.handOver === state.handOver
+              && scheduler.size() === 0
+              && !state.waitingForHuman;
+            if (unchanged) {
+              stuckReason = "no-scheduled-progress";
+              break;
+            }
+          }
+          events += 1;
+        }
+
+        maximumEvents = Math.max(maximumEvents, events);
+        if (!state.handOver && !failures.length) {
+          failures.push({
+            handNumber: state.handNumber,
+            event: events,
+            errors: [stuckReason || "event-guard-exhausted"],
+            street: state.street,
+            actor: state.currentActorIndex,
+            pendingTimers: scheduler.details(),
+          });
+        }
+
+        const finalValidation = validateState(expectedChips);
+        if (finalValidation.errors.length && !failures.length) {
+          failures.push({
+            handNumber: state.handNumber,
+            event: events,
+            errors: finalValidation.errors,
+            street: state.street,
+            actor: state.currentActorIndex,
+          });
+        }
+
+        const activeAtEnd = state.players.filter(player => !player.folded);
+        const showdown = state.board.length === 5 && activeAtEnd.length >= 2;
+        const winnerNames = new Set(state.winners || []);
+        for (const player of state.players) {
+          const metric = counts[player.name];
+          if (!metric) continue;
+          const flags = activeHand.flags.get(player.name);
+          const profileCounts = metric.byHeroProfile[heroProfile];
+          if (flags?.vpip) { metric.vpipHands += 1; profileCounts.vpipHands += 1; }
+          if (flags?.pfr) { metric.pfrHands += 1; profileCounts.pfrHands += 1; }
+          const sawFlop = state.board.length >= 3 && flags?.foldStreet !== "preflop";
+          const wentShowdown = showdown && !player.folded;
+          const won = winnerNames.has(player.name);
+          if (sawFlop) {
+            metric.sawFlopHands += 1;
+            profileCounts.sawFlopHands += 1;
+            if (won) { metric.flopWins += 1; profileCounts.flopWins += 1; }
+          }
+          if (wentShowdown) {
+            metric.showdownHands += 1;
+            profileCounts.showdownHands += 1;
+            if (won) { metric.showdownWins += 1; profileCounts.showdownWins += 1; }
+          }
+          if (won) metric.wins += 1;
+          if (player.stack <= 0) metric.busts += 1;
+          const startWealth = activeHand.startingWealth.get(player.name);
+          if (Number.isFinite(startWealth)) {
+            const deltaBb = (Number(player.stack) - startWealth) / bigBlind;
+            metric.bbWon += deltaBb;
+            metric.bbSquared += deltaBb * deltaBb;
+            profileCounts.bbWon += deltaBb;
+            profileCounts.bbSquared += deltaBb * deltaBb;
+          }
+        }
+
+        if (state.handOver && finalValidation.totalChips === expectedChips) handsCompleted += 1;
+        if (handSummaries.length < 30) {
+          handSummaries.push({
+            handNumber: state.handNumber,
+            heroProfile,
+            lineup: startingLineup,
+            events,
+            boardCount: state.board.length,
+            winners: [...(state.winners || [])],
+            bigBlind,
+          });
+        }
+
+        cleanupTimers();
+        activeHand = null;
+        if (failures.length) break;
+      }
+    } catch (error) {
+      failures.push({ handNumber: state?.handNumber || 0, errors: [String(error?.stack || error)] });
+    } finally {
+      cleanupTimers();
+      AI_ROSTER.splice(0, AI_ROSTER.length, ...originals.roster);
+      window.render = originals.render;
+      window.log = originals.log;
+      window.logAction = originals.logAction;
+      window.animateChips = originals.animateChips;
+      window.animateWinChips = originals.animateWinChips;
+      window.pulsePot = originals.pulsePot;
+      window.announce = originals.announce;
+      window.announceAction = originals.announceAction;
+      window.say = originals.say;
+      window.tableTalk = originals.tableTalk;
+      window.showWinBanner = originals.showWinBanner;
+      Math.random = originals.random;
+      Date.now = originals.dateNow;
+      window.setTimeout = originals.setTimeout;
+      window.clearTimeout = originals.clearTimeout;
+      window.setInterval = originals.setInterval;
+      window.clearInterval = originals.clearInterval;
+    }
+
+    const roleSummaries = Object.fromEntries(LOCAL_NAMES.map(name => [name, summarizeCounts(counts[name])]));
+    const fairness = publicFairnessSnapshot();
+    const deterministicPayload = {
+      schemaVersion: SCHEMA_VERSION,
+      labVersion: VERSION,
+      seed,
+      shardIndex,
+      shardCount,
+      configuredHands: hands,
+      completedHands: handsCompleted,
+      heroProfile,
+      lineupOffset: offset,
+      roleCounts: counts,
+      failures,
+      schedulerErrors: scheduler.errors,
+      fairness,
+    };
+    const report = {
+      ...deterministicPayload,
+      deterministicFingerprint: fingerprint(deterministicPayload),
+      roles: roleSummaries,
+      activeRoles: LOCAL_NAMES.filter(name => counts[name].hands > 0),
+      humanDecisions,
+      maximumEvents,
+      maximumPendingTimers,
+      sampleHands: handSummaries,
+      performance: { elapsedMs: round(performance.now() - startedAt, 3) },
+    };
+    return report;
+  }
+
+  function toMarkdown(report) {
+    const rows = Object.values(report.roles || {})
+      .filter(role => role.hands > 0)
+      .sort((left, right) => right.bb100 - left.bb100)
+      .map(role => `| ${role.name} | ${role.tier} | ${role.targetScore10.toFixed(1)} | ${role.hands} | ${(role.vpip * 100).toFixed(1)}% | ${(role.pfr * 100).toFixed(1)}% | ${(role.threeBetRate * 100).toFixed(1)}% | ${(role.wtsd * 100).toFixed(1)}% | ${(role.wsd * 100).toFixed(1)}% | ${(role.wwsf * 100).toFixed(1)}% | ${role.bb100.toFixed(2)} |`);
+    return [
+      "# AI V2.9 Long-run Telemetry Shard",
+      "",
+      `- Lab: ${report.labVersion}`,
+      `- Shard: ${report.shardIndex + 1}/${report.shardCount}`,
+      `- Seed: ${report.seed}`,
+      `- Hero profile: ${report.heroProfile}`,
+      `- Hands: ${report.completedHands}/${report.configuredHands}`,
+      `- Fingerprint: \`${report.deterministicFingerprint}\``,
+      `- Fair public information: ${report.fairness?.publicInformationOnly ? "yes" : "no"}`,
+      "",
+      "| Role | Tier | Target | Hands | VPIP | PFR | 3-bet | WTSD | W$SD | WWSF | BB/100 |",
+      "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+      ...rows,
+      "",
+      `Failures: ${report.failures?.length || 0}; scheduler errors: ${report.schedulerErrors?.length || 0}.`,
+    ].join("\n");
+  }
+
+  window.AiLongRunTelemetryV29 = Object.freeze({
+    version: VERSION,
+    schemaVersion: SCHEMA_VERSION,
+    localNames: [...LOCAL_NAMES],
+    heroProfiles: [...HERO_PROFILES],
+    runShard,
+    summarizeCounts,
+    toMarkdown,
+    fingerprint,
+  });
+})();
