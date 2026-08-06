@@ -11,6 +11,7 @@ const BASE_SEED = Number.parseInt(process.env.AI_LONG_RUN_SEED_BASE || "26890246
 const LAB_PARTS = [1, 2, 3, 4].map(index => resolve(
   `tests/support/ai-long-run-telemetry-v2-9.part-${index}`,
 ));
+const INTEGRITY_SCRIPT = resolve("tests/support/ai-long-run-telemetry-integrity-v2-9-4.js");
 // Full shards can spend more than one second per hand on Boss range-equity paths.
 // Keep the Playwright limit below the workflow job limit while leaving enough
 // headroom for report serialization, assertions and artifact attachment.
@@ -37,8 +38,6 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
       () => page.evaluate(() => document.documentElement.dataset.aiTierStrategyV28 || ""),
       { timeout: 15_000 },
     ).toBe("ready");
-    // The post-calibration evidence run must not begin until V2.9.2 has
-    // captured the stable V2.8 wrapper and become the active outer layer.
     await expect.poll(
       () => page.evaluate(() => window.AiTierStrategyV292?.version || ""),
       { timeout: 15_000 },
@@ -48,22 +47,49 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
       { timeout: 15_000 },
     ).toBe("ready");
     await expect.poll(
-      () => page.evaluate(() => Boolean(botAction?.__aiTierStrategyV292Wrapper)),
+      () => page.evaluate(() => window.AiOpeningBalanceV294?.version || ""),
+      { timeout: 15_000 },
+    ).toBe("2.9.4");
+    await expect.poll(
+      () => page.evaluate(() => document.documentElement.dataset.aiOpeningBalanceV294 || ""),
+      { timeout: 15_000 },
+    ).toBe("ready");
+    await expect.poll(
+      () => page.evaluate(() => Boolean(botAction?.__aiOpeningBalanceV294Wrapper)),
+      { timeout: 15_000 },
+    ).toBe(true);
+    await expect.poll(
+      () => page.evaluate(() => Boolean(botAction?.__previousBotAction?.__aiTierStrategyV292Wrapper)),
       { timeout: 15_000 },
     ).toBe(true);
     await expect.poll(
       () => page.evaluate(() => window.EconomyFoldDefenseV1?.version || ""),
       { timeout: 15_000 },
     ).toBe("1.0.1");
+
+    const integritySource = await readFile(INTEGRITY_SCRIPT, "utf8");
+    await page.addScriptTag({ content: integritySource });
+    await expect.poll(
+      () => page.evaluate(() => window.AiLongRunTelemetryIntegrityV294?.version || ""),
+      { timeout: 10_000 },
+    ).toBe("2.9.4");
     await page.evaluate(() => {
       window.EconomyFoldDefenseV1?.refresh?.();
       window.AiTierStrategyV292?.refresh?.();
+      window.AiOpeningBalanceV294?.refresh?.();
       window.AiTierStrategyV292?.resetRuntimeEvidence?.();
+      window.AiOpeningBalanceV294?.resetRuntimeEvidence?.();
+      window.AiLongRunTelemetryIntegrityV294?.reset?.();
+      window.AiLongRunTelemetryIntegrityV294?.install?.();
     });
     await expect.poll(
-      () => page.evaluate(() => Boolean(botAction?.__aiTierStrategyV292Wrapper)),
+      () => page.evaluate(() => Boolean(botAction?.__aiOpeningBalanceV294Wrapper)),
       { timeout: 15_000 },
     ).toBe(true);
+    await expect.poll(
+      () => page.evaluate(() => document.documentElement.dataset.aiTelemetryIntegrityV294 || ""),
+      { timeout: 10_000 },
+    ).toBe("ready");
 
     const labSource = (await Promise.all(LAB_PARTS.map(path => readFile(path, "utf8")))).join("");
     await page.addScriptTag({ content: labSource });
@@ -83,6 +109,13 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
     report.strategyEvidence = await page.evaluate(() => (
       window.AiTierStrategyV292?.runtimeEvidence?.() || null
     ));
+    report.openingBalanceEvidence = await page.evaluate(() => (
+      window.AiOpeningBalanceV294?.runtimeEvidence?.() || null
+    ));
+    report.telemetryIntegrity = await page.evaluate(() => (
+      window.AiLongRunTelemetryIntegrityV294?.snapshot?.({ finalize: true }) || null
+    ));
+    await page.evaluate(() => window.AiLongRunTelemetryIntegrityV294?.uninstall?.());
     const markdown = await page.evaluate(value => (
       window.AiLongRunTelemetryV29.toMarkdown(value)
     ), report);
@@ -122,11 +155,29 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
         fallbackDecisions: 0,
         publicInformationFailures: 0,
       },
+      openingBalanceEvidence: {
+        version: "2.9.4",
+        observerActive: true,
+        fallbackDecisions: 0,
+        publicInformationFailures: 0,
+      },
+      telemetryIntegrity: {
+        version: "2.9.4",
+        schemaVersion: 1,
+        definition: "postflop-showdown-hands/showdown-eligible-hands-excluding-preflop-all-in",
+        completedHands: HANDS,
+        integrityPassed: true,
+        errors: [],
+      },
     });
     expect(report.failures).toEqual([]);
     expect(report.schedulerErrors).toEqual([]);
     expect(pageErrors).toEqual([]);
     expect(report.strategyEvidence.totalV292Decisions).toBe(report.strategyEvidence.totalTargetedDecisions);
+    expect(report.openingBalanceEvidence.totalV294Decisions).toBe(
+      report.openingBalanceEvidence.totalTargetedDecisions,
+    );
+    expect(report.openingBalanceEvidence.totalTargetedDecisions).toBeGreaterThan(0);
     expect(report.activeRoles.length).toBeGreaterThanOrEqual(5);
     expect(report.humanDecisions).toBeGreaterThan(0);
     expect(report.maximumEvents).toBeGreaterThan(0);
@@ -142,5 +193,10 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
     ), 0);
     expect(recordedActions).toBeGreaterThan(0);
     expect(activeSummaries.every(role => Number.isFinite(role.bb100))).toBe(true);
+    const integrityRoles = Object.values(report.telemetryIntegrity.roles || {})
+      .filter(role => role.hands > 0);
+    expect(integrityRoles.length).toBeGreaterThanOrEqual(5);
+    expect(integrityRoles.every(role => role.integrityPassed)).toBe(true);
+    expect(integrityRoles.every(role => role.postflopShowdownHands <= role.showdownEligibleHands)).toBe(true);
   });
 });
