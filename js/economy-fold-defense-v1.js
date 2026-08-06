@@ -4,7 +4,7 @@
 
   if (window.EconomyFoldDefenseV1?.version) return;
 
-  const VERSION = "1.0.1";
+  const VERSION = "1.1.0";
   const STORAGE_KEY = "texasHoldemEconomyFoldDefenseV1";
   const OPENING = new Set(["Leo", "Toto", "Foxy", "Wolf", "Pao", "Shark"]);
   const MIDDLE = new Set(["Ace", "Momo", "Nori", "Bruno", "Dodo", "Viper"]);
@@ -16,13 +16,13 @@
     Nova: .58, "Unit-9": .50, Merlin: .54, Vlad: .64,
   });
   const CATCHUP = Object.freeze({
-    special: Object.freeze({ min: 40, target: 55, max: 75 }),
-    gemini: Object.freeze({ min: 50, target: 65, max: 90 }),
+    special: Object.freeze({ min: 40, warning: 50, target: 55, pressure: 60, max: 75 }),
+    gemini: Object.freeze({ min: 50, warning: 58, target: 65, pressure: 72, max: 90 }),
   });
   const CONFIG = Object.freeze({
     normal: Object.freeze({ average: .70, buyInCap: .60, minBb: 20, maxBb: 50 }),
     tight: Object.freeze({ hands: 8, vpip: .18, preflopFold: .70 }),
-    leadTrigger: 1.8,
+    lead: Object.freeze({ warning: 1.7, standard: 1.8, target: 2.0, pressure: 2.2, maximum: 3.5 }),
   });
 
   let attempts = 0;
@@ -42,6 +42,10 @@
   function roundUnit(value, unit = 10) {
     const chipUnit = Math.max(1, finite(unit, 10));
     return Math.max(0, Math.round(finite(value) / chipUnit) * chipUnit);
+  }
+
+  function interpolate(start, end, progress) {
+    return start + (end - start) * clamp(progress, 0, 1);
   }
 
   function normalizeAction(action) {
@@ -197,15 +201,62 @@
     const bb = Math.max(1, finite(bigBlind, 20));
     const sb = Math.max(1, finite(smallBlind, bb / 2));
     const base = Math.max(0, finite(baseStack));
+    const baseBb = base / bb;
     const ratio = finite(secondStack) > 0 ? finite(heroStack) / finite(secondStack) : 0;
-    if (!profile || ratio < CONFIG.leadTrigger) {
-      return { stack: base, actualEntryBb: base / bb, adjusted: false, leadRatio: ratio, tier };
+    if (!profile || ratio < CONFIG.lead.warning) {
+      return {
+        stack: base,
+        actualEntryBb: baseBb,
+        adjusted: false,
+        leadRatio: ratio,
+        tier,
+        catchupPhase: "inactive",
+      };
     }
-    const intensity = clamp((ratio - CONFIG.leadTrigger) / 1.7, 0, 1);
-    const desired = profile.target + (profile.max - profile.target) * intensity;
-    const actual = clamp(Math.max(base / bb, desired), profile.min, profile.max);
+
+    let desired = baseBb;
+    let catchupPhase = "warning";
+    if (ratio < CONFIG.lead.standard) {
+      desired = interpolate(
+        baseBb,
+        profile.warning,
+        (ratio - CONFIG.lead.warning) / (CONFIG.lead.standard - CONFIG.lead.warning),
+      );
+    } else if (ratio < CONFIG.lead.target) {
+      catchupPhase = "standard";
+      desired = interpolate(
+        profile.warning,
+        profile.target,
+        (ratio - CONFIG.lead.standard) / (CONFIG.lead.target - CONFIG.lead.standard),
+      );
+    } else if (ratio < CONFIG.lead.pressure) {
+      catchupPhase = "target";
+      desired = interpolate(
+        profile.target,
+        profile.pressure,
+        (ratio - CONFIG.lead.target) / (CONFIG.lead.pressure - CONFIG.lead.target),
+      );
+    } else {
+      catchupPhase = "maximum";
+      desired = interpolate(
+        profile.pressure,
+        profile.max,
+        (ratio - CONFIG.lead.pressure) / (CONFIG.lead.maximum - CONFIG.lead.pressure),
+      );
+    }
+
+    const actual = clamp(Math.max(baseBb, desired), profile.min, profile.max);
     const stack = roundUnit(actual * bb, sb);
-    return { stack, actualEntryBb: stack / bb, adjusted: stack > base, leadRatio: ratio, tier, profile };
+    return {
+      stack,
+      actualEntryBb: stack / bb,
+      desiredEntryBb: desired,
+      adjusted: stack > base,
+      leadRatio: ratio,
+      tier,
+      catchupPhase,
+      profile,
+    };
   }
 
   function installBossCatchup() {
@@ -423,7 +474,14 @@
     config: Object.freeze({
       normalRebuy: Object.freeze({ tableAverageRatio: .70, buyInRatioCap: .60, minBigBlinds: 20, maxBigBlinds: 50 }),
       tightness: Object.freeze({ minimumHands: 8, lowVpipThreshold: .18, preflopFoldThreshold: .70 }),
-      catchup: Object.freeze({ heroLeadTrigger: 1.8, profiles: CATCHUP }),
+      catchup: Object.freeze({
+        heroLeadTrigger: CONFIG.lead.warning,
+        softWarningRange: Object.freeze([CONFIG.lead.warning, CONFIG.lead.standard]),
+        targetLeadRatio: CONFIG.lead.target,
+        pressureLeadRatio: CONFIG.lead.pressure,
+        maximumLeadRatio: CONFIG.lead.maximum,
+        profiles: CATCHUP,
+      }),
     }),
     fairInformationPolicy: Object.freeze({
       ownHoleCards: true, publicBoard: true, publicActions: true, publicPositions: true,
