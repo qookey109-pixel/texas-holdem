@@ -1,0 +1,220 @@
+      : 100;
+    const shardIndex = Math.max(0, Number.parseInt(options.shardIndex ?? 0, 10) || 0);
+    const shardCount = Math.max(1, Number.parseInt(options.shardCount ?? 1, 10) || 1);
+    const baseSeed = Number.parseInt(options.baseSeed ?? 0x290806, 10) || 0x290806;
+    const seed = (baseSeed ^ Math.imul(shardIndex + 1, 0x9e3779b1)) >>> 0;
+    const heroProfile = HERO_PROFILES[shardIndex % HERO_PROFILES.length];
+    const maxEventsPerHand = Math.max(100, Number(options.maxEventsPerHand) || DEFAULT_MAX_EVENTS_PER_HAND);
+    const startedAt = performance.now();
+
+    window.AiTimingController?.clear?.();
+    window.GeminiAsyncBettingLoop?.cancelPending?.();
+    if (typeof clearAutoNewHandTimer === "function") clearAutoNewHandTimer();
+    if (typeof clearDialogueTimers === "function") clearDialogueTimers();
+
+    const originals = {
+      setTimeout: window.setTimeout,
+      clearTimeout: window.clearTimeout,
+      setInterval: window.setInterval,
+      clearInterval: window.clearInterval,
+      random: Math.random,
+      dateNow: Date.now,
+      render: window.render,
+      log: window.log,
+      logAction: window.logAction,
+      animateChips: window.animateChips,
+      animateWinChips: window.animateWinChips,
+      pulsePot: window.pulsePot,
+      announce: window.announce,
+      announceAction: window.announceAction,
+      say: window.say,
+      tableTalk: window.tableTalk,
+      showWinBanner: window.showWinBanner,
+      roster: [...AI_ROSTER],
+    };
+
+    const scheduler = createVirtualScheduler(Date.parse("2026-08-06T03:00:00.000Z") + shardIndex * 10_000_000);
+    const random = seededRandom(seed);
+    window.setTimeout = (callback, delay = 0, ...args) => scheduler.schedule("timeout", callback, delay, args);
+    window.clearTimeout = scheduler.clear;
+    window.setInterval = (callback, delay = 0, ...args) => scheduler.schedule("interval", callback, delay, args);
+    window.clearInterval = scheduler.clear;
+    Date.now = scheduler.now;
+    Math.random = random;
+    window.render = () => {};
+    window.log = () => {};
+    window.animateChips = () => {};
+    window.animateWinChips = () => {};
+    window.pulsePot = () => {};
+    window.announce = () => {};
+    window.announceAction = () => {};
+    window.say = () => {};
+    window.tableTalk = () => {};
+    window.showWinBanner = () => {};
+
+    const originalByName = new Map(originals.roster.map(profile => [profile.name, profile]));
+    const offset = (shardIndex * 7) % LOCAL_NAMES.length;
+    const rotatedNames = LOCAL_NAMES.map((_, index) => LOCAL_NAMES[(offset + index) % LOCAL_NAMES.length]);
+    const rotatedProfiles = rotatedNames.map(name => originalByName.get(name)).filter(Boolean);
+    const remainderProfiles = originals.roster.filter(profile => !LOCAL_NAMES.includes(profile.name));
+    AI_ROSTER.splice(0, AI_ROSTER.length, ...rotatedProfiles, ...remainderProfiles);
+
+    const counts = Object.fromEntries(LOCAL_NAMES.map(name => [name, emptyRoleCounts(name)]));
+    const failures = [];
+    const handSummaries = [];
+    let activeHand = null;
+    let handsCompleted = 0;
+    let humanDecisions = 0;
+    let maximumEvents = 0;
+    let maximumPendingTimers = 0;
+
+    function metricFor(player) {
+      return counts[player?.name] || null;
+    }
+
+    function recordAction(player, action) {
+      const metric = metricFor(player);
+      if (!metric || !activeHand) return;
+      const street = streetKey();
+      const normalized = normalizeAction(action);
+      if (!normalized) return;
+      metric.actionCounts[street][normalized] += 1;
+      const flags = activeHand.flags.get(player.name);
+      const aggressive = isAggressiveAction(action);
+      const calling = isCallAction(action);
+
+      if (street === "preflop") {
+        if (
+          activeHand.preflopRaiseCount === 1
+          && player.name !== activeHand.opener
+          && !flags.threeBetOpportunityRecorded
+        ) {
+          flags.threeBetOpportunityRecorded = true;
+          metric.threeBetOpportunities += 1;
+        }
+        if (aggressive) {
+          if (activeHand.preflopRaiseCount === 0) {
+            activeHand.opener = player.name;
+            metric.openRaises += 1;
+          } else if (activeHand.preflopRaiseCount === 1) {
+            metric.threeBets += 1;
+            const openerMetric = counts[activeHand.opener];
+            const openerFlags = activeHand.flags.get(activeHand.opener);
+            if (openerMetric && openerFlags && !openerFlags.foldToThreeBetOpportunity) {
+              openerFlags.foldToThreeBetOpportunity = true;
+              openerMetric.foldToThreeBetOpportunities += 1;
+            }
+          } else {
+            metric.fourBetPlus += 1;
+          }
+          activeHand.preflopRaiseCount += 1;
+          activeHand.preflopAggressor = player.name;
+          flags.pfr = true;
+          flags.vpip = true;
+        } else if (calling) {
+          flags.vpip = true;
+        }
+
+        if (flags.foldToThreeBetOpportunity && !flags.foldToThreeBetResolved) {
+          flags.foldToThreeBetResolved = true;
+          if (normalized === "fold") metric.foldsToThreeBet += 1;
+        }
+      }
+
+      const checkedSet = activeHand.checked[street];
+      const facingSet = activeHand.checkRaiseFacing[street];
+      if (normalized === "check") checkedSet.add(player.name);
+      if (aggressive) {
+        for (const checkedName of checkedSet) {
+          if (checkedName === player.name || facingSet.has(checkedName)) continue;
+          const checkedPlayer = state.players.find(candidate => candidate?.name === checkedName);
+          if (!checkedPlayer || checkedPlayer.folded || checkedPlayer.allIn) continue;
+          const checkedMetric = counts[checkedName];
+          if (checkedMetric) checkedMetric.checkRaiseOpportunities += 1;
+          facingSet.add(checkedName);
+        }
+        if (facingSet.has(player.name)) metric.checkRaises += 1;
+        activeHand.streetAggressions[street] += 1;
+        metric.raisesWithSizing += 1;
+        metric.sizing[sizingBucket(player, action)] += 1;
+      }
+
+      if (
+        street === "flop"
+        && player.name === activeHand.preflopAggressor
+        && !activeHand.cbetOpportunityRecorded
+        && activeHand.streetAggressions.flop === (aggressive ? 1 : 0)
+      ) {
+        activeHand.cbetOpportunityRecorded = true;
+        metric.cbetOpportunities += 1;
+        if (aggressive) {
+          metric.cbets += 1;
+          activeHand.cbetActor = player.name;
+        }
+      }
+
+      if (
+        street === "flop"
+        && activeHand.cbetActor
+        && player.name !== activeHand.cbetActor
+        && !activeHand.cbetResponses.has(player.name)
+      ) {
+        activeHand.cbetResponses.add(player.name);
+        metric.foldToCbetOpportunities += 1;
+        if (normalized === "fold") metric.foldsToCbet += 1;
+      }
+
+      if (normalized === "fold" && !flags.foldStreet) flags.foldStreet = street;
+      if (calling) {
+        const callEv = Number(player?.lastStrategyDecision?.callEv);
+        if (Number.isFinite(callEv)) {
+          metric.callsWithEv += 1;
+          if (callEv < -activeHand.bigBlind * 0.04) metric.negativeEvCalls += 1;
+        }
+      }
+    }
+
+    window.logAction = function telemetryLogAction(player, action, amount = 0, note = "") {
+      recordAction(player, action);
+      return originals.logAction?.call(this, player, action, amount, note);
+    };
+
+    function cleanupTimers() {
+      window.AiTimingController?.clear?.();
+      window.GeminiAsyncBettingLoop?.cancelPending?.();
+      if (typeof clearAutoNewHandTimer === "function") clearAutoNewHandTimer();
+      if (typeof clearDialogueTimers === "function") clearDialogueTimers();
+      scheduler.clearAll();
+    }
+
+    try {
+      resetGameSession();
+      state.gameMode = "normal";
+      state.tournament = { active: false };
+      state.autoNewHand = false;
+      state.isMuted = true;
+      window.AiTimingController?.resetExperience?.();
+
+      for (let handIndex = 0; handIndex < hands; handIndex += 1) {
+        startHand();
+        const bigBlind = Math.max(1, currentBigBlind());
+        activeHand = createHandState(state.players, bigBlind, heroProfile);
+        const expectedChips = state.players.reduce((sum, player) => sum + player.stack, state.pot);
+        const startingNames = state.players.map(player => player.name);
+        const startingLineup = startingNames.filter(name => LOCAL_NAMES.includes(name));
+        for (const name of startingLineup) {
+          counts[name].hands += 1;
+          counts[name].byHeroProfile[heroProfile].hands += 1;
+        }
+
+        let events = 0;
+        let stuckReason = "";
+        while (!state.handOver && events < maxEventsPerHand) {
+          const validation = validateState(expectedChips);
+          if (validation.errors.length) {
+            failures.push({
+              handNumber: state.handNumber,
+              event: events,
+              errors: validation.errors,
+              street: state.street,
+              actor: state.currentActorIndex,
