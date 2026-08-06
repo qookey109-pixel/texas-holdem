@@ -1,4 +1,5 @@
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 
 const ENABLED = process.env.AI_LONG_RUN_TELEMETRY === "1";
@@ -7,7 +8,9 @@ const HANDS = Number.isInteger(requestedHands) ? Math.min(1_000, Math.max(1, req
 const SHARD_INDEX = Math.max(0, Number.parseInt(process.env.AI_LONG_RUN_SHARD || "0", 10) || 0);
 const SHARD_COUNT = Math.max(1, Number.parseInt(process.env.AI_LONG_RUN_SHARD_COUNT || "1", 10) || 1);
 const BASE_SEED = Number.parseInt(process.env.AI_LONG_RUN_SEED_BASE || "26890246", 10) || 26890246;
-const LAB_SCRIPT = "/tests/support/ai-long-run-telemetry-v2-9.js";
+const LAB_PARTS = [1, 2, 3, 4].map(index => resolve(
+  `tests/support/ai-long-run-telemetry-v2-9.part-${index}`,
+));
 const TIMEOUT_MS = Math.max(120_000, HANDS * 1_000);
 
 function padShard(value) {
@@ -32,7 +35,8 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
       { timeout: 15_000 },
     ).toBe(true);
 
-    await page.addScriptTag({ url: LAB_SCRIPT });
+    const labSource = (await Promise.all(LAB_PARTS.map(path => readFile(path, "utf8")))).join("");
+    await page.addScriptTag({ content: labSource });
     await expect.poll(
       () => page.evaluate(() => window.AiLongRunTelemetryV29?.version || ""),
       { timeout: 10_000 },
