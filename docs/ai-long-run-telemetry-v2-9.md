@@ -15,11 +15,16 @@ V2.9 不再增加新的策略包裝層，而是使用真實牌局引擎、真實
 ## 正式檔案
 
 ```text
-tests/support/ai-long-run-telemetry-v2-9.js
+tests/support/ai-long-run-telemetry-v2-9.part-1
+tests/support/ai-long-run-telemetry-v2-9.part-2
+tests/support/ai-long-run-telemetry-v2-9.part-3
+tests/support/ai-long-run-telemetry-v2-9.part-4
 tests/e2e/ai-long-run-telemetry-v2-9.spec.js
 scripts/aggregate-ai-long-run-telemetry-v2-9.mjs
 .github/workflows/ai-long-run-telemetry.yml
 ```
+
+四個 `part-*` 檔案是同一份依順序切分的瀏覽器遙測程式。Playwright 在注入前依 `1 → 4` 組合，方便審查長程式碼，同時避免把遙測模組加入正式網站載入鏈。
 
 ## 完整規模
 
