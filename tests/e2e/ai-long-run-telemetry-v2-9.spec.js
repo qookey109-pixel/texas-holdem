@@ -21,6 +21,32 @@ function padShard(value) {
   return String(value).padStart(3, "0");
 }
 
+function injectIntegrityHooks(source) {
+  const replacements = [
+    {
+      target: "    function recordAction(player, action) {\n      const metric = metricFor(player);",
+      replacement: "    function recordAction(player, action) {\n      window.AiLongRunTelemetryIntegrityV294?.recordAction?.(player, action);\n      const metric = metricFor(player);",
+    },
+    {
+      target: "        activeHand = createHandState(state.players, bigBlind, heroProfile);\n        const expectedChips",
+      replacement: "        activeHand = createHandState(state.players, bigBlind, heroProfile);\n        window.AiLongRunTelemetryIntegrityV294?.beginHand?.();\n        const expectedChips",
+    },
+    {
+      target: "        cleanupTimers();\n        activeHand = null;",
+      replacement: "        window.AiLongRunTelemetryIntegrityV294?.finalizeHand?.();\n        cleanupTimers();\n        activeHand = null;",
+    },
+  ];
+  let output = source;
+  for (const { target, replacement } of replacements) {
+    const matches = output.split(target).length - 1;
+    if (matches !== 1) {
+      throw new Error(`V2.9.4 telemetry hook target count ${matches}: ${target.slice(0, 72)}`);
+    }
+    output = output.replace(target, replacement);
+  }
+  return output;
+}
+
 test.describe("AI V2.9 long-run full-hand telemetry", () => {
   test.skip(!ENABLED, "Run with AI_LONG_RUN_TELEMETRY=1 or npm run test:ai-long-run:smoke");
   test.setTimeout(TIMEOUT_MS);
@@ -73,6 +99,10 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
       () => page.evaluate(() => window.AiLongRunTelemetryIntegrityV294?.version || ""),
       { timeout: 10_000 },
     ).toBe("2.9.4");
+    await expect.poll(
+      () => page.evaluate(() => document.documentElement.dataset.aiTelemetryIntegrityV294 || ""),
+      { timeout: 10_000 },
+    ).toBe("ready");
     await page.evaluate(() => {
       window.EconomyFoldDefenseV1?.refresh?.();
       window.AiTierStrategyV292?.refresh?.();
@@ -80,18 +110,14 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
       window.AiTierStrategyV292?.resetRuntimeEvidence?.();
       window.AiOpeningBalanceV294?.resetRuntimeEvidence?.();
       window.AiLongRunTelemetryIntegrityV294?.reset?.();
-      window.AiLongRunTelemetryIntegrityV294?.install?.();
     });
     await expect.poll(
       () => page.evaluate(() => Boolean(botAction?.__aiOpeningBalanceV294Wrapper)),
       { timeout: 15_000 },
     ).toBe(true);
-    await expect.poll(
-      () => page.evaluate(() => document.documentElement.dataset.aiTelemetryIntegrityV294 || ""),
-      { timeout: 10_000 },
-    ).toBe("ready");
 
-    const labSource = (await Promise.all(LAB_PARTS.map(path => readFile(path, "utf8")))).join("");
+    const rawLabSource = (await Promise.all(LAB_PARTS.map(path => readFile(path, "utf8")))).join("");
+    const labSource = injectIntegrityHooks(rawLabSource);
     await page.addScriptTag({ content: labSource });
     await expect.poll(
       () => page.evaluate(() => window.AiLongRunTelemetryV29?.version || ""),
@@ -115,7 +141,6 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
     report.telemetryIntegrity = await page.evaluate(() => (
       window.AiLongRunTelemetryIntegrityV294?.snapshot?.({ finalize: true }) || null
     ));
-    await page.evaluate(() => window.AiLongRunTelemetryIntegrityV294?.uninstall?.());
     const markdown = await page.evaluate(value => (
       window.AiLongRunTelemetryV29.toMarkdown(value)
     ), report);
@@ -165,6 +190,7 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
         version: "2.9.4",
         schemaVersion: 1,
         definition: "postflop-showdown-hands/showdown-eligible-hands-excluding-preflop-all-in",
+        hookMode: "explicit-lab-hooks",
         completedHands: HANDS,
         integrityPassed: true,
         errors: [],
