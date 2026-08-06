@@ -6,6 +6,7 @@
   const VERSION = "2.9.2";
   const CALIBRATED_OPENING = Object.freeze(["Pao", "Shark"]);
   const SPECIAL = Object.freeze(["Oracle", "Chronos"]);
+  const TARGET_NAMES = Object.freeze([...CALIBRATED_OPENING, ...SPECIAL]);
   const NEGATIVE_EV_BIG_BLIND_FRACTION = 0.04;
   const OPENING_GUARDS = Object.freeze({
     Pao: Object.freeze({
@@ -30,6 +31,67 @@
   let wrappedBotAction = null;
   let timer = 0;
   let attempts = 0;
+  let runtimeEvidence = createRuntimeEvidence();
+
+  function createRoleEvidence() {
+    return {
+      targetedDecisions: 0,
+      v292Decisions: 0,
+      adjustedDecisions: 0,
+      fallbackDecisions: 0,
+      publicInformationFailures: 0,
+      adjustments: {},
+    };
+  }
+
+  function createRuntimeEvidence() {
+    return {
+      version: VERSION,
+      observerActive: true,
+      totalTargetedDecisions: 0,
+      totalV292Decisions: 0,
+      totalAdjustedDecisions: 0,
+      fallbackDecisions: 0,
+      publicInformationFailures: 0,
+      roles: Object.fromEntries(TARGET_NAMES.map(name => [name, createRoleEvidence()])),
+    };
+  }
+
+  function resetRuntimeEvidence() {
+    runtimeEvidence = createRuntimeEvidence();
+    return runtimeEvidenceSnapshot();
+  }
+
+  function runtimeEvidenceSnapshot() {
+    return JSON.parse(JSON.stringify(runtimeEvidence));
+  }
+
+  function recordTargetedDecision(player, decision, { fallback = false } = {}) {
+    const name = player?.name;
+    if (!TARGET_NAMES.includes(name)) return;
+    const role = runtimeEvidence.roles[name];
+    runtimeEvidence.totalTargetedDecisions += 1;
+    role.targetedDecisions += 1;
+
+    if (fallback || decision?.strategyVersion !== VERSION) {
+      runtimeEvidence.fallbackDecisions += 1;
+      role.fallbackDecisions += 1;
+      return;
+    }
+
+    runtimeEvidence.totalV292Decisions += 1;
+    role.v292Decisions += 1;
+    const adjustment = String(decision?.v292Adjustment || "none");
+    if (adjustment !== "none") {
+      runtimeEvidence.totalAdjustedDecisions += 1;
+      role.adjustedDecisions += 1;
+      role.adjustments[adjustment] = (role.adjustments[adjustment] || 0) + 1;
+    }
+    if (decision?.publicInformationOnly !== true) {
+      runtimeEvidence.publicInformationFailures += 1;
+      role.publicInformationFailures += 1;
+    }
+  }
 
   function clamp(value, minimum = 0, maximum = 1) {
     return Math.min(maximum, Math.max(minimum, Number(value) || 0));
@@ -267,7 +329,7 @@
   function registerProfiles() {
     if (typeof AI_ROSTER === "undefined") return false;
     for (const entity of [...AI_ROSTER, ...(state?.players || [])]) {
-      if (!entity || entity.isHuman || (!CALIBRATED_OPENING.includes(entity.name) && !SPECIAL.includes(entity.name))) continue;
+      if (!entity || entity.isHuman || !TARGET_NAMES.includes(entity.name)) continue;
       entity.aiTierCalibrationVersion = VERSION;
       entity.publicInformationOnly = true;
       if (SPECIAL.includes(entity.name)) {
@@ -284,19 +346,29 @@
     if (wrappedBotAction === botAction) return true;
     const previous = botAction;
     wrappedBotAction = function botActionWithEvidenceCalibrationV292(player) {
+      const targeted = TARGET_NAMES.includes(player?.name);
       try {
         const api = window.AiTierStrategyV28;
         if (CALIBRATED_OPENING.includes(player?.name)) {
-          const decision = api?.chooseOpeningDecision?.(player);
-          if (decision && decision.action !== "fallback") return perform(player, calibrateOpeningDecision(player, decision));
+          const source = api?.chooseOpeningDecision?.(player);
+          if (source && source.action !== "fallback") {
+            const decision = calibrateOpeningDecision(player, source);
+            recordTargetedDecision(player, decision);
+            return perform(player, decision);
+          }
         }
         if (SPECIAL.includes(player?.name)) {
-          const decision = api?.chooseBossDecision?.(player);
-          if (decision && decision.action !== "fallback") return perform(player, calibrateBossDecision(player, decision));
+          const source = api?.chooseBossDecision?.(player);
+          if (source && source.action !== "fallback") {
+            const decision = calibrateBossDecision(player, source);
+            recordTargetedDecision(player, decision);
+            return perform(player, decision);
+          }
         }
       } catch (error) {
         console.warn("AI V2.9.2 evidence calibration fallback", player?.name, error);
       }
+      if (targeted) recordTargetedDecision(player, null, { fallback: true });
       return previous.apply(this, arguments);
     };
     wrappedBotAction.__aiTierStrategyV292Wrapper = true;
@@ -352,6 +424,8 @@
     }),
     calibrateOpeningDecision,
     calibrateBossDecision,
+    resetRuntimeEvidence,
+    runtimeEvidence: runtimeEvidenceSnapshot,
     refresh,
   });
 
