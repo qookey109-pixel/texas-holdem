@@ -1,0 +1,3 @@
+AI V2.9.5 WTSD recovery R1 validation trigger.
+
+PR runs smoke telemetry only. After merge, run the unchanged 50 × 500-hand formal profile and require all existing VPIP, PFR, corrected WTSD, runtime coverage, fallback, public-information, fairness and integrity gates without relaxation.
