@@ -15,10 +15,11 @@ on:
       - "tests/support/ai-long-run-telemetry-v2-9.part-*"
       - "tests/support/ai-long-run-telemetry-integrity-v2-9-4.js"
       - "tests/e2e/ai-long-run-telemetry-v2-9.spec.js"
+      - "tests/e2e/ai-opening-balance-v2-9-5.spec.js"
       - "scripts/aggregate-ai-long-run-telemetry-v2-9.mjs"
       - "scripts/apply-ai-v2-9-4-telemetry-integrity.mjs"
       - "scripts/validate-ai-v2-9-2-telemetry-evidence.mjs"
-      - "scripts/validate-ai-v2-9-4-telemetry-evidence.mjs"
+      - "scripts/validate-ai-v2-9-5-telemetry-evidence.mjs"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/ai-long-run-telemetry.yml"
@@ -166,8 +167,8 @@ jobs:
       - name: Validate V2.9.2 runtime strategy evidence
         run: node scripts/validate-ai-v2-9-2-telemetry-evidence.mjs telemetry-shards telemetry-summary
 
-      - name: Validate V2.9.4 opening balance and WTSD integrity
-        run: node scripts/validate-ai-v2-9-4-telemetry-evidence.mjs telemetry-shards telemetry-summary
+      - name: Validate V2.9.5 opening balance and WTSD recovery
+        run: node scripts/validate-ai-v2-9-5-telemetry-evidence.mjs telemetry-shards telemetry-summary
 
       - name: Publish Markdown to workflow summary
         if: ${{ always() }}

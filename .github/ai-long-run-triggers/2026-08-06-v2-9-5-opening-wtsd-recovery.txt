@@ -1,0 +1,3 @@
+AI V2.9.5 formal evidence trigger.
+
+Run the unchanged 50 × 500-hand telemetry profile after merge. Validate Toto VPIP recovery, corrected WTSD discipline for Toto/Foxy/Leo/Wolf, V2.9.2 and V2.9.5 runtime coverage, fallback=0, public-information failures=0, fairness, and WTSD integrity without relaxing the existing role bounds.
