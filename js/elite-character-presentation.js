@@ -195,12 +195,19 @@
     "js/ai-tier-strategy-v2-9-2.js?v=evidence-calibration-v2-9-2",
     "aiTierStrategyV292",
   );
-  // V2.9.3 restores a valid public preflop strength proxy before the V2.8
-  // middle/elite EV guard evaluates the complete V2.7 decision chain.
+  // V2.9.3 keeps the postflop V2.7 chain while routing middle/elite preflop
+  // decisions back to the existing position and public-range strategy stack.
   loadOnce(
     'script[data-ai-mid-elite-preflop-recovery-v2-9-3]',
     "js/ai-mid-elite-preflop-recovery-v2-9-3.js?v=middle-elite-preflop-recovery-v2-9-3",
     "aiMidElitePreflopRecoveryV293",
+  );
+  // V2.9.4 narrows the four over-loose opening roles and adds public-only
+  // late-street call discipline without changing Pao, Shark or the Bosses.
+  loadOnce(
+    'script[data-ai-opening-balance-v2-9-4]',
+    "js/ai-opening-balance-v2-9-4.js?v=opening-balance-v2-9-4",
+    "aiOpeningBalanceV294",
   );
   // The dispatcher is loaded last so the betting loop always resolves the
   // current outer AI strategy rather than a stale global function binding.
