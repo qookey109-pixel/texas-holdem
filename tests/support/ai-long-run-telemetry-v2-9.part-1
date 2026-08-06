@@ -1,0 +1,220 @@
+// AI V2.9 long-run full-hand telemetry lab.
+(() => {
+  "use strict";
+
+  if (window.AiLongRunTelemetryV29?.version) return;
+
+  const VERSION = "2.9.0";
+  const SCHEMA_VERSION = 1;
+  const LOCAL_NAMES = Object.freeze([
+    "Leo", "Toto", "Foxy", "Wolf", "Pao", "Shark",
+    "Ace", "Momo", "Nori", "Bruno", "Dodo", "Viper",
+    "Nova", "Unit-9", "Merlin", "Vlad", "Oracle", "Chronos",
+  ]);
+  const HERO_PROFILES = Object.freeze(["tight", "balanced", "loose-aggressive", "calling", "pressure"]);
+  const STREETS = Object.freeze(["preflop", "flop", "turn", "river"]);
+  const ACTIONS = Object.freeze(["fold", "check", "call", "raise", "allin"]);
+  const MAX_HANDS_PER_SHARD = 1_000;
+  const DEFAULT_MAX_EVENTS_PER_HAND = 1_500;
+
+  function clamp(value, minimum = 0, maximum = 1) {
+    return Math.min(maximum, Math.max(minimum, Number(value) || 0));
+  }
+
+  function round(value, digits = 6) {
+    const factor = 10 ** digits;
+    return Math.round((Number(value) || 0) * factor) / factor;
+  }
+
+  function safeRate(numerator, denominator) {
+    return denominator > 0 ? round(numerator / denominator, 6) : 0;
+  }
+
+  function streetKey() {
+    const count = state?.board?.length || 0;
+    if (count >= 5) return "river";
+    if (count === 4) return "turn";
+    if (count >= 3) return "flop";
+    return "preflop";
+  }
+
+  function hashString(text) {
+    let value = 2166136261;
+    for (const character of String(text || "")) {
+      value ^= character.charCodeAt(0);
+      value = Math.imul(value, 16777619);
+    }
+    return value >>> 0;
+  }
+
+  function seededRandom(seed) {
+    let value = (Number(seed) >>> 0) || 0x9e3779b9;
+    return () => {
+      value += 0x6d2b79f5;
+      let output = value;
+      output = Math.imul(output ^ (output >>> 15), output | 1);
+      output ^= output + Math.imul(output ^ (output >>> 7), output | 61);
+      return ((output ^ (output >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function stableValue(value) {
+    if (Array.isArray(value)) return value.map(stableValue);
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(
+      Object.keys(value).sort().map(key => [key, stableValue(value[key])]),
+    );
+  }
+
+  function fingerprint(value) {
+    return hashString(JSON.stringify(stableValue(value))).toString(16).padStart(8, "0");
+  }
+
+  function emptyStreetActions() {
+    return Object.fromEntries(STREETS.map(street => [
+      street,
+      Object.fromEntries(ACTIONS.map(action => [action, 0])),
+    ]));
+  }
+
+  function emptySizing() {
+    return { small: 0, medium: 0, large: 0, overbet: 0, allin: 0, unknown: 0 };
+  }
+
+  function emptyProfileCounts() {
+    return {
+      hands: 0,
+      bbWon: 0,
+      bbSquared: 0,
+      vpipHands: 0,
+      pfrHands: 0,
+      showdownHands: 0,
+      showdownWins: 0,
+      sawFlopHands: 0,
+      flopWins: 0,
+    };
+  }
+
+  function emptyRoleCounts(name) {
+    const target = window.AiTierStrategyV28?.targetRatings?.[name] || {};
+    return {
+      name,
+      tier: target.tier || "",
+      targetScore10: Number(target.score10) || 0,
+      hands: 0,
+      wins: 0,
+      busts: 0,
+      bbWon: 0,
+      bbSquared: 0,
+      vpipHands: 0,
+      pfrHands: 0,
+      openRaises: 0,
+      threeBetOpportunities: 0,
+      threeBets: 0,
+      fourBetPlus: 0,
+      foldToThreeBetOpportunities: 0,
+      foldsToThreeBet: 0,
+      cbetOpportunities: 0,
+      cbets: 0,
+      foldToCbetOpportunities: 0,
+      foldsToCbet: 0,
+      checkRaiseOpportunities: 0,
+      checkRaises: 0,
+      sawFlopHands: 0,
+      showdownHands: 0,
+      showdownWins: 0,
+      flopWins: 0,
+      callsWithEv: 0,
+      negativeEvCalls: 0,
+      raisesWithSizing: 0,
+      actionCounts: emptyStreetActions(),
+      sizing: emptySizing(),
+      byHeroProfile: Object.fromEntries(HERO_PROFILES.map(profile => [profile, emptyProfileCounts()])),
+    };
+  }
+
+  function summarizeCounts(counts) {
+    const hands = Math.max(0, Number(counts.hands) || 0);
+    const meanBb = hands > 0 ? counts.bbWon / hands : 0;
+    const variance = hands > 1
+      ? Math.max(0, (counts.bbSquared - hands * meanBb * meanBb) / (hands - 1))
+      : 0;
+    const standardErrorBb100 = hands > 0 ? Math.sqrt(variance / hands) * 100 : 0;
+    const bb100 = meanBb * 100;
+    return {
+      name: counts.name,
+      tier: counts.tier,
+      targetScore10: counts.targetScore10,
+      hands,
+      wins: counts.wins,
+      busts: counts.busts,
+      vpip: safeRate(counts.vpipHands, hands),
+      pfr: safeRate(counts.pfrHands, hands),
+      openRaiseRate: safeRate(counts.openRaises, hands),
+      threeBetRate: safeRate(counts.threeBets, counts.threeBetOpportunities),
+      foldToThreeBet: safeRate(counts.foldsToThreeBet, counts.foldToThreeBetOpportunities),
+      cbet: safeRate(counts.cbets, counts.cbetOpportunities),
+      foldToCbet: safeRate(counts.foldsToCbet, counts.foldToCbetOpportunities),
+      checkRaise: safeRate(counts.checkRaises, counts.checkRaiseOpportunities),
+      wtsd: safeRate(counts.showdownHands, counts.sawFlopHands),
+      wsd: safeRate(counts.showdownWins, counts.showdownHands),
+      wwsf: safeRate(counts.flopWins, counts.sawFlopHands),
+      negativeEvCallRate: safeRate(counts.negativeEvCalls, counts.callsWithEv),
+      bb100: round(bb100, 4),
+      bb100StandardError: round(standardErrorBb100, 4),
+      bb100Ci95Low: round(bb100 - 1.96 * standardErrorBb100, 4),
+      bb100Ci95High: round(bb100 + 1.96 * standardErrorBb100, 4),
+      actionCounts: counts.actionCounts,
+      sizing: counts.sizing,
+      profileCoverage: Object.values(counts.byHeroProfile || {}).filter(profile => profile.hands > 0).length,
+      byHeroProfile: Object.fromEntries(Object.entries(counts.byHeroProfile || {}).map(([profile, value]) => {
+        const profileHands = Number(value.hands) || 0;
+        const profileMean = profileHands > 0 ? value.bbWon / profileHands : 0;
+        return [profile, {
+          hands: profileHands,
+          vpip: safeRate(value.vpipHands, profileHands),
+          pfr: safeRate(value.pfrHands, profileHands),
+          wtsd: safeRate(value.showdownHands, value.sawFlopHands),
+          wsd: safeRate(value.showdownWins, value.showdownHands),
+          wwsf: safeRate(value.flopWins, value.sawFlopHands),
+          bb100: round(profileMean * 100, 4),
+        }];
+      })),
+    };
+  }
+
+  function normalizeAction(action) {
+    const value = String(action || "").toLowerCase();
+    if (value.includes("fold")) return "fold";
+    if (value.includes("check")) return "check";
+    if (value.includes("raise")) return value.includes("all-in") ? "allin" : "raise";
+    if (value.includes("all-in")) return "allin";
+    if (value.includes("call")) return "call";
+    return "";
+  }
+
+  function isAggressiveAction(action) {
+    const value = String(action || "").toLowerCase();
+    return value.includes("raise");
+  }
+
+  function isCallAction(action) {
+    const value = String(action || "").toLowerCase();
+    return value.includes("call") || (value.includes("all-in") && !value.includes("raise"));
+  }
+
+  function sizingBucket(player, action) {
+    if (String(action || "").toLowerCase().includes("all-in") || player?.allIn) return "allin";
+    const fraction = Number(player?.lastStrategyDecision?.sizeFraction);
+    if (!Number.isFinite(fraction) || fraction <= 0) return "unknown";
+    if (fraction <= 0.36) return "small";
+    if (fraction <= 0.68) return "medium";
+    if (fraction <= 1.02) return "large";
+    return "overbet";
+  }
+
+  function createHandState(players, bigBlind, heroProfile) {
+    const flags = new Map();
+    const startingWealth = new Map();
+    for (const player of players) {
+      flags.set(player.name, {

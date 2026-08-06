@@ -16,6 +16,9 @@
     "test:ai-calibration:v1.6": "playwright test tests/e2e/ai-calibration-v1-6.spec.js --project=chromium",
     "test:ai-calibration:v1.9": "AI_V19_CALIBRATION=1 playwright test tests/e2e/ai-calibration-v1-9.spec.js --project=chromium",
     "test:ai-calibration:v2.7": "AI_V27_GAMEPLAY_CALIBRATION=1 playwright test tests/e2e/ai-gameplay-calibration-v2-7.spec.js --project=chromium",
+    "test:ai-long-run:smoke": "AI_LONG_RUN_TELEMETRY=1 AI_LONG_RUN_HANDS=25 AI_LONG_RUN_SHARD=0 AI_LONG_RUN_SHARD_COUNT=1 playwright test tests/e2e/ai-long-run-telemetry-v2-9.spec.js --project=chromium --retries=0",
+    "test:ai-long-run:shard": "AI_LONG_RUN_TELEMETRY=1 playwright test tests/e2e/ai-long-run-telemetry-v2-9.spec.js --project=chromium --retries=0",
+    "aggregate:ai-long-run": "node scripts/aggregate-ai-long-run-telemetry-v2-9.mjs",
     "test:production-smoke": "node scripts/production-backend-smoke.mjs --live",
     "test:state-stress": "NATURAL_STRESS_HANDS=50 playwright test tests/e2e/natural-betting-state-stress.spec.js tests/e2e/tournament-replacement-state-stress.spec.js --project=chromium --retries=0",
     "test:state-stress:100": "NATURAL_STRESS_HANDS=100 playwright test tests/e2e/natural-betting-state-stress.spec.js tests/e2e/tournament-replacement-state-stress.spec.js --project=chromium --retries=0"
