@@ -44,6 +44,18 @@ test.describe("AI V2.9.4 opening balance", () => {
         position: "MP",
         ...overrides,
       });
+      const river = overrides => ({
+        street: "river",
+        bigBlind: 20,
+        needed: 50,
+        pot: 200,
+        currentBet: 50,
+        playerBet: 0,
+        stack: 900,
+        opponents: 2,
+        position: "CO",
+        ...overrides,
+      });
 
       const weakToto = api.calibrateDecision(
         player("Toto"),
@@ -79,32 +91,17 @@ test.describe("AI V2.9.4 opening balance", () => {
       const weakWolfRiverCall = api.calibrateDecision(
         player("Wolf"),
         decision({ equityProxy: 0.36, callEv: -2 }),
-        {
-          street: "river",
-          bigBlind: 20,
-          needed: 50,
-          pot: 200,
-          currentBet: 50,
-          playerBet: 0,
-          stack: 900,
-          opponents: 2,
-          position: "CO",
-        },
+        river({}),
+      );
+      const optimisticWolfRiverCall = api.calibrateDecision(
+        player("Wolf"),
+        decision({ equityProxy: 0.18, callEv: 50 }),
+        river({}),
       );
       const pricedTotoRiverCall = api.calibrateDecision(
         player("Toto"),
         decision({ equityProxy: 0.48, callEv: 1 }),
-        {
-          street: "river",
-          bigBlind: 20,
-          needed: 30,
-          pot: 200,
-          currentBet: 30,
-          playerBet: 0,
-          stack: 900,
-          opponents: 2,
-          position: "BB",
-        },
+        river({ needed: 30, currentBet: 30, position: "BB" }),
       );
       const paoDecision = decision({ equityProxy: 0.2 });
       const untouchedPao = api.calibrateDecision(player("Pao"), paoDecision, preflop({}));
@@ -133,6 +130,11 @@ test.describe("AI V2.9.4 opening balance", () => {
           adjustment: weakWolfRiverCall.v294Adjustment,
           evFloor: weakWolfRiverCall.v294PostflopEvFloor,
         },
+        optimisticWolfRiverCall: {
+          action: optimisticWolfRiverCall.action,
+          adjustment: optimisticWolfRiverCall.v294Adjustment,
+          equityFloor: optimisticWolfRiverCall.v294PostflopEquityFloor,
+        },
         pricedTotoRiverCall: {
           action: pricedTotoRiverCall.action,
           adjustment: pricedTotoRiverCall.v294Adjustment,
@@ -157,6 +159,9 @@ test.describe("AI V2.9.4 opening balance", () => {
     expect(result.weakWolfRiverCall.action).toBe("fold");
     expect(result.weakWolfRiverCall.adjustment).toBe("river-call-ev-discipline");
     expect(result.weakWolfRiverCall.evFloor).toBeGreaterThan(0);
+    expect(result.optimisticWolfRiverCall.action).toBe("fold");
+    expect(result.optimisticWolfRiverCall.adjustment).toBe("river-equity-price-discipline");
+    expect(result.optimisticWolfRiverCall.equityFloor).toBeGreaterThan(0.18);
     expect(result.pricedTotoRiverCall.action).toBe("call");
     expect(result.pricedTotoRiverCall.adjustment).toBe("none");
     expect(result.untouchedPao).toBe(true);
