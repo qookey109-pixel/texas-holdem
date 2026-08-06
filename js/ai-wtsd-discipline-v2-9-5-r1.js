@@ -13,6 +13,7 @@
       riverEvPot: 0.06,
       strongValueFloor: 0.70,
       strongValueMargin: 0.17,
+      marginalValuePremium: 0.035,
       multiwayStep: 0.012,
     }),
     Leo: Object.freeze({
@@ -22,6 +23,7 @@
       riverEvPot: 0.07,
       strongValueFloor: 0.72,
       strongValueMargin: 0.19,
+      marginalValuePremium: 0.045,
       multiwayStep: 0.014,
     }),
     Wolf: Object.freeze({
@@ -31,6 +33,7 @@
       riverEvPot: 0.10,
       strongValueFloor: 0.76,
       strongValueMargin: 0.23,
+      marginalValuePremium: 0.060,
       multiwayStep: 0.018,
     }),
   });
@@ -105,10 +108,12 @@
     const priceEdge = street === "river" ? guard.riverPriceEdge : guard.turnPriceEdge;
     const evPot = street === "river" ? guard.riverEvPot : guard.turnEvPot;
     const multiwayPremium = Math.max(0, opponents - 1) * guard.multiwayStep;
-    const equityFloor = clamp(potOdds + priceEdge + multiwayPremium, 0.05, 0.94);
+    const baseEquityFloor = clamp(potOdds + priceEdge + multiwayPremium, 0.05, 0.94);
+    const marginalValuePremium = source.valueReady ? guard.marginalValuePremium : 0;
+    const equityFloor = clamp(baseEquityFloor + marginalValuePremium, 0.05, 0.94);
     const evFloor = pot * evPot;
     const strongValueFloor = clamp(
-      Math.max(guard.strongValueFloor, equityFloor + guard.strongValueMargin),
+      Math.max(guard.strongValueFloor, baseEquityFloor + guard.strongValueMargin),
       0.10,
       0.97,
     );
@@ -125,6 +130,7 @@
         v295R1EquityFloor: equityFloor,
         v295R1EvFloor: evFloor,
         v295R1StrongValueFloor: strongValueFloor,
+        v295R1MarginalValuePremium: marginalValuePremium,
         v295R1ProtectedStrongValue: true,
         publicInformationOnly: true,
       };
@@ -138,6 +144,7 @@
         v295R1EquityFloor: equityFloor,
         v295R1EvFloor: evFloor,
         v295R1StrongValueFloor: strongValueFloor,
+        v295R1MarginalValuePremium: marginalValuePremium,
         v295R1ProtectedStrongValue: false,
         publicInformationOnly: true,
       };
@@ -163,6 +170,7 @@
       v295R1EquityFloor: equityFloor,
       v295R1EvFloor: evFloor,
       v295R1StrongValueFloor: strongValueFloor,
+      v295R1MarginalValuePremium: marginalValuePremium,
       v295R1ProtectedStrongValue: false,
       publicInformationOnly: true,
     };
