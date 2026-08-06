@@ -1,6 +1,11 @@
 name: AI long-run telemetry
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/ai-long-run-triggers/**"
   pull_request:
     paths:
       - "app.js"
@@ -13,6 +18,7 @@ on:
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/ai-long-run-telemetry.yml"
+      - ".github/ai-long-run-triggers/**"
   workflow_dispatch:
     inputs:
       profile:
