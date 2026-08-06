@@ -6,19 +6,22 @@
   const VERSION = "2.9.2";
   const CALIBRATED_OPENING = Object.freeze(["Pao", "Shark"]);
   const SPECIAL = Object.freeze(["Oracle", "Chronos"]);
+  const NEGATIVE_EV_BIG_BLIND_FRACTION = 0.04;
   const OPENING_GUARDS = Object.freeze({
     Pao: Object.freeze({
-      openFloor: 0.30,
-      raiseFloor: 0.40,
-      reraiseFloor: 0.55,
+      openFloor: 0.46,
+      raiseFloor: 0.52,
+      reraiseFloor: 0.58,
+      stackRisk: 0.18,
       priceEdge: 0.005,
       multiwayStep: 0.008,
       riverBuffer: 0.004,
     }),
     Shark: Object.freeze({
-      openFloor: 0.34,
-      raiseFloor: 0.44,
-      reraiseFloor: 0.58,
+      openFloor: 0.48,
+      raiseFloor: 0.55,
+      reraiseFloor: 0.62,
+      stackRisk: 0.16,
       priceEdge: 0.012,
       multiwayStep: 0.01,
       riverBuffer: 0.007,
@@ -66,10 +69,17 @@
     const playerBet = Math.max(0, Number.isFinite(Number(options.playerBet))
       ? Number(options.playerBet)
       : Number(player?.bet) || 0);
+    const stack = Math.max(1, Number.isFinite(Number(options.stack))
+      ? Number(options.stack)
+      : Number(player?.stack) || 1);
     const opponents = Math.max(1, Number(options.opponents) || liveOpponents(player));
     const street = options.street || liveStreet();
     const position = options.position || (typeof positionLabel === "function" ? positionLabel(player) : "--");
-    return { bigBlind, needed, pot, currentBet, playerBet, opponents, street, position };
+    return { bigBlind, needed, pot, currentBet, playerBet, stack, opponents, street, position };
+  }
+
+  function negativeEvBoundary(bigBlind) {
+    return -Math.max(0.01, Math.max(1, Number(bigBlind) || 1) * NEGATIVE_EV_BIG_BLIND_FRACTION);
   }
 
   function foldDecision(decision, reason, adjustment) {
@@ -103,25 +113,35 @@
     const potOdds = clamp(decision.potOdds ?? (context.needed / Math.max(1, context.pot + context.needed)));
     const callEv = Number(decision.callEv);
     const hasCallEv = Number.isFinite(callEv);
-    const facingRaise = context.street === "preflop" && context.currentBet >= context.bigBlind * 2.5;
-    const facingReraise = facingRaise
-      && context.playerBet > context.bigBlind
-      && context.currentBet >= Math.max(context.bigBlind * 5, context.playerBet * 1.8);
-    const positionDiscount = ["BTN", "CO"].includes(context.position) ? 0.025 : context.position === "BB" ? 0.018 : 0;
-    const absoluteFloor = (facingReraise ? guard.reraiseFloor : facingRaise ? guard.raiseFloor : guard.openFloor)
-      + Math.max(0, context.opponents - 1) * guard.multiwayStep
-      - positionDiscount;
-    const priceFloor = potOdds + guard.priceEdge
-      + Math.max(0, context.opponents - 1) * guard.multiwayStep * 0.6;
-    const requiredEquity = clamp(Math.max(absoluteFloor, priceFloor), 0.08, 0.92);
+    const pressureBb = context.needed / context.bigBlind;
+    const stackRisk = context.needed / context.stack;
+    const facingRaise = context.street === "preflop"
+      && (context.currentBet >= context.bigBlind * 2.5 || pressureBb >= 4);
+    const facingReraise = context.street === "preflop"
+      && (pressureBb >= 8
+        || stackRisk >= guard.stackRisk
+        || (facingRaise
+          && context.playerBet > context.bigBlind
+          && context.currentBet >= Math.max(context.bigBlind * 5, context.playerBet * 1.8)));
+    const absoluteFloor = facingReraise
+      ? guard.reraiseFloor
+      : facingRaise
+        ? guard.raiseFloor
+        : guard.openFloor;
+    const multiwayPremium = Math.max(0, context.opponents - 1) * guard.multiwayStep;
+    const priceFloor = potOdds + guard.priceEdge + multiwayPremium * 0.6;
+    const requiredEquity = clamp(Math.max(absoluteFloor + multiwayPremium, priceFloor), 0.08, 0.92);
+    const telemetryBoundary = negativeEvBoundary(context.bigBlind);
 
     decision.v292RequiredEquity = round(requiredEquity);
     decision.v292FacingRaise = facingRaise;
     decision.v292FacingReraise = facingReraise;
+    decision.v292StackRisk = round(stackRisk);
+    decision.v292NegativeEvBoundary = round(telemetryBoundary);
 
     if (decision.action !== "call" || context.needed <= 0) return markDecision(decision);
 
-    if (hasCallEv && callEv < -context.bigBlind * 0.02) {
+    if (hasCallEv && callEv < telemetryBoundary) {
       return foldDecision(decision, "V2.9.2 初階實證閘停止負期望跟注", "opening-negative-ev-guard");
     }
 
@@ -129,7 +149,7 @@
       return foldDecision(
         decision,
         facingReraise
-          ? "V2.9.2 初階面對再加注提高防守門檻"
+          ? "V2.9.2 初階面對高壓再加注提高防守門檻"
           : facingRaise
             ? "V2.9.2 初階面對加注收緊跟注範圍"
             : "V2.9.2 初階翻牌前牌力低於實證底線",
@@ -137,11 +157,22 @@
       );
     }
 
-    if (context.street === "turn" && !decision.valueReady && !decision.bluffing && hasCallEv && callEv < 0) {
-      return foldDecision(decision, "V2.9.2 初階轉牌停止無價值負期望追擊", "opening-turn-discipline");
+    if ((context.street === "turn" || context.street === "river") && hasCallEv && callEv < 0) {
+      return foldDecision(
+        decision,
+        context.street === "river"
+          ? "V2.9.2 初階河牌停止負期望支付"
+          : "V2.9.2 初階轉牌停止負期望追擊",
+        context.street === "river" ? "opening-river-negative-ev-stop" : "opening-turn-negative-ev-stop",
+      );
     }
 
-    if (context.street === "river" && !decision.valueReady && hasCallEv && callEv < context.pot * guard.riverBuffer) {
+    if (
+      context.street === "river"
+      && !decision.valueReady
+      && hasCallEv
+      && callEv < context.pot * guard.riverBuffer
+    ) {
       return foldDecision(decision, "V2.9.2 初階河牌要求正期望安全邊際", "opening-river-discipline");
     }
 
@@ -152,7 +183,7 @@
     if (!decision || !SPECIAL.includes(player?.name)) return decision;
     const context = contextFor(player, options);
     const callEv = Number(decision.callEv);
-    const telemetryBoundary = -context.bigBlind * 0.04;
+    const telemetryBoundary = negativeEvBoundary(context.bigBlind);
     decision.v292NegativeEvBoundary = round(telemetryBoundary);
 
     if (
@@ -191,6 +222,7 @@
       v292Adjustment: decision.v292Adjustment || "",
       v292RequiredEquity: decision.v292RequiredEquity ?? 0,
       v292NegativeEvBoundary: decision.v292NegativeEvBoundary ?? 0,
+      v292StackRisk: decision.v292StackRisk ?? 0,
       publicInformationOnly: true,
     };
     if (decision.equityResult) player.lastStrategyDecision.bossEquity = { ...decision.equityResult };
@@ -229,7 +261,7 @@
     player.lastAction = player.allIn && paid > 0 ? "allin" : (paid === 0 ? "check" : "call");
     logAction(player, player.allIn && paid > 0 ? "All-in Call" : (paid === 0 ? "Check" : "Call"), paid);
     announceAction(player.allIn && paid > 0 ? "ALL-IN" : (paid === 0 ? "CHECK" : "CALL"), player.lastAction);
-    say(player, player.allIn && paid > 0 ? "allin" : "call", { chance: 0.2 });
+    say(player, player.allIn && paid > 0 ? "allin" : (paid === 0 ? "check" : "call"), { chance: 0.2 });
   }
 
   function registerProfiles() {
@@ -255,10 +287,12 @@
       try {
         const api = window.AiTierStrategyV28;
         if (CALIBRATED_OPENING.includes(player?.name)) {
-          return perform(player, calibrateOpeningDecision(player, api.chooseOpeningDecision(player)));
+          const decision = api?.chooseOpeningDecision?.(player);
+          if (decision && decision.action !== "fallback") return perform(player, calibrateOpeningDecision(player, decision));
         }
         if (SPECIAL.includes(player?.name)) {
-          return perform(player, calibrateBossDecision(player, api.chooseBossDecision(player)));
+          const decision = api?.chooseBossDecision?.(player);
+          if (decision && decision.action !== "fallback") return perform(player, calibrateBossDecision(player, decision));
         }
       } catch (error) {
         console.warn("AI V2.9.2 evidence calibration fallback", player?.name, error);
@@ -266,14 +300,16 @@
       return previous.apply(this, arguments);
     };
     wrappedBotAction.__aiTierStrategyV292Wrapper = true;
+    wrappedBotAction.__previousBotAction = previous;
     botAction = wrappedBotAction;
     return true;
   }
 
   function ready() {
     return Boolean(
-      window.AiTierStrategyV28?.version === "2.8.0"
+      window.AiTierStrategyV28?.version
       && document.documentElement.dataset.aiTierStrategyV28 === "ready"
+      && typeof botAction === "function"
     );
   }
 
@@ -294,13 +330,18 @@
     calibratedOpeningNames: [...CALIBRATED_OPENING],
     specialNames: [...SPECIAL],
     openingGuards: OPENING_GUARDS,
+    negativeEvBigBlindFraction: NEGATIVE_EV_BIG_BLIND_FRACTION,
     evidence: Object.freeze({
       sourceRunId: 31072973185,
       completedHands: 25_000,
       shards: 50,
+      heroProfiles: 5,
+      promotionThreshold: 0.03,
       oracleNegativeEvCallRate: 0.033685,
       chronosNegativeEvCallRate: 0.033784,
+      paoVpIp: 0.825,
       paoBb100: -192.98,
+      sharkVpIp: 0.658,
       sharkBb100: -139.24,
     }),
     fairInformationPolicy: window.AiTierStrategyV28?.fairInformationPolicy || Object.freeze({
