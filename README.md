@@ -230,3 +230,110 @@ git pull --ff-only
 - `build-manifest.json`
 
 任何聊天紀錄、Handoff 或舊 PR 若與最新 GitHub `main` 衝突，以最新 Repository 為準。
+
+## 驗證
+
+### 靜態、部署與正式後端契約
+
+```bash
+npm run validate
+npm run validate:deployment
+npm run validate:production-contract
+```
+
+`npm run validate` 會確認正式資產、部署契約、V2.7 文件／Build Manifest、Supabase RLS migration 與公開端點設定一致。
+
+### Browser E2E
+
+```bash
+npm install
+npx playwright install chromium webkit
+npm run test:e2e
+```
+
+GitHub Actions 會分別執行 Chromium 與 WebKit。
+
+### 籌碼經濟與棄牌反制
+
+```text
+tests/e2e/economy-fold-defense-v1.spec.js
+tests/e2e/replacement-stack-balance.spec.js
+```
+
+覆蓋一般模式 median-v2 對稱重買入、籌碼王離群值、極短碼桌、Boss 追趕上下限、低 VPIP／高棄牌分類、小尺寸壓力、公平資訊邊界與 Gemini Worker 公開觀察白名單。
+
+### AI 固定種子校準
+
+```bash
+npm run test:ai-calibration
+npm run test:ai-calibration:v1.6
+npm run test:ai-calibration:v1.9
+npm run test:ai-calibration:v2.7
+```
+
+### 長時間狀態壓力測試
+
+```bash
+npm run test:state-stress
+npm run test:state-stress:100
+```
+
+正式壓力測試包含：
+
+- PR 使用 25 手自然下注。
+- 每週日台北時間約 03:30 執行 100 手自然下注。
+- 牌張唯一、籌碼守恆、合法 Actor、Pot／Contribution／Current Bet、無負數籌碼、無卡死與殘留計時器。
+- G1 19 位角色與 13 次補位循環。
+- Gemini 最後登場、盲注不倒退、角色不重複、G1 基礎補位不超過 `660 entry-BB`。
+- AI wrapper 載入順序不得形成遞迴或卡死。
+
+### 正式環境 Smoke
+
+```bash
+npm run test:production-smoke
+```
+
+Production Smoke 會以零寫入方式驗證：
+
+- GitHub Pages 正式版本與 V2.7 Build Manifest。
+- Supabase Auth 設定與 Google Provider。
+- 未登入玩家不可讀取淘汰賽存檔。
+- Gemini Worker `/health` 與 Secret 設定。
+
+它會在每次 `main` 部署後及每週日台北時間約 03:10 自動執行。Google 真人 OAuth 仍依 `docs/production-backend-smoke.md` 使用專用測試帳號人工驗證。
+
+相關文件：
+
+```text
+docs/poker-state-stress-v1.md
+docs/ai-calibration-v1-6.md
+docs/ai-calibration-v1-9.md
+docs/ai-v2-public-range-equity.md
+docs/ai-tiered-multiway-equity-v2-7.md
+docs/ai-gameplay-calibration-v2-7.md
+docs/economy-fold-defense-v1.md
+docs/production-backend-smoke.md
+```
+
+## 分支與發布流程
+
+1. 重新核對最新 `main`。
+2. 從最新 `main` 建立新分支。
+3. 只修改本次需求需要的檔案。
+4. 執行 `npm run validate` 與必要 E2E／AI Calibration／State Stress。
+5. 建立 Pull Request。
+6. 確認 PR head 未變且分支沒有落後。
+7. 確認必要 CI 全綠。
+8. 合併後重新核對正式 `main`、GitHub Pages、Production Smoke 與診斷頁。
+
+## 過時 PR 注意事項
+
+不得直接合併：
+
+- PR #9：已由 PR #82 取代。
+- PR #32：舊公平 Boss 修正。
+- PR #46：舊 Range Continuation V1.3。
+- PR #86：玩家領先加速盲注，已由 G1 與有限 Boss 追趕取代。
+- PR #89：舊 16 位 F1 模擬，已由正式 19 位 G1 取代。
+
+詳細狀態、已知風險與下一步請看 `PROJECT_STATUS.md`。
