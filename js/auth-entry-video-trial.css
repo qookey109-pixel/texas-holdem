@@ -3,6 +3,9 @@
 
 .auth-entry-v2-stage {
   width: min(760px, 96vw);
+  /* A transformed ancestor changes position:fixed into ancestor-relative positioning.
+     Keep this container untransformed so the video can truly use the viewport. */
+  transform: none;
 }
 
 .auth-entry-v2-table-wrap {
@@ -105,7 +108,7 @@
 @media (max-height: 620px) and (orientation: landscape) {
   .auth-entry-v2-stage {
     width: min(680px, 92vw);
-    transform: translateY(0);
+    transform: none;
   }
 
   .auth-entry-v2-table-wrap {
