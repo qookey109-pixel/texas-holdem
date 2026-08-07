@@ -60,9 +60,12 @@
   height: 100%;
   border: 0;
   background: #03090b;
-  object-fit: contain;
+  object-fit: cover;
   object-position: 50% 50%;
-  transform: translateZ(0);
+  /* The source watermark sits at the far lower-right edge. A controlled crop keeps
+     the small-window composition clean without introducing an inpaint/blur patch. */
+  transform: translateZ(0) scale(1.31);
+  transform-origin: 50% 50%;
 }
 
 .auth-entry-v2-video-glass {
