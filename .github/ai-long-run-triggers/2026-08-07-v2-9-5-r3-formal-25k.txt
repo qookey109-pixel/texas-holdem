@@ -1,0 +1,12 @@
+AI V2.9.5 R3 formal 25,000-hand telemetry
+
+source_failed_run_id=31144490623
+source_failed_head=42a6fe79805e48572b1ed9d1175c5d280bd5be44
+r3_pr=127
+r3_merge_commit=7fc9ee6b5890449774e8876c644686ceda64b262
+profile=full
+shards=50
+hands_per_shard=500
+expected_hands=25000
+
+Trigger only. No AI behavior or validation threshold changes.
