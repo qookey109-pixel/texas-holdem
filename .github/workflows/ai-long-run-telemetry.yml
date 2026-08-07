@@ -59,6 +59,12 @@ jobs:
       expected_hands: ${{ steps.plan.outputs.expected_hands }}
       run_profile: ${{ steps.plan.outputs.run_profile }}
     steps:
+      - name: Check out repository for push trigger detection
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
       - id: plan
         name: Select smoke, full or stability evidence run
         shell: bash
@@ -76,7 +82,7 @@ jobs:
             RUN_PROFILE="stability"
             SHARD_COUNT=200
             HANDS_PER_SHARD=500
-          elif [[ "${{ github.event_name }}" == "push" ]] && grep -Fq '.github/ai-long-run-stability-triggers/' "$GITHUB_EVENT_PATH"; then
+          elif [[ "${{ github.event_name }}" == "push" ]] && git diff --name-only HEAD^1 HEAD | grep -Fq '.github/ai-long-run-stability-triggers/'; then
             RUN_PROFILE="stability"
             SHARD_COUNT=200
             HANDS_PER_SHARD=500
@@ -87,6 +93,7 @@ jobs:
           fi
           MATRIX=$(node -e 'const count=Number(process.argv[1]); console.log(JSON.stringify({shard:Array.from({length:count},(_,index)=>index)}));' "$SHARD_COUNT")
           EXPECTED_HANDS=$((SHARD_COUNT * HANDS_PER_SHARD))
+          echo "Selected profile=$RUN_PROFILE shards=$SHARD_COUNT hands_per_shard=$HANDS_PER_SHARD expected_hands=$EXPECTED_HANDS"
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
           echo "hands_per_shard=$HANDS_PER_SHARD" >> "$GITHUB_OUTPUT"
           echo "shard_count=$SHARD_COUNT" >> "$GITHUB_OUTPUT"
