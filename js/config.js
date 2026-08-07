@@ -278,7 +278,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     const authScript = document.createElement("script");
-    authScript.src = "js/google-auth.js?v=google-auth-v1";
+    authScript.src = "js/auth-entry-v2.js?v=auth-entry-v2-1";
     authScript.async = false;
     authScript.dataset.googleAuth = "true";
     authScript.addEventListener("load", installGoogleAuthTopbarPlacement, { once: true });
