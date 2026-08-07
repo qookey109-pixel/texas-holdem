@@ -8,5 +8,7 @@ hands_per_missing_shard=500
 expected_final_shards=50
 expected_final_hands=25000
 requested_at=2026-08-06T12:49:00+08:00
+restart_requested_at=2026-08-07T08:40:00+08:00
+restart_reason=stale_queued_attempt_without_jobs
 
 This marker triggers only the recovery workflow after merge. It reuses the 41 existing shard artifacts and runs only the nine missing deterministic shards.
