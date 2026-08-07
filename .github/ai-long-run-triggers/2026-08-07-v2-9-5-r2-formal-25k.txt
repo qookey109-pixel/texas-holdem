@@ -1,0 +1,3 @@
+AI V2.9.5 R2 formal telemetry trigger.
+
+After PR #125 merge, run the unchanged full profile: 50 shards × 500 hands = 25,000 hands. Require existing VPIP, PFR, corrected WTSD, runtime coverage, fallback, public-information, fairness and integrity gates without relaxation.
