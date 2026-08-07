@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - ".github/ai-long-run-triggers/**"
+      - ".github/ai-long-run-stability-triggers/**"
   pull_request:
     paths:
       - "app.js"
@@ -24,6 +25,7 @@ on:
       - "package-lock.json"
       - ".github/workflows/ai-long-run-telemetry.yml"
       - ".github/ai-long-run-triggers/**"
+      - ".github/ai-long-run-stability-triggers/**"
   workflow_dispatch:
     inputs:
       profile:
@@ -34,6 +36,7 @@ on:
         options:
           - smoke
           - full
+          - stability
   schedule:
     # GitHub cron uses UTC: Saturday 20:10 = Sunday 04:10 in Taiwan (UTC+8).
     - cron: "10 20 * * 6"
@@ -57,7 +60,7 @@ jobs:
       run_profile: ${{ steps.plan.outputs.run_profile }}
     steps:
       - id: plan
-        name: Select smoke or full evidence run
+        name: Select smoke, full or stability evidence run
         shell: bash
         run: |
           set -euo pipefail
@@ -69,6 +72,14 @@ jobs:
             RUN_PROFILE="smoke"
             SHARD_COUNT=2
             HANDS_PER_SHARD=50
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.profile }}" == "stability" ]]; then
+            RUN_PROFILE="stability"
+            SHARD_COUNT=200
+            HANDS_PER_SHARD=500
+          elif [[ "${{ github.event_name }}" == "push" ]] && grep -Fq '.github/ai-long-run-stability-triggers/' "$GITHUB_EVENT_PATH"; then
+            RUN_PROFILE="stability"
+            SHARD_COUNT=200
+            HANDS_PER_SHARD=500
           else
             RUN_PROFILE="full"
             SHARD_COUNT=50

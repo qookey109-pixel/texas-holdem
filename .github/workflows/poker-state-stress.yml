@@ -10,6 +10,9 @@ on:
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/poker-state-stress.yml"
+      - ".github/workflows/ai-long-run-telemetry.yml"
+      - ".github/ai-long-run-triggers/**"
+      - ".github/ai-long-run-stability-triggers/**"
   schedule:
     # GitHub cron uses UTC: Saturday 19:30 = Sunday 03:30 in Taiwan (UTC+8).
     - cron: "30 19 * * 6"
