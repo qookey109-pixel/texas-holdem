@@ -58,6 +58,8 @@
     { "path": "js/google-auth.css", "label": "Google 登入介面樣式" },
     { "path": "js/auth-entry-v2.js", "label": "返回登入六秒牌桌進場 V2" },
     { "path": "js/auth-entry-v2.css", "label": "返回登入牌桌進場 V2 樣式" },
+    { "path": "js/auth-entry-video-trial.css", "label": "返回登入原始影片試播樣式" },
+    { "path": "assets/auth-entry-poker-trial.mp4", "label": "返回登入原始牌桌動畫試播影片" },
     { "path": "js/tournament-cloud-save.js", "label": "淘汰賽雲端存檔 V2" },
     { "path": "js/tournament-cloud-save.css", "label": "淘汰賽雲端存檔介面" },
     { "path": "supabase/migrations/20260803_create_tournament_saves_v1.sql", "label": "淘汰賽存檔資料表與 RLS" },
@@ -131,8 +133,8 @@
     },
     {
       "id": "auth-cloud-save",
-      "label": "Google 登入、返回牌桌 V2、Supabase V2 雲端存檔與每位玩家 RLS 隔離",
-      "assets": ["js/google-auth.js", "js/google-auth.css", "js/auth-entry-v2.js", "js/auth-entry-v2.css", "js/tournament-cloud-save.js", "js/tournament-cloud-save.css", "supabase/migrations/20260803_create_tournament_saves_v1.sql", "supabase/migrations/20260804_allow_tournament_save_v2.sql"]
+      "label": "Google 登入、原始影片返回牌桌試播、CSS V2 備援、Supabase V2 雲端存檔與每位玩家 RLS 隔離",
+      "assets": ["js/google-auth.js", "js/google-auth.css", "js/auth-entry-v2.js", "js/auth-entry-v2.css", "js/auth-entry-video-trial.css", "assets/auth-entry-poker-trial.mp4", "js/tournament-cloud-save.js", "js/tournament-cloud-save.css", "supabase/migrations/20260803_create_tournament_saves_v1.sql", "supabase/migrations/20260804_allow_tournament_save_v2.sql"]
     },
     {
       "id": "gemini-tournament",
