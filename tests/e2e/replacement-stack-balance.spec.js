@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("一般模式保留桌均計算器，淘汰賽 G1 與公平重買入模組完成安裝", async ({ page }) => {
+test("一般模式使用中位數補位策略，淘汰賽 G1 與公平重買入模組完成安裝", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
 
   await expect.poll(
@@ -31,10 +31,33 @@ test("一般模式保留桌均計算器，淘汰賽 G1 與公平重買入模組�
     state.handNumber = 25;
     state.blindLevel = blindLevelForHand(25);
     const shortLate = ReplacementStackBalance.calculate([{ stack: 4000 }, { stack: 4000 }]);
+
+    const healthyPlan = ReplacementStackBalance.calculateNormalReplacementPlan(
+      Array.from({ length: 6 }, () => ({ stack: 2000 })),
+      { bigBlind: 20, buyIn: 2000 },
+    );
+    const chipLeaderOutlierPlan = ReplacementStackBalance.calculateNormalReplacementPlan([
+      { stack: 16000 },
+      { stack: 500 },
+      { stack: 500 },
+      { stack: 500 },
+      { stack: 500 },
+      { stack: 500 },
+    ], { bigBlind: 20, buyIn: 2000 });
+    const veryShortTablePlan = ReplacementStackBalance.calculateNormalReplacementPlan([
+      { stack: 100 },
+      { stack: 100 },
+    ], { bigBlind: 20, buyIn: 2000 });
+
     return {
       levelOne,
       levelTwo,
       shortLate,
+      healthyPlan,
+      chipLeaderOutlierPlan,
+      veryShortTablePlan,
+      normalConfig: ReplacementStackBalance.normalConfig,
+      normalDataset: document.documentElement.dataset.normalEconomy,
       blindWrapped: blindLevelForHand.__tournamentEconomyG1 === true,
       buyInWrapped: Boolean(
         currentBuyIn.__economyFoldDefenseCatchup === true
@@ -44,14 +67,37 @@ test("一般模式保留桌均計算器，淘汰賽 G1 與公平重買入模組�
     };
   });
 
-  expect(normalTargets).toEqual({
-    levelOne: 800,
-    levelTwo: 1400,
-    shortLate: 4000,
-    blindWrapped: true,
-    buyInWrapped: true,
-    economyInstalled: true,
+  expect(normalTargets.levelOne).toBe(1200);
+  expect(normalTargets.levelTwo).toBe(1600);
+  expect(normalTargets.shortLate).toBe(4000);
+  expect(normalTargets.normalConfig).toEqual({
+    version: "2.0.0",
+    strategy: "median-v2",
+    tableMedianRatio: 0.8,
+    buyInRatioCap: 0.75,
+    softFloorBigBlinds: 12,
+    maxBigBlinds: 60,
   });
+  expect(normalTargets.normalDataset).toBe("median-v2");
+  expect(normalTargets.healthyPlan).toMatchObject({
+    strategy: "median-v2",
+    tableMedian: 2000,
+    stack: 1200,
+    actualEntryBb: 60,
+  });
+  expect(normalTargets.chipLeaderOutlierPlan).toMatchObject({
+    tableMedian: 500,
+    stack: 400,
+    actualEntryBb: 20,
+  });
+  expect(normalTargets.veryShortTablePlan).toMatchObject({
+    tableMedian: 100,
+    stack: 100,
+    actualEntryBb: 5,
+  });
+  expect(normalTargets.blindWrapped).toBe(true);
+  expect(normalTargets.buyInWrapped).toBe(true);
+  expect(normalTargets.economyInstalled).toBe(true);
 
   const tournamentConfig = await page.evaluate(() => ({
     ...ReplacementStackBalance.tournamentConfig,
@@ -71,7 +117,7 @@ test("一般模式保留桌均計算器，淘汰賽 G1 與公平重買入模組�
   expect(tournamentConfig.level155.big).toBe(160000);
 });
 
-test("一般模式玩家與 AI 使用相同公平重買入，挑戰賽補位維持 G1 動態 BB", async ({ page }) => {
+test("一般模式玩家與 AI 使用相同 median-v2 重買入，挑戰賽補位維持 G1 動態 BB", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
 
   await expect.poll(
@@ -106,13 +152,15 @@ test("一般模式玩家與 AI 使用相同公平重買入，挑戰賽補位維�
         { stack: 2000 },
         { stack: 0 },
       ], { bigBlind: 20, buyIn: 2000 }),
+      source: EconomyFoldDefenseV1.status().normalRebuySource,
     };
   });
 
   expect(normalReplacement).toEqual({
     name: "Ace",
-    totalStack: 1000,
-    expectedStack: 1000,
+    totalStack: 1200,
+    expectedStack: 1200,
+    source: "median-v2",
   });
 
   await page.evaluate(() => {
