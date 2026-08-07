@@ -14,7 +14,10 @@ on:
       - "tests/e2e/ai-long-run-telemetry-v2-9.spec.js"
       - "scripts/aggregate-ai-long-run-telemetry-v2-9.mjs"
       - ".github/workflows/ai-long-run-recovery-v2-9.yml"
+      - ".github/workflows/ai-long-run-telemetry.yml"
       - ".github/ai-long-run-recovery-triggers/**"
+      - ".github/ai-long-run-triggers/**"
+      - ".github/ai-long-run-stability-triggers/**"
 
 permissions:
   actions: read
