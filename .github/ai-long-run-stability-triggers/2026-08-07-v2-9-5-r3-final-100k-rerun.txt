@@ -1,0 +1,11 @@
+AI V2.9.5 R3 final 100,000-hand stability telemetry rerun
+
+reason=fix stability push trigger detection
+source_invalid_run_id=31156756680
+source_invalid_actual_shards=50
+expected_profile=stability
+expected_shards=200
+hands_per_shard=500
+expected_hands=100000
+
+Trigger only. No AI behavior or validation threshold changes.
