@@ -57,12 +57,19 @@ jobs:
 
           test_path = Path('tests/e2e/auth-entry-v2.spec.js')
           test_text = test_path.read_text()
-          assert test_text.count('.toBe("2.1.0-trial");') == 3
-          assert test_text.count('auth-entry-poker-trial') == 2
-          assert test_text.count('auth-entry-video-trial-v1$/') == 1
           test_text = test_text.replace('.toBe("2.1.0-trial");', '.toBe("2.1.1-hd");')
           test_text = test_text.replace('auth-entry-poker-trial', 'auth-entry-poker-720p')
-          test_text = test_text.replace('auth-entry-video-trial-v1$/', 'auth-entry-video-720p-v1$/')
+          lines = test_text.splitlines()
+          src_lines = 0
+          for index, line in enumerate(lines):
+              if 'toHaveAttribute("src"' in line and 'auth-entry-poker-720p' in line:
+                  lines[index] = r'  await expect(video).toHaveAttribute("src", /assets\/auth-entry-poker-720p\.mp4\?v=auth-entry-video-720p-v1$/);'
+                  src_lines += 1
+          assert src_lines == 1, f'expected one video src assertion, found {src_lines}'
+          test_text = '\n'.join(lines) + '\n'
+          assert test_text.count('2.1.1-hd') == 3
+          assert test_text.count('auth-entry-poker-720p') == 2
+          assert 'auth-entry-video-720p-v1$/' in test_text
           test_path.write_text(test_text)
 
           manifest = Path('build-manifest.json')
