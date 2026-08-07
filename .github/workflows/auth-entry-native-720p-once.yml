@@ -1,0 +1,100 @@
+name: Auth entry native 720p integrate once
+
+on:
+  push:
+    branches:
+      - media/auth-entry-native-720p
+    paths:
+      - .tmp/auth-native-720p/READY
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: media/auth-entry-native-720p
+          fetch-depth: 0
+
+      - name: Rebuild and verify native source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .tmp/auth-native-720p/part*.b64 | base64 -d > assets/auth-entry-poker-native-720p.mp4
+          echo "b1640620bc72bef23c9dcb6c00625fe7017a453d29033bd6bd9631484fa427e1  assets/auth-entry-poker-native-720p.mp4" | sha256sum -c -
+          test "$(stat -c%s assets/auth-entry-poker-native-720p.mp4)" = "950286"
+          if ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 assets/auth-entry-poker-native-720p.mp4)" = "1280"
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 assets/auth-entry-poker-native-720p.mp4)" = "720"
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 assets/auth-entry-poker-native-720p.mp4)" = "h264"
+
+      - name: Wire native video into returning login
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path, old, new, expected=1):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              assert count == expected, f"{path}: expected {expected}, found {count}: {old!r}"
+              p.write_text(text.replace(old, new))
+
+          replace_exact(
+              'js/auth-entry-v2.js',
+              'videoUrl: "assets/auth-entry-poker-720p.mp4?v=auth-entry-video-720p-v1",',
+              'videoUrl: "assets/auth-entry-poker-native-720p.mp4?v=auth-entry-video-native-720p-v1",',
+          )
+          replace_exact(
+              'js/auth-entry-v2.js',
+              'version: "2.1.1-hd",',
+              'version: "2.1.2-native-hd",',
+          )
+          replace_exact(
+              'js/config.js',
+              'authScript.src = "js/auth-entry-v2.js?v=auth-entry-video-720p-v1";',
+              'authScript.src = "js/auth-entry-v2.js?v=auth-entry-video-native-720p-v1";',
+          )
+
+          test_path = Path('tests/e2e/auth-entry-v2.spec.js')
+          test_text = test_path.read_text()
+          assert test_text.count('.toBe("2.1.1-hd");') == 3
+          assert test_text.count('auth-entry-poker-720p') == 2
+          assert test_text.count('auth-entry-video-720p-v1') == 1
+          test_text = test_text.replace('.toBe("2.1.1-hd");', '.toBe("2.1.2-native-hd");')
+          test_text = test_text.replace('auth-entry-poker-720p', 'auth-entry-poker-native-720p')
+          test_text = test_text.replace('auth-entry-video-720p-v1', 'auth-entry-video-native-720p-v1')
+          test_path.write_text(test_text)
+
+          manifest = Path('build-manifest.json')
+          text = manifest.read_text()
+          count = text.count('assets/auth-entry-poker-720p.mp4')
+          assert count >= 1, f'manifest old asset count: {count}'
+          text = text.replace('assets/auth-entry-poker-720p.mp4', 'assets/auth-entry-poker-native-720p.mp4')
+          text = text.replace('返回登入 720p 清晰牌桌動畫', '返回登入原生 720p 牌桌動畫')
+          manifest.write_text(text)
+          PY
+
+          git rm assets/auth-entry-poker-720p.mp4
+          rm -rf .tmp/auth-native-720p
+          rm .github/workflows/auth-entry-native-720p-once.yml
+
+      - name: Commit verified native 720p version
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/auth-entry-poker-native-720p.mp4 build-manifest.json js/auth-entry-v2.js js/config.js tests/e2e/auth-entry-v2.spec.js .github/workflows/auth-entry-native-720p-once.yml .tmp/auth-native-720p || true
+          git status --short
+          git commit -m "Use native 720p auth entry video"
+          git push origin HEAD:media/auth-entry-native-720p
