@@ -102,8 +102,13 @@
   z-index: 8;
 }
 
+/* When the real video is playing, do not render an extra brand line beneath it. */
 .auth-entry-v2-overlay.has-video .auth-entry-v2-kicker {
-  text-shadow: 0 0 18px rgba(222, 190, 111, 0.2);
+  display: none;
+}
+
+.auth-entry-v2-overlay.has-video .auth-entry-v2-copy strong {
+  margin-top: 0;
 }
 
 .auth-entry-v2-overlay.has-video .auth-entry-v2-progress {
