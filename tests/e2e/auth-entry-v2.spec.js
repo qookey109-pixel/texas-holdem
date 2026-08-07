@@ -56,7 +56,7 @@ test("返回登入優先準備原始影片試播，CSS V2 保留為備援", asyn
   );
   await expect(page.locator('link[data-auth-entry-video-style]')).toHaveAttribute(
     "href",
-    /auth-entry-video-trial\.css\?v=auth-entry-video-trial-v1$/,
+    /auth-entry-video-trial\.css\?v=auth-entry-video-crop-v1$/,
   );
 
   const video = overlay.locator("#authEntryV2Video");
@@ -93,12 +93,17 @@ test("返回登入優先準備原始影片試播，CSS V2 保留為備援", asyn
     const firstStack = element.querySelector(".auth-entry-v2-stack-red");
     const progress = element.querySelector(".auth-entry-v2-progress span");
     const shell = element.querySelector(".auth-entry-v2-video-shell");
+    const videoElement = element.querySelector(".auth-entry-v2-video");
+    const videoStyle = getComputedStyle(videoElement);
+    const videoMatrix = new DOMMatrix(videoStyle.transform);
     return {
       tableAnimation: getComputedStyle(table).animationName,
       cardAnimation: getComputedStyle(firstCard).animationName,
       chipAnimation: getComputedStyle(firstStack).animationName,
       progressAnimation: getComputedStyle(progress).animationName,
       videoShellPosition: getComputedStyle(shell).position,
+      videoObjectFit: videoStyle.objectFit,
+      videoScale: videoMatrix.a,
     };
   });
 
@@ -107,6 +112,8 @@ test("返回登入優先準備原始影片試播，CSS V2 保留為備援", asyn
   expect(presentation.chipAnimation).toContain("auth-entry-v2-chip-stack-one");
   expect(presentation.progressAnimation).toContain("auth-entry-v2-progress");
   expect(presentation.videoShellPosition).toBe("absolute");
+  expect(presentation.videoObjectFit).toBe("cover");
+  expect(presentation.videoScale).toBeCloseTo(1.31, 2);
 
   await expect.poll(
     () => page.evaluate(() => window.TexasHoldemAuth?.status().signedIn || false),
