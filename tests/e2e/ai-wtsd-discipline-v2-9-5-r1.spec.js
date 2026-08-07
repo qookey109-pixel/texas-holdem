@@ -45,14 +45,17 @@ test.describe("AI V2.9.5 WTSD discipline recovery R1", () => {
         state.players = [hero, foxy, other];
         foxy.bet = 0;
         const foxyWeak = api.tightenDecision(foxy, candidate(0.40, 50, true));
+        const foxyFormalGap = api.tightenDecision(foxy, candidate(0.46, 50, true));
 
         const leo = player("Leo");
         state.players = [hero, leo, other];
         const leoWeak = api.tightenDecision(leo, candidate(0.44, 50, true));
+        const leoFormalGap = api.tightenDecision(leo, candidate(0.50, 50, true));
 
         const wolf = player("Wolf");
         state.players = [hero, wolf, other];
         const wolfWeak = api.tightenDecision(wolf, candidate(0.50, 50, true));
+        const wolfFormalGap = api.tightenDecision(wolf, candidate(0.62, 50, true));
         const wolfStrong = api.tightenDecision(wolf, candidate(0.86, 50, true));
 
         const toto = player("Toto");
@@ -62,11 +65,15 @@ test.describe("AI V2.9.5 WTSD discipline recovery R1", () => {
 
         return {
           foxyWeak,
+          foxyFormalGap,
           leoWeak,
+          leoFormalGap,
           wolfWeak,
+          wolfFormalGap,
           wolfStrong,
           totoUntouched: totoUntouched === totoDecision,
           targets: api.targetNames,
+          guards: api.guards,
           hiddenCardsAllowed: api.fairInformationPolicy.hiddenOpponentCards,
           deckOrderAllowed: api.fairInformationPolicy.actualDeckOrder,
           futureBoardAllowed: api.fairInformationPolicy.futureBoardAnswer,
@@ -79,11 +86,21 @@ test.describe("AI V2.9.5 WTSD discipline recovery R1", () => {
       }
     });
 
-    for (const weak of [result.foxyWeak, result.leoWeak, result.wolfWeak]) {
+    for (const weak of [
+      result.foxyWeak,
+      result.foxyFormalGap,
+      result.leoWeak,
+      result.leoFormalGap,
+      result.wolfWeak,
+      result.wolfFormalGap,
+    ]) {
       expect(weak.action).toBe("fold");
       expect(weak.v295R1Adjustment).toMatch(/discipline-r1$/);
       expect(weak.publicInformationOnly).toBe(true);
     }
+    expect(result.guards.Foxy.riverPriceEdge).toBe(0.23);
+    expect(result.guards.Leo.riverPriceEdge).toBe(0.27);
+    expect(result.guards.Wolf.riverPriceEdge).toBe(0.36);
     expect(result.wolfStrong.action).toBe("call");
     expect(result.wolfStrong.v295R1ProtectedStrongValue).toBe(true);
     expect(result.totoUntouched).toBe(true);
