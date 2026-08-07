@@ -117,13 +117,31 @@
 })();
 
 // Load the public-information-only late-street discipline recovery after the
-// existing V2.9.5 strategy chain becomes available.
+// existing V2.9.5 strategy chain becomes available. R2 intentionally layers
+// on top of R1 so the first recovery remains auditable and unchanged.
 (() => {
   "use strict";
-  if (document.querySelector("script[data-ai-wtsd-discipline-v2-9-5-r1]")) return;
+
+  const loadR2 = () => {
+    if (document.querySelector("script[data-ai-wtsd-discipline-v2-9-5-r2]")) return;
+    const script = document.createElement("script");
+    script.src = "js/ai-wtsd-discipline-v2-9-5-r2.js?v=wtsd-recovery-r2";
+    script.async = false;
+    script.dataset.aiWtsdDisciplineV295R2 = "true";
+    document.body.appendChild(script);
+  };
+
+  const existingR1 = document.querySelector("script[data-ai-wtsd-discipline-v2-9-5-r1]");
+  if (existingR1) {
+    if (window.AiWtsdDisciplineV295R1?.version) loadR2();
+    else existingR1.addEventListener("load", loadR2, { once: true });
+    return;
+  }
+
   const script = document.createElement("script");
   script.src = "js/ai-wtsd-discipline-v2-9-5-r1.js?v=wtsd-recovery-r1";
   script.async = false;
   script.dataset.aiWtsdDisciplineV295R1 = "true";
+  script.addEventListener("load", loadR2, { once: true });
   document.body.appendChild(script);
 })();
