@@ -8,6 +8,9 @@ on:
       - ".github/ai-long-run-recovery-triggers/**"
   pull_request:
     paths:
+      - "js/ai-opening-balance-v2-9-5.js"
+      - "js/ai-wtsd-discipline-v2-9-5-r1.js"
+      - "tests/e2e/ai-wtsd-discipline-v2-9-5-r1.spec.js"
       - "tests/e2e/ai-long-run-telemetry-v2-9.spec.js"
       - "scripts/aggregate-ai-long-run-telemetry-v2-9.mjs"
       - ".github/workflows/ai-long-run-recovery-v2-9.yml"

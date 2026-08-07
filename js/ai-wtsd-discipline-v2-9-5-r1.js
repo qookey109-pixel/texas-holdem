@@ -5,36 +5,40 @@
   if (window.AiWtsdDisciplineV295R1?.version) return;
 
   const VERSION = "2.9.5-r1";
+  const TUNING_REVISION = "r3";
   const TARGETS = Object.freeze({
     Foxy: Object.freeze({
-      turnPriceEdge: 0.15,
-      riverPriceEdge: 0.23,
-      turnEvPot: 0.04,
-      riverEvPot: 0.08,
-      strongValueFloor: 0.72,
+      turnPriceEdge: 0.17,
+      riverPriceEdge: 0.27,
+      turnEvPot: 0.05,
+      riverEvPot: 0.10,
+      strongValueFloor: 0.74,
       strongValueMargin: 0.20,
-      marginalValuePremium: 0.045,
-      multiwayStep: 0.015,
+      marginalValuePremium: 0.052,
+      multiwayStep: 0.017,
     }),
     Leo: Object.freeze({
       turnPriceEdge: 0.18,
-      riverPriceEdge: 0.27,
+      riverPriceEdge: 0.275,
       turnEvPot: 0.055,
-      riverEvPot: 0.095,
-      strongValueFloor: 0.75,
+      riverEvPot: 0.097,
+      strongValueFloor: 0.752,
       strongValueMargin: 0.23,
-      marginalValuePremium: 0.055,
+      marginalValuePremium: 0.057,
       multiwayStep: 0.018,
     }),
     Wolf: Object.freeze({
-      turnPriceEdge: 0.23,
-      riverPriceEdge: 0.36,
-      turnEvPot: 0.085,
-      riverEvPot: 0.14,
-      strongValueFloor: 0.79,
-      strongValueMargin: 0.26,
-      marginalValuePremium: 0.075,
-      multiwayStep: 0.022,
+      turnPriceEdge: 0.27,
+      riverPriceEdge: 0.42,
+      turnEvPot: 0.105,
+      riverEvPot: 0.175,
+      strongValueFloor: 0.81,
+      // Keep the effective strong-value protection near the R2 boundary even
+      // though the public price edge is stricter, so genuine value does not
+      // get accidentally converted into a fold.
+      strongValueMargin: 0.20,
+      marginalValuePremium: 0.09,
+      multiwayStep: 0.025,
     }),
   });
   const FAIR_INFORMATION_POLICY = Object.freeze({
@@ -69,6 +73,7 @@
   function createEvidence() {
     return {
       version: VERSION,
+      tuningRevision: TUNING_REVISION,
       inspectedCalls: 0,
       disciplinedFolds: 0,
       roles: Object.fromEntries(Object.keys(TARGETS).map(name => [name, createRoleEvidence()])),
@@ -210,6 +215,7 @@
 
   window.AiWtsdDisciplineV295R1 = Object.freeze({
     version: VERSION,
+    tuningRevision: TUNING_REVISION,
     targetNames: Object.keys(TARGETS),
     guards: TARGETS,
     fairInformationPolicy: FAIR_INFORMATION_POLICY,
