@@ -56,7 +56,7 @@ test("返回登入優先準備原始影片試播，CSS V2 保留為備援", asyn
   );
   await expect(page.locator('link[data-auth-entry-video-style]')).toHaveAttribute(
     "href",
-    /auth-entry-video-trial\.css\?v=auth-entry-video-crop-v1$/,
+    /auth-entry-video-trial\.css\?v=auth-entry-video-crop-v2$/,
   );
 
   const video = overlay.locator("#authEntryV2Video");
@@ -114,6 +114,10 @@ test("返回登入優先準備原始影片試播，CSS V2 保留為備援", asyn
   expect(presentation.videoShellPosition).toBe("absolute");
   expect(presentation.videoObjectFit).toBe("cover");
   expect(presentation.videoScale).toBeCloseTo(1.31, 2);
+
+  await overlay.evaluate(element => element.classList.add("has-video"));
+  await expect(overlay.locator(".auth-entry-v2-kicker")).toBeHidden();
+  await expect(overlay.locator(".auth-entry-v2-copy strong")).toHaveCSS("margin-top", "0px");
 
   await expect.poll(
     () => page.evaluate(() => window.TexasHoldemAuth?.status().signedIn || false),
