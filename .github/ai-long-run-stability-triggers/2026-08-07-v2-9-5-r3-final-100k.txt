@@ -1,0 +1,13 @@
+AI V2.9.5 R3 final 100,000-hand stability telemetry
+
+source_25k_run_id=31148234138
+source_25k_head=f9e82a447864685b6add398cff7d215eef6c15e0
+r3_pr=127
+stability_profile_pr=129
+stability_profile_merge_commit=fb40e5f4a9511f99e3de441f8856a0e9d42c49d9
+profile=stability
+shards=200
+hands_per_shard=500
+expected_hands=100000
+
+Trigger only. No AI behavior or validation threshold changes.
