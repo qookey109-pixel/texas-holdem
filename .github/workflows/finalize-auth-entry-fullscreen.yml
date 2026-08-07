@@ -1,0 +1,72 @@
+name: Finalize auth entry fullscreen trial
+
+on:
+  push:
+    branches:
+      - ui/auth-entry-video-fullscreen
+    paths:
+      - '.github/workflows/finalize-auth-entry-fullscreen.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: ui/auth-entry-video-fullscreen
+          fetch-depth: 0
+
+      - name: Bump fullscreen cache keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          js = Path('js/auth-entry-v2.js')
+          text = js.read_text()
+          text = text.replace(
+              'videoStyleUrl: "js/auth-entry-video-trial.css?v=auth-entry-video-trial-v1"',
+              'videoStyleUrl: "js/auth-entry-video-trial.css?v=auth-entry-video-fullscreen-v1"',
+          )
+          text = text.replace('version: "2.1.0-trial"', 'version: "2.2.0-fullscreen-trial"')
+          js.write_text(text)
+
+          config = Path('js/config.js')
+          text = config.read_text()
+          text = text.replace(
+              'authScript.src = "js/auth-entry-v2.js?v=auth-entry-video-trial-v1"',
+              'authScript.src = "js/auth-entry-v2.js?v=auth-entry-video-fullscreen-v1"',
+          )
+          config.write_text(text)
+
+          manifest = Path('build-manifest.json')
+          text = manifest.read_text()
+          text = text.replace(
+              '返回登入原始影片試播樣式',
+              '返回登入原始影片全螢幕試播樣式',
+          )
+          text = text.replace(
+              'Google 登入、返回牌桌 V2、Supabase V2 雲端存檔與每位玩家 RLS 隔離',
+              'Google 登入、全螢幕返回牌桌影片、Supabase V2 雲端存檔與每位玩家 RLS 隔離',
+          )
+          manifest.write_text(text)
+          PY
+
+      - name: Remove temporary workflow
+        run: rm -f .github/workflows/finalize-auth-entry-fullscreen.yml
+
+      - name: Commit fullscreen cache update
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m 'Finalize fullscreen auth entry trial'
+          git push origin HEAD:ui/auth-entry-video-fullscreen
