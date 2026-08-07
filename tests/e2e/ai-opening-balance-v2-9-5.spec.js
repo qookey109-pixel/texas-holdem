@@ -82,6 +82,16 @@ test.describe("AI V2.9.5 opening and WTSD recovery", () => {
         decision({ equityProxy: 0.52 }),
         preflop({ needed: 60, currentBet: 60 }),
       );
+      const wolfMarginalOpen = api.calibrateDecision(
+        player("Wolf"),
+        decision({
+          action: "raise",
+          raiseBy: 40,
+          sizeFraction: 0.4,
+          equityProxy: 0.38,
+        }),
+        preflop({ opponents: 1, position: "CO" }),
+      );
       const foxyMarginalValue = api.calibrateDecision(
         player("Foxy"),
         decision({ equityProxy: 0.25, callEv: 50, valueReady: true }),
@@ -135,6 +145,11 @@ test.describe("AI V2.9.5 opening and WTSD recovery", () => {
           action: totoPressureCall.action,
           adjustment: totoPressureCall.v295Adjustment,
         },
+        wolfMarginalOpen: {
+          action: wolfMarginalOpen.action,
+          adjustment: wolfMarginalOpen.v295Adjustment,
+          raiseFloor: wolfMarginalOpen.v295RaiseFloor,
+        },
         foxyMarginalValue: {
           action: foxyMarginalValue.action,
           adjustment: foxyMarginalValue.v295Adjustment,
@@ -161,6 +176,7 @@ test.describe("AI V2.9.5 opening and WTSD recovery", () => {
         },
         totoRiverFloor: totoRiverFloor.v295PostflopEquityFloor,
         wolfRiverFloor: wolfRiverFloor.v295PostflopEquityFloor,
+        wolfGuard: api.guards.Wolf,
         untouchedPao: untouchedPao === paoDecision && !untouchedPao.v295Adjustment,
         targets: api.targetNames,
         hiddenCardsAllowed: api.fairInformationPolicy.hiddenOpponentCards,
@@ -177,6 +193,12 @@ test.describe("AI V2.9.5 opening and WTSD recovery", () => {
     expect(result.totoJunkCall.adjustment).toBe("opening-call-floor");
     expect(result.totoPressureCall.action).toBe("fold");
     expect(result.totoPressureCall.adjustment).toBe("opening-raise-fold");
+    expect(result.wolfMarginalOpen.action).toBe("raise");
+    expect(result.wolfMarginalOpen.adjustment).toBe("none");
+    expect(result.wolfMarginalOpen.raiseFloor).toBeLessThanOrEqual(0.38);
+    expect(result.wolfGuard.openFloor).toBe(0.415);
+    expect(result.wolfGuard.callFloor).toBe(0.52);
+    expect(result.wolfGuard.lateDiscount).toBe(0.045);
 
     for (const marginal of [
       result.foxyMarginalValue,
