@@ -9,7 +9,7 @@
     identityStorageKey: "texasHoldemPlayerIdentityV1",
     coreScriptUrl: "js/google-auth.js?v=google-auth-v1.1",
     styleUrl: "js/auth-entry-v2.css?v=auth-entry-video-trial-v1",
-    videoStyleUrl: "js/auth-entry-video-trial.css?v=auth-entry-video-trial-v1",
+    videoStyleUrl: "js/auth-entry-video-trial.css?v=auth-entry-video-crop-v1",
     videoUrl: "assets/auth-entry-poker-trial.mp4?v=auth-entry-video-trial-v1",
     videoPlaybackRate: 1.55,
     minimumDurationMs: 6500,
