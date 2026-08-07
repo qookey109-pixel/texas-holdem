@@ -27,7 +27,8 @@ jobs:
           mkdir -p assets
           cat \
             assets/auth-entry-video/trial-01.b64 \
-            assets/auth-entry-video/trial-02.b64 \
+            assets/auth-entry-video/trial-02a.b64 \
+            assets/auth-entry-video/trial-02b.b64 \
             assets/auth-entry-video/trial-03.b64 \
             assets/auth-entry-video/trial-04.b64 \
             assets/auth-entry-video/trial-05.b64 \
