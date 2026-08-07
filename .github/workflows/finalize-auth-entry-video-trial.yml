@@ -1,0 +1,73 @@
+name: Finalize auth entry video trial
+
+on:
+  push:
+    branches:
+      - ui/auth-entry-video-trial
+    paths:
+      - '.github/workflows/finalize-auth-entry-video-trial.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: ui/auth-entry-video-trial
+          fetch-depth: 0
+
+      - name: Bump loader cache key and register trial assets
+        shell: python
+        run: |
+          from pathlib import Path
+
+          config_path = Path('js/config.js')
+          config = config_path.read_text()
+          old_loader = 'js/auth-entry-v2.js?v=auth-entry-v2-1'
+          new_loader = 'js/auth-entry-v2.js?v=auth-entry-video-trial-v1'
+          if old_loader not in config and new_loader not in config:
+              raise SystemExit('Unable to find auth entry loader cache key')
+          config = config.replace(old_loader, new_loader)
+          config_path.write_text(config)
+
+          manifest_path = Path('build-manifest.json')
+          manifest = manifest_path.read_text()
+
+          asset_anchor = '    { "path": "js/auth-entry-v2.css", "label": "返回登入牌桌進場 V2 樣式" },\n'
+          asset_addition = (
+              asset_anchor
+              + '    { "path": "js/auth-entry-video-trial.css", "label": "返回登入原始影片試播樣式" },\n'
+              + '    { "path": "assets/auth-entry-poker-trial.mp4", "label": "返回登入原始牌桌動畫試播影片" },\n'
+          )
+          if 'assets/auth-entry-poker-trial.mp4' not in manifest:
+              if asset_anchor not in manifest:
+                  raise SystemExit('Unable to find build-manifest auth asset anchor')
+              manifest = manifest.replace(asset_anchor, asset_addition, 1)
+
+          old_feature = '"assets": ["js/google-auth.js", "js/google-auth.css", "js/auth-entry-v2.js", "js/auth-entry-v2.css", "js/tournament-cloud-save.js"'
+          new_feature = '"assets": ["js/google-auth.js", "js/google-auth.css", "js/auth-entry-v2.js", "js/auth-entry-v2.css", "js/auth-entry-video-trial.css", "assets/auth-entry-poker-trial.mp4", "js/tournament-cloud-save.js"'
+          if new_feature not in manifest:
+              if old_feature not in manifest:
+                  raise SystemExit('Unable to find auth-cloud-save asset list')
+              manifest = manifest.replace(old_feature, new_feature, 1)
+
+          old_label = 'Google 登入、返回牌桌 V2、Supabase V2 雲端存檔與每位玩家 RLS 隔離'
+          new_label = 'Google 登入、原始影片返回牌桌試播、CSS V2 備援、Supabase V2 雲端存檔與每位玩家 RLS 隔離'
+          manifest = manifest.replace(old_label, new_label, 1)
+          manifest_path.write_text(manifest)
+
+      - name: Remove temporary workflow and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/finalize-auth-entry-video-trial.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m 'Finalize auth entry video trial assets'
+          git push origin HEAD:ui/auth-entry-video-trial
