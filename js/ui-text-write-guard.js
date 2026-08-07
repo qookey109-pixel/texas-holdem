@@ -115,3 +115,15 @@
     },
   };
 })();
+
+// Load the public-information-only late-street discipline recovery after the
+// existing V2.9.5 strategy chain becomes available.
+(() => {
+  "use strict";
+  if (document.querySelector("script[data-ai-wtsd-discipline-v2-9-5-r1]")) return;
+  const script = document.createElement("script");
+  script.src = "js/ai-wtsd-discipline-v2-9-5-r1.js?v=wtsd-recovery-r1";
+  script.async = false;
+  script.dataset.aiWtsdDisciplineV295R1 = "true";
+  document.body.appendChild(script);
+})();
