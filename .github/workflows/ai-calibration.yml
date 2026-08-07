@@ -17,6 +17,9 @@ on:
       - "docs/calibration-results/*.md"
       - "package.json"
       - ".github/workflows/ai-calibration.yml"
+      - ".github/workflows/ai-long-run-telemetry.yml"
+      - ".github/ai-long-run-triggers/**"
+      - ".github/ai-long-run-stability-triggers/**"
 
 permissions:
   contents: read
