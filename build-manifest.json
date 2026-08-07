@@ -58,7 +58,7 @@
     { "path": "js/google-auth.css", "label": "Google 登入介面樣式" },
     { "path": "js/auth-entry-v2.js", "label": "返回登入六秒牌桌進場 V2" },
     { "path": "js/auth-entry-v2.css", "label": "返回登入牌桌進場 V2 樣式" },
-    { "path": "js/auth-entry-video-trial.css", "label": "返回登入原始影片試播樣式" },
+    { "path": "js/auth-entry-video-trial.css", "label": "返回登入原始影片全螢幕試播樣式" },
     { "path": "assets/auth-entry-poker-trial.mp4", "label": "返回登入原始牌桌動畫試播影片" },
     { "path": "js/tournament-cloud-save.js", "label": "淘汰賽雲端存檔 V2" },
     { "path": "js/tournament-cloud-save.css", "label": "淘汰賽雲端存檔介面" },
