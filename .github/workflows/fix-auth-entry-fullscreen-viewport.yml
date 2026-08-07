@@ -1,0 +1,77 @@
+name: Fix auth entry fullscreen viewport
+
+on:
+  push:
+    branches:
+      - ui/auth-entry-video-fullscreen
+    paths:
+      - '.github/workflows/fix-auth-entry-fullscreen-viewport.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: ui/auth-entry-video-fullscreen
+          fetch-depth: 0
+
+      - name: Move video to viewport root and refresh assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          js = Path('js/auth-entry-v2.js')
+          text = js.read_text()
+          video_block = '''        <div class="auth-entry-v2-video-shell" aria-hidden="true">
+          <video id="authEntryV2Video" class="auth-entry-v2-video" muted autoplay playsinline preload="auto"></video>
+          <span class="auth-entry-v2-video-glass"></span>
+        </div>
+'''
+          if video_block not in text:
+              raise SystemExit('video block not found')
+          text = text.replace(video_block, '', 1)
+          ambient_anchor = '''      <div class="auth-entry-v2-ambient" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+'''
+          viewport_block = '''      <div class="auth-entry-v2-video-shell" aria-hidden="true">
+        <video id="authEntryV2Video" class="auth-entry-v2-video" muted autoplay playsinline preload="auto"></video>
+        <span class="auth-entry-v2-video-glass"></span>
+      </div>
+'''
+          if ambient_anchor not in text:
+              raise SystemExit('ambient anchor not found')
+          text = text.replace(ambient_anchor, ambient_anchor + viewport_block, 1)
+          js.write_text(text)
+
+          test = Path('tests/e2e/auth-entry-v2.spec.js')
+          text = test.read_text()
+          text = text.replace('2.1.0-trial', '2.2.0-fullscreen-trial')
+          text = text.replace(
+              r'/auth-entry-video-trial\.css\?v=auth-entry-video-trial-v1$/',
+              r'/auth-entry-video-trial\.css\?v=auth-entry-video-fullscreen-v1$/',
+          )
+          text = text.replace('expect(presentation.videoShellPosition).toBe("absolute");', 'expect(presentation.videoShellPosition).toBe("fixed");')
+          test.write_text(text)
+          PY
+
+      - name: Remove temporary workflow
+        run: rm -f .github/workflows/fix-auth-entry-fullscreen-viewport.yml
+
+      - name: Commit viewport fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m 'Fix auth entry video viewport positioning'
+          git push origin HEAD:ui/auth-entry-video-fullscreen
