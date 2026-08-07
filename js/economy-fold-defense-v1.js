@@ -20,7 +20,7 @@
     gemini: Object.freeze({ min: 50, warning: 58, target: 65, pressure: 72, max: 90 }),
   });
   const CONFIG = Object.freeze({
-    normal: Object.freeze({ average: .70, buyInCap: .60, minBb: 20, maxBb: 50 }),
+    normal: Object.freeze({ median: .80, buyInCap: .75, softFloorBb: 12, maxBb: 60 }),
     tight: Object.freeze({ hands: 8, vpip: .18, preflopFold: .70 }),
     lead: Object.freeze({ warning: 1.7, standard: 1.8, target: 2.0, pressure: 2.2, maximum: 3.5 }),
   });
@@ -37,6 +37,15 @@
   function finite(value, fallback = 0) {
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
+  }
+
+  function median(values) {
+    if (!Array.isArray(values) || !values.length) return 0;
+    const sorted = [...values].sort((left, right) => left - right);
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2
+      ? sorted[middle]
+      : (sorted[middle - 1] + sorted[middle]) / 2;
   }
 
   function roundUnit(value, unit = 10) {
@@ -133,33 +142,37 @@
   }
 
   function calculateNormalRebuy(players = state?.players, options = {}) {
+    const sharedCalculator = window.ReplacementStackBalance?.calculate;
+    if (typeof sharedCalculator === "function") {
+      return sharedCalculator(players, options);
+    }
+
+    // Compatibility fallback while the shared allocator is still loading.
     const level = normalLevel(options);
     const bb = Math.max(1, finite(level?.big, 20));
     const buyIn = Math.max(bb, finite(level?.buyIn, bb * 100));
     const stacks = (Array.isArray(players) ? players : [])
       .map(player => finite(player?.stack))
       .filter(stack => stack > 0);
-    const average = stacks.length ? stacks.reduce((sum, stack) => sum + stack, 0) / stacks.length : buyIn;
-    const minimum = bb * CONFIG.normal.minBb;
-    const maximum = bb * CONFIG.normal.maxBb;
-    const raw = Math.min(average * CONFIG.normal.average, buyIn * CONFIG.normal.buyInCap, maximum);
-    return clamp(Math.floor(raw / bb) * bb || minimum, minimum, maximum);
+    const tableMedian = stacks.length ? median(stacks) : buyIn;
+    const raw = Math.min(
+      tableMedian * CONFIG.normal.median,
+      buyIn * CONFIG.normal.buyInCap,
+      bb * CONFIG.normal.maxBb,
+    );
+    const softFloor = Math.min(tableMedian, bb * CONFIG.normal.softFloorBb);
+    const target = Math.min(tableMedian, Math.max(raw, softFloor));
+    const rounded = Math.floor(target / bb) * bb;
+    return Math.max(Math.min(tableMedian, bb), rounded || Math.min(tableMedian, bb));
   }
 
   function installAiRebuy() {
     if (window.__economyFoldDefenseSeatBalanceInstalled) return true;
-    if (!window.ReplacementStackBalance?.isInstalled?.() || typeof buildNextAiSeats !== "function") return false;
-    const previous = buildNextAiSeats;
-    buildNextAiSeats = function buildNextAiSeatsWithSymmetricRebuy(previousPlayers) {
-      const seats = previous.apply(this, arguments);
-      if (window.TournamentMode?.isActive?.() || !Array.isArray(previousPlayers) || !previousPlayers.length) return seats;
-      const stack = calculateNormalRebuy(previousPlayers, { handNumber: Math.max(1, finite(state?.handNumber, 1)) });
-      return (Array.isArray(seats) ? seats : []).map(seat => seat?.replaced
-        ? { ...seat, stack, symmetricRebuyV1: true }
-        : seat);
-    };
-    buildNextAiSeats.__economyFoldDefenseSeatBalance = true;
-    buildNextAiSeats.__original = previous;
+    if (!window.ReplacementStackBalance?.isInstalled?.() || typeof window.ReplacementStackBalance?.calculate !== "function") {
+      return false;
+    }
+    // ReplacementStackBalance is the single source of truth for normal AI
+    // replacements. Do not wrap buildNextAiSeats a second time here.
     window.__economyFoldDefenseSeatBalanceInstalled = true;
     return true;
   }
@@ -290,11 +303,11 @@
     if (window.__economyFoldDefenseHeroRebuyInstalled) return true;
     if (!window.__economyFoldDefenseCatchupInstalled || typeof startHand !== "function") return false;
     const previous = startHand;
-    startHand = function startHandWithSymmetricHeroRebuy(...args) {
+    startHand = function startHandWithBalancedNormalBuyIn(...args) {
       const players = Array.isArray(state?.players) ? state.players : [];
-      const busted = Boolean(players[0] && finite(players[0].stack) <= 0);
-      if (window.TournamentMode?.isActive?.() || !busted) return previous.apply(this, args);
+      if (window.TournamentMode?.isActive?.() || !players.length) return previous.apply(this, args);
       const balanced = calculateNormalRebuy(players, { nextHand: true });
+      if (!Number.isFinite(balanced) || balanced <= 0) return previous.apply(this, args);
       const saved = currentBuyIn;
       currentBuyIn = () => balanced;
       try {
@@ -472,7 +485,14 @@
   window.EconomyFoldDefenseV1 = {
     version: VERSION,
     config: Object.freeze({
-      normalRebuy: Object.freeze({ tableAverageRatio: .70, buyInRatioCap: .60, minBigBlinds: 20, maxBigBlinds: 50 }),
+      normalRebuy: Object.freeze({
+        source: "ReplacementStackBalance.normalConfig",
+        strategy: "median-v2",
+        tableMedianRatio: .80,
+        buyInRatioCap: .75,
+        softFloorBigBlinds: 12,
+        maxBigBlinds: 60,
+      }),
       tightness: Object.freeze({ minimumHands: 8, lowVpipThreshold: .18, preflopFoldThreshold: .70 }),
       catchup: Object.freeze({
         heroLeadTrigger: CONFIG.lead.warning,
@@ -516,6 +536,7 @@
         && window.AiTieredMultiwayEquityV27?.version
         && botAction?.__aiTieredMultiwayEquityV27Wrapper
       ),
+      normalRebuySource: window.ReplacementStackBalance?.normalConfig?.strategy || "compatibility-fallback",
       symmetricAiRebuy: Boolean(window.__economyFoldDefenseSeatBalanceInstalled),
       symmetricHeroRebuy: Boolean(window.__economyFoldDefenseHeroRebuyInstalled),
       bossCatchup: Boolean(window.__economyFoldDefenseCatchupInstalled),
