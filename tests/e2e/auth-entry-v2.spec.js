@@ -46,7 +46,7 @@ test("返回登入優先準備原始影片試播，CSS V2 保留為備援", asyn
   await expect.poll(
     () => page.evaluate(() => window.AuthEntryV2?.version || ""),
     { timeout: 5_000 },
-  ).toBe("2.2.0-fullscreen-trial");
+  ).toBe("2.1.0-trial");
 
   const overlay = page.locator("#authEntryV2Overlay");
   await expect(overlay).toBeVisible();
@@ -56,7 +56,7 @@ test("返回登入優先準備原始影片試播，CSS V2 保留為備援", asyn
   );
   await expect(page.locator('link[data-auth-entry-video-style]')).toHaveAttribute(
     "href",
-    /auth-entry-video-trial\.css\?v=auth-entry-video-fullscreen-v1$/,
+    /auth-entry-video-trial\.css\?v=auth-entry-video-trial-v1$/,
   );
 
   const video = overlay.locator("#authEntryV2Video");
@@ -106,7 +106,7 @@ test("返回登入優先準備原始影片試播，CSS V2 保留為備援", asyn
   expect(presentation.cardAnimation).toContain("auth-entry-v2-card-one");
   expect(presentation.chipAnimation).toContain("auth-entry-v2-chip-stack-one");
   expect(presentation.progressAnimation).toContain("auth-entry-v2-progress");
-  expect(presentation.videoShellPosition).toBe("fixed");
+  expect(presentation.videoShellPosition).toBe("absolute");
 
   await expect.poll(
     () => page.evaluate(() => window.TexasHoldemAuth?.status().signedIn || false),
@@ -139,7 +139,7 @@ test("原始影片載入失敗時仍安全使用 CSS 牌桌備援", async ({ pag
   await expect.poll(
     () => page.evaluate(() => window.AuthEntryV2?.version || ""),
     { timeout: 5_000 },
-  ).toBe("2.2.0-fullscreen-trial");
+  ).toBe("2.1.0-trial");
 
   const overlay = page.locator("#authEntryV2Overlay");
   await expect(overlay).toBeVisible();
@@ -162,7 +162,7 @@ test("全新未登入開啟仍不增加影片或六秒等待", async ({ page }) 
   await expect.poll(
     () => page.evaluate(() => window.AuthEntryV2?.version || ""),
     { timeout: 5_000 },
-  ).toBe("2.2.0-fullscreen-trial");
+  ).toBe("2.1.0-trial");
 
   await expect(page.locator("#authEntryV2Overlay")).toHaveCount(0);
   await expect(page.locator("#authEntryV2Video")).toHaveCount(0);
