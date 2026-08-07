@@ -1,0 +1,6 @@
+PR #125 recovery smoke trigger.
+
+Purpose:
+- Force the AI V2.9 long-run recovery PR workflow to run on the R2 WTSD retune.
+- No production strategy behavior changes.
+- Validate recovery shards and aggregate path before merge.
