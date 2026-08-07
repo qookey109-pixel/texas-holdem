@@ -1,0 +1,62 @@
+name: Auth entry 720p one-shot
+
+on:
+  push:
+    branches:
+      - media/auth-entry-720p
+    paths:
+      - .github/workflows/auth-entry-upscale-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  upscale:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: media/auth-entry-720p
+          fetch-depth: 0
+
+      - name: Ensure ffmpeg
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          ffmpeg -version | head -n 1
+
+      - name: Build web-optimized 720p video
+        shell: bash
+        run: |
+          set -euo pipefail
+          src="assets/auth-entry-poker-trial.mp4"
+          out="assets/auth-entry-poker-720p.mp4"
+          test -f "$src"
+          ffmpeg -y -i "$src" -an \
+            -vf "hqdn3d=0.8:0.8:2.4:2.4,scale=1280:720:flags=lanczos,unsharp=5:5:0.45:5:5:0.0" \
+            -c:v libx264 -preset slow -crf 18 -profile:v high -level 3.1 \
+            -pix_fmt yuv420p -movflags +faststart "$out"
+          ffprobe -v error -select_streams v:0 \
+            -show_entries stream=codec_name,width,height,pix_fmt \
+            -show_entries format=duration,size \
+            -of json "$out"
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 "$out")" = "1280"
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$out")" = "720"
+          test "$(stat -c%s "$out")" -lt 4000000
+
+      - name: Commit generated video
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/auth-entry-poker-720p.mp4
+          git diff --cached --quiet && exit 0
+          git commit -m "Add optimized 720p auth entry video"
+          git push origin HEAD:media/auth-entry-720p
