@@ -1,0 +1,1 @@
+Trial QA gates: Static site check, Poker state stress, Chromium E2E, and WebKit E2E must all pass before merge. The original-video layer must fall back to CSS V2 on media failure and must not add delay for fresh signed-out visits.

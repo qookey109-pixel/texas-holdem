@@ -1,5 +1,5 @@
-// Layered returning-session entry sequence. Keeps the auth core isolated while giving
-// returning players a deliberate poker-table reveal before the game becomes visible.
+// Returning-session entry sequence. Uses the original poker video when it can play,
+// while keeping the layered CSS table as an immediate and reliable fallback.
 (() => {
   "use strict";
 
@@ -8,16 +8,22 @@
   const CONFIG = Object.freeze({
     identityStorageKey: "texasHoldemPlayerIdentityV1",
     coreScriptUrl: "js/google-auth.js?v=google-auth-v1.1",
-    styleUrl: "js/auth-entry-v2.css?v=auth-entry-v2-1",
-    minimumDurationMs: 6000,
+    styleUrl: "js/auth-entry-v2.css?v=auth-entry-video-trial-v1",
+    videoStyleUrl: "js/auth-entry-video-trial.css?v=auth-entry-video-trial-v1",
+    videoUrl: "assets/auth-entry-poker-trial.mp4?v=auth-entry-video-trial-v1",
+    videoPlaybackRate: 1.55,
+    minimumDurationMs: 6500,
     reducedMotionDurationMs: 900,
     authSettleTimeoutMs: 18000,
   });
 
   let overlay = null;
+  let entryVideo = null;
   let stageTimers = [];
   let startedAt = 0;
   let active = false;
+  let videoActive = false;
+  let videoState = "idle";
 
   function cleanText(value, maxLength = 80) {
     return String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength);
@@ -49,13 +55,18 @@
     return new Promise(resolve => window.setTimeout(resolve, Math.max(0, milliseconds)));
   }
 
-  function installStylesheet() {
-    if (document.querySelector('link[data-auth-entry-v2-style]')) return;
+  function installStylesheet({ href, marker }) {
+    if (document.querySelector(`link[${marker}]`)) return;
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = CONFIG.styleUrl;
-    link.dataset.authEntryV2Style = "true";
+    link.href = href;
+    link.setAttribute(marker, "true");
     document.head.appendChild(link);
+  }
+
+  function installStylesheets() {
+    installStylesheet({ href: CONFIG.styleUrl, marker: "data-auth-entry-v2-style" });
+    installStylesheet({ href: CONFIG.videoStyleUrl, marker: "data-auth-entry-video-style" });
   }
 
   function chipStack(name, count = 5) {
@@ -65,7 +76,7 @@
   }
 
   function createOverlay() {
-    installStylesheet();
+    installStylesheets();
     const node = document.createElement("section");
     node.id = "authEntryV2Overlay";
     node.className = "auth-entry-v2-overlay";
@@ -77,6 +88,10 @@
         <span></span><span></span><span></span><span></span><span></span><span></span>
       </div>
       <div class="auth-entry-v2-stage">
+        <div class="auth-entry-v2-video-shell" aria-hidden="true">
+          <video id="authEntryV2Video" class="auth-entry-v2-video" muted autoplay playsinline preload="auto"></video>
+          <span class="auth-entry-v2-video-glass"></span>
+        </div>
         <div class="auth-entry-v2-halo" aria-hidden="true"></div>
         <div class="auth-entry-v2-table-wrap" aria-hidden="true">
           <div class="auth-entry-v2-table-shadow"></div>
@@ -133,9 +148,9 @@
     }
     const stages = [
       [1250, "發出手牌", "洗牌完成，正在發出起手牌…", "cards"],
-      [2700, "整理籌碼", "正在整理籌碼與座位…", "chips"],
-      [4100, "確認莊位", "正在同步玩家與牌桌狀態…", "dealer"],
-      [5250, "準備開局", "最後確認完成，即將進入牌桌…", "ready"],
+      [2800, "整理籌碼", "正在整理籌碼與座位…", "chips"],
+      [4500, "確認莊位", "正在同步玩家與牌桌狀態…", "dealer"],
+      [5750, "準備開局", "最後確認完成，即將進入牌桌…", "ready"],
     ];
     stageTimers = stages.map(([after, title, status, stage]) => window.setTimeout(
       () => setStage(title, status, stage),
@@ -146,6 +161,63 @@
   function clearStageTimers() {
     stageTimers.forEach(timer => window.clearTimeout(timer));
     stageTimers = [];
+  }
+
+  function activateVideo(video) {
+    if (!overlay || !video?.isConnected || videoActive || prefersReducedMotion()) return;
+    const playAttempt = video.play();
+    if (!playAttempt?.then) {
+      videoActive = true;
+      videoState = "playing";
+      overlay.classList.add("has-video");
+      return;
+    }
+    playAttempt.then(() => {
+      if (!overlay || !video.isConnected) return;
+      videoActive = true;
+      videoState = "playing";
+      overlay.classList.add("has-video");
+    }).catch(() => {
+      videoState = "fallback";
+    });
+  }
+
+  function prepareVideo() {
+    if (!overlay || prefersReducedMotion()) {
+      videoState = prefersReducedMotion() ? "reduced-motion" : "idle";
+      return;
+    }
+
+    const video = overlay.querySelector("#authEntryV2Video");
+    if (!video) return;
+    entryVideo = video;
+    videoState = "loading";
+    video.defaultPlaybackRate = CONFIG.videoPlaybackRate;
+    video.playbackRate = CONFIG.videoPlaybackRate;
+    video.muted = true;
+    video.playsInline = true;
+
+    const ready = () => activateVideo(video);
+    video.addEventListener("loadeddata", ready, { once: true });
+    video.addEventListener("canplay", ready, { once: true });
+    video.addEventListener("playing", () => {
+      if (!overlay || !video.isConnected) return;
+      videoActive = true;
+      videoState = "playing";
+      overlay.classList.add("has-video");
+    }, { once: true });
+    video.addEventListener("ended", () => {
+      videoState = "ended";
+      video.pause();
+    }, { once: true });
+    video.addEventListener("error", () => {
+      videoState = "fallback";
+      videoActive = false;
+      overlay?.classList.remove("has-video");
+    }, { once: true });
+
+    video.src = CONFIG.videoUrl;
+    video.load();
   }
 
   function loadAuthCore() {
@@ -179,10 +251,24 @@
     }
   }
 
+  function disposeVideo() {
+    if (!entryVideo) return;
+    try {
+      entryVideo.pause();
+      entryVideo.removeAttribute("src");
+      entryVideo.load();
+    } catch (_) {
+      // The CSS fallback remains safe even if media cleanup is unavailable.
+    }
+    entryVideo = null;
+    videoActive = false;
+  }
+
   async function closeOverlay() {
     if (!overlay) return;
     overlay.classList.add("is-leaving");
     await delay(prefersReducedMotion() ? 80 : 460);
+    disposeVideo();
     overlay.remove();
     overlay = null;
     active = false;
@@ -201,6 +287,7 @@
       startedAt = performance.now();
       createOverlay();
       scheduleStages();
+      prepareVideo();
     }
 
     await loadAuthCore();
@@ -215,13 +302,16 @@
   }
 
   window.AuthEntryV2 = Object.freeze({
-    version: "2.0.0",
+    version: "2.1.0-trial",
     minimumDurationMs: CONFIG.minimumDurationMs,
+    videoUrl: CONFIG.videoUrl,
     status: () => ({
       active,
       startedAt,
       stage: overlay?.dataset.stage || "",
       visible: Boolean(overlay?.isConnected),
+      videoActive,
+      videoState,
     }),
   });
 

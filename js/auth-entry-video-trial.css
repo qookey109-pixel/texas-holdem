@@ -1,0 +1,150 @@
+/* Original-video trial layer for the returning-login entry scene.
+   The existing auth-entry-v2 table remains underneath as the fallback. */
+
+.auth-entry-v2-stage {
+  width: min(760px, 96vw);
+}
+
+.auth-entry-v2-table-wrap {
+  width: min(640px, 88vw);
+  transition: opacity 300ms ease, filter 300ms ease, transform 300ms ease;
+}
+
+.auth-entry-v2-halo {
+  transition: opacity 300ms ease;
+}
+
+.auth-entry-v2-video-shell {
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  left: 50%;
+  width: min(640px, 88vw);
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid rgba(224, 194, 119, 0.28);
+  border-radius: clamp(15px, 2.4vw, 24px);
+  background:
+    radial-gradient(circle at 50% 48%, rgba(25, 111, 78, 0.22), transparent 48%),
+    #03090b;
+  box-shadow:
+    0 28px 70px rgba(0, 0, 0, 0.58),
+    0 0 0 1px rgba(107, 217, 166, 0.06),
+    0 0 46px rgba(45, 175, 119, 0.12);
+  opacity: 0;
+  transform: translateX(-50%) translateY(4px) scale(0.985);
+  pointer-events: none;
+  transition:
+    opacity 300ms ease,
+    transform 420ms cubic-bezier(.16, .8, .22, 1),
+    box-shadow 420ms ease;
+}
+
+.auth-entry-v2-video-shell::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    inset 0 -28px 55px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+.auth-entry-v2-video {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #03090b;
+  object-fit: contain;
+  object-position: 50% 50%;
+  transform: translateZ(0);
+}
+
+.auth-entry-v2-video-glass {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 16%, transparent 80%, rgba(0, 0, 0, 0.18)),
+    radial-gradient(ellipse at 50% 45%, transparent 46%, rgba(0, 0, 0, 0.12) 100%);
+  pointer-events: none;
+}
+
+.auth-entry-v2-overlay.has-video .auth-entry-v2-video-shell {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
+  box-shadow:
+    0 30px 82px rgba(0, 0, 0, 0.64),
+    0 0 0 1px rgba(107, 217, 166, 0.1),
+    0 0 56px rgba(45, 175, 119, 0.16);
+}
+
+.auth-entry-v2-overlay.has-video .auth-entry-v2-table-wrap {
+  opacity: 0;
+  filter: blur(4px);
+  transform: scale(0.985);
+}
+
+.auth-entry-v2-overlay.has-video .auth-entry-v2-halo {
+  opacity: 0.32 !important;
+}
+
+.auth-entry-v2-overlay.has-video .auth-entry-v2-copy {
+  position: relative;
+  z-index: 8;
+}
+
+.auth-entry-v2-overlay.has-video .auth-entry-v2-kicker {
+  text-shadow: 0 0 18px rgba(222, 190, 111, 0.2);
+}
+
+.auth-entry-v2-overlay.has-video .auth-entry-v2-progress {
+  box-shadow: 0 0 18px rgba(76, 208, 146, 0.1);
+}
+
+@media (max-width: 620px) {
+  .auth-entry-v2-stage {
+    width: 96vw;
+  }
+
+  .auth-entry-v2-table-wrap,
+  .auth-entry-v2-video-shell {
+    width: min(94vw, 640px);
+  }
+
+  .auth-entry-v2-video-shell {
+    border-radius: 16px;
+  }
+}
+
+@media (max-height: 620px) and (orientation: landscape) {
+  .auth-entry-v2-stage {
+    width: min(680px, 92vw);
+    transform: translateY(0);
+  }
+
+  .auth-entry-v2-table-wrap,
+  .auth-entry-v2-video-shell {
+    width: min(500px, 72vw);
+  }
+
+  .auth-entry-v2-copy {
+    margin-top: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-entry-v2-video-shell {
+    display: none !important;
+  }
+
+  .auth-entry-v2-table-wrap,
+  .auth-entry-v2-halo {
+    transition: none !important;
+  }
+}
