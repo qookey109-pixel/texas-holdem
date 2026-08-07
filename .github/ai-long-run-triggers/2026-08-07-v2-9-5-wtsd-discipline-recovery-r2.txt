@@ -1,0 +1,3 @@
+AI V2.9.5 WTSD recovery R2 validation trigger.
+
+25,000-hand R1 evidence failed only Foxy corrected WTSD (80.466% > 78%), Leo corrected WTSD (79.811% > 78%), and Wolf VPIP/WTSD (27.738% < 28%; 80.626% > 76%). R2 changes only those directly affected roles: stricter surviving turn/river calls for Foxy, Leo and Wolf plus a minimal Wolf-only preflop participation recovery. Formal thresholds, fairness, runtime coverage and fallback gates remain unchanged.
