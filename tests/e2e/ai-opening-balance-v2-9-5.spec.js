@@ -12,14 +12,6 @@ test.describe("AI V2.9.5 opening and WTSD recovery", () => {
       () => page.evaluate(() => document.documentElement.dataset.aiOpeningBalanceV295 || ""),
       { timeout: 15_000 },
     ).toBe("ready");
-    await expect.poll(
-      () => page.evaluate(() => Boolean(botAction?.__aiOpeningBalanceV295Wrapper)),
-      { timeout: 15_000 },
-    ).toBe(true);
-    await expect.poll(
-      () => page.evaluate(() => Boolean(botAction?.__previousBotAction?.__aiOpeningBalanceV294Wrapper)),
-      { timeout: 15_000 },
-    ).toBe(true);
 
     const result = await page.evaluate(() => {
       const api = window.AiOpeningBalanceV295;

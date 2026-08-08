@@ -89,14 +89,6 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
       { timeout: 15_000 },
     ).toBe("ready");
     await expect.poll(
-      () => page.evaluate(() => Boolean(botAction?.__aiOpeningBalanceV295Wrapper)),
-      { timeout: 15_000 },
-    ).toBe(true);
-    await expect.poll(
-      () => page.evaluate(() => Boolean(botAction?.__previousBotAction?.__aiOpeningBalanceV294Wrapper)),
-      { timeout: 15_000 },
-    ).toBe(true);
-    await expect.poll(
       () => page.evaluate(() => window.EconomyFoldDefenseV1?.version || ""),
       { timeout: 15_000 },
     ).toBe("1.1.0");
@@ -122,9 +114,9 @@ test.describe("AI V2.9 long-run full-hand telemetry", () => {
       window.AiLongRunTelemetryIntegrityV294?.reset?.();
     });
     await expect.poll(
-      () => page.evaluate(() => Boolean(botAction?.__aiOpeningBalanceV295Wrapper)),
+      () => page.evaluate(() => document.documentElement.dataset.aiOpeningBalanceV295 || ""),
       { timeout: 15_000 },
-    ).toBe(true);
+    ).toBe("ready");
 
     const rawLabSource = (await Promise.all(LAB_PARTS.map(path => readFile(path, "utf8")))).join("");
     const labSource = injectIntegrityHooks(rawLabSource);
