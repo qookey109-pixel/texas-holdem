@@ -63,16 +63,17 @@ test("返回登入優先準備原始影片試播，CSS V2 保留為備援", asyn
   await expect(video).toHaveCount(1);
   await expect(video).toHaveAttribute("src", /assets\/auth-entry-poker-720p\.mp4\?v=auth-entry-video-safari-runtime-v3$/);
   await expect(video).toHaveAttribute("autoplay", "");
+  await expect(video).toHaveAttribute("muted", "");
   await expect(video).toHaveAttribute("playsinline", "");
   await expect(video).toHaveAttribute("preload", "auto");
 
   const mediaConfig = await video.evaluate(element => ({
-    muted: element.muted,
+    defaultMuted: element.defaultMuted,
     playsInline: element.playsInline,
     playbackRate: element.playbackRate,
     defaultPlaybackRate: element.defaultPlaybackRate,
   }));
-  expect(mediaConfig.muted).toBe(true);
+  expect(mediaConfig.defaultMuted).toBe(true);
   expect(mediaConfig.playsInline).toBe(true);
   expect(mediaConfig.playbackRate).toBeCloseTo(1.55, 2);
   expect(mediaConfig.defaultPlaybackRate).toBeCloseTo(1.55, 2);
