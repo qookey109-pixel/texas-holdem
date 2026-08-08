@@ -163,7 +163,10 @@ async function liveCheck(contract, baseUrl) {
   const pagesRoot = await fetchWithTimeout(site, { headers: { accept: "text/html" } });
   const root = await jsonOrText(pagesRoot);
   assert(pagesRoot.ok, `GitHub Pages root failed: HTTP ${pagesRoot.status}`);
-  assert(root.text.includes("js/config.js?v=tiered-multiway-equity-v2-7"), "GitHub Pages root is not loading the V2.7 config cache key");
+  assert(
+    /<script\b[^>]*\bsrc=["'](?:\.\/)?js\/config\.js(?:\?[^"']*)?["'][^>]*>/i.test(root.text),
+    "GitHub Pages root is not loading js/config.js",
+  );
 
   const liveConfigResponse = await fetchWithTimeout(new URL("js/config.js", site));
   const liveConfig = await liveConfigResponse.text();

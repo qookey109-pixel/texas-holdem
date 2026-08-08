@@ -43,12 +43,14 @@ jobs:
         run: sleep 60
 
       - name: Run non-destructive live smoke
-        run: >-
-          node scripts/production-backend-smoke.mjs
-          --live
-          --retries=6
-          --retry-delay-ms=15000
-          | tee production-smoke-report.json
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/production-backend-smoke.mjs \
+            --live \
+            --retries=6 \
+            --retry-delay-ms=15000 \
+            | tee production-smoke-report.json
 
       - name: Upload production smoke report
         if: always()
