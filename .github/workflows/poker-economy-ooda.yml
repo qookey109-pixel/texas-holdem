@@ -1,6 +1,13 @@
 name: Poker Economy OODA
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/poker-economy-ooda.yml"
+      - "tests/e2e/poker-economy-ooda-v1.spec.js"
+      - "tests/support/poker-economy-ooda-v1.js"
+      - "scripts/evaluate-poker-economy-ooda-v1.mjs"
+      - "package.json"
   workflow_dispatch:
     inputs:
       stage:
@@ -18,13 +25,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: poker-economy-ooda-${{ github.ref }}-${{ inputs.stage }}
+  group: poker-economy-ooda-${{ github.ref }}-${{ inputs.stage || 'smoke' }}
   cancel-in-progress: false
 
 jobs:
   plan:
     runs-on: ubuntu-latest
     outputs:
+      stage: ${{ steps.plan.outputs.stage }}
       matrix: ${{ steps.plan.outputs.matrix }}
       hands: ${{ steps.plan.outputs.hands }}
       shard_count: ${{ steps.plan.outputs.shard_count }}
@@ -33,12 +41,13 @@ jobs:
         name: Build staged candidate matrix
         shell: bash
         run: |
-          case "${{ inputs.stage }}" in
+          stage="${{ inputs.stage || 'smoke' }}"
+          case "$stage" in
             smoke) hands=25; shards=1 ;;
             screen) hands=100; shards=2 ;;
             deep) hands=250; shards=4 ;;
             evidence) hands=1000; shards=10 ;;
-            *) echo "Unknown stage" >&2; exit 1 ;;
+            *) echo "Unknown stage: $stage" >&2; exit 1 ;;
           esac
           matrix=$(node -e '
             const policies = ["80-75", "85-75", "80-85", "85-85"];
@@ -47,6 +56,7 @@ jobs:
             for (const policy of policies) for (let shard = 0; shard < shards; shard += 1) include.push({ policy, shard });
             process.stdout.write(JSON.stringify({ include }));
           ' "$shards")
+          echo "stage=$stage" >> "$GITHUB_OUTPUT"
           echo "hands=$hands" >> "$GITHUB_OUTPUT"
           echo "shard_count=$shards" >> "$GITHUB_OUTPUT"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
@@ -78,7 +88,7 @@ jobs:
         env:
           POKER_ECONOMY_OODA: "1"
           POKER_ECONOMY_OODA_POLICY: ${{ matrix.policy }}
-          POKER_ECONOMY_OODA_STAGE: ${{ inputs.stage }}
+          POKER_ECONOMY_OODA_STAGE: ${{ needs.plan.outputs.stage }}
           POKER_ECONOMY_OODA_HANDS: ${{ needs.plan.outputs.hands }}
           POKER_ECONOMY_OODA_SHARD: ${{ matrix.shard }}
           POKER_ECONOMY_OODA_SHARD_COUNT: ${{ needs.plan.outputs.shard_count }}
@@ -122,7 +132,7 @@ jobs:
       - name: Upload OODA summary
         uses: actions/upload-artifact@v5
         with:
-          name: poker-economy-ooda-${{ inputs.stage }}-summary
+          name: poker-economy-ooda-${{ needs.plan.outputs.stage }}-summary
           path: economy-ooda-summary/
           if-no-files-found: error
           retention-days: 30
