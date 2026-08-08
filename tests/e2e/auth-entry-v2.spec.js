@@ -46,7 +46,7 @@ test("返回登入優先準備原始影片試播，CSS V2 保留為備援", asyn
   await expect.poll(
     () => page.evaluate(() => window.AuthEntryV2?.version || ""),
     { timeout: 5_000 },
-  ).toBe("2.1.0-trial");
+  ).toBe("2.1.3-safari-runtime");
 
   const overlay = page.locator("#authEntryV2Overlay");
   await expect(overlay).toBeVisible();
@@ -61,7 +61,7 @@ test("返回登入優先準備原始影片試播，CSS V2 保留為備援", asyn
 
   const video = overlay.locator("#authEntryV2Video");
   await expect(video).toHaveCount(1);
-  await expect(video).toHaveAttribute("src", /assets\/auth-entry-poker-trial\.mp4\?v=auth-entry-video-trial-v1$/);
+  await expect(video).toHaveAttribute("src", /assets\/auth-entry-poker-720p\.mp4\?v=auth-entry-video-safari-runtime-v3$/);
   await expect(video).toHaveAttribute("autoplay", "");
   await expect(video).toHaveAttribute("playsinline", "");
   await expect(video).toHaveAttribute("preload", "auto");
@@ -143,14 +143,14 @@ test("返回登入優先準備原始影片試播，CSS V2 保留為備援", asyn
 });
 
 test("原始影片載入失敗時仍安全使用 CSS 牌桌備援", async ({ page }) => {
-  await page.route("**/assets/auth-entry-poker-trial.mp4*", route => route.abort());
+  await page.route("**/assets/auth-entry-poker-720p.mp4*", route => route.abort());
   await installFastReturningSession(page, 80);
   await page.goto("/", { waitUntil: "domcontentloaded" });
 
   await expect.poll(
     () => page.evaluate(() => window.AuthEntryV2?.version || ""),
     { timeout: 5_000 },
-  ).toBe("2.1.0-trial");
+  ).toBe("2.1.3-safari-runtime");
 
   const overlay = page.locator("#authEntryV2Overlay");
   await expect(overlay).toBeVisible();
@@ -173,7 +173,7 @@ test("全新未登入開啟仍不增加影片或六秒等待", async ({ page }) 
   await expect.poll(
     () => page.evaluate(() => window.AuthEntryV2?.version || ""),
     { timeout: 5_000 },
-  ).toBe("2.1.0-trial");
+  ).toBe("2.1.3-safari-runtime");
 
   await expect(page.locator("#authEntryV2Overlay")).toHaveCount(0);
   await expect(page.locator("#authEntryV2Video")).toHaveCount(0);

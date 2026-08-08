@@ -10,7 +10,7 @@
     coreScriptUrl: "js/google-auth.js?v=google-auth-v1.1",
     styleUrl: "js/auth-entry-v2.css?v=auth-entry-video-trial-v1",
     videoStyleUrl: "js/auth-entry-video-trial.css?v=auth-entry-video-crop-v2",
-    videoUrl: "assets/auth-entry-poker-trial.mp4?v=auth-entry-video-trial-v1",
+    videoUrl: "assets/auth-entry-poker-720p.mp4?v=auth-entry-video-safari-runtime-v3",
     videoPlaybackRate: 1.55,
     minimumDurationMs: 6500,
     reducedMotionDurationMs: 900,
@@ -24,6 +24,9 @@
   let active = false;
   let videoActive = false;
   let videoState = "idle";
+  let videoPlaybackError = "";
+  let videoWatchdogTimer = 0;
+  let videoPlayPending = false;
 
   function cleanText(value, maxLength = 80) {
     return String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength);
@@ -92,6 +95,7 @@
           <video id="authEntryV2Video" class="auth-entry-v2-video" muted autoplay playsinline preload="auto"></video>
           <span class="auth-entry-v2-video-glass"></span>
         </div>
+        <button id="authEntryV2PlayButton" class="auth-entry-v2-play-button" type="button" hidden>▶ 播放登入動畫</button>
         <div class="auth-entry-v2-halo" aria-hidden="true"></div>
         <div class="auth-entry-v2-table-wrap" aria-hidden="true">
           <div class="auth-entry-v2-table-shadow"></div>
@@ -163,28 +167,121 @@
     stageTimers = [];
   }
 
-  function activateVideo(video) {
-    if (!overlay || !video?.isConnected || videoActive || prefersReducedMotion()) return;
-    const playAttempt = video.play();
-    if (!playAttempt?.then) {
-      videoActive = true;
-      videoState = "playing";
-      overlay.classList.add("has-video");
-      return;
+  function clearVideoWatchdog() {
+    if (!videoWatchdogTimer) return;
+    window.clearTimeout(videoWatchdogTimer);
+    videoWatchdogTimer = 0;
+  }
+
+  function currentVideoTime(video = entryVideo) {
+    const value = Number(video?.currentTime || 0);
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  function setVideoPlaybackRate(video, rate) {
+    try {
+      video.defaultPlaybackRate = rate;
+      video.playbackRate = rate;
+    } catch (_) {
+      // Safari can reject rate changes while media is still negotiating metadata.
     }
-    playAttempt.then(() => {
-      if (!overlay || !video.isConnected) return;
-      videoActive = true;
-      videoState = "playing";
-      overlay.classList.add("has-video");
-    }).catch(() => {
-      videoState = "fallback";
-    });
+  }
+
+  function hideManualPlayButton() {
+    const button = overlay?.querySelector("#authEntryV2PlayButton");
+    if (button) {
+      button.hidden = true;
+      button.disabled = false;
+      button.onclick = null;
+    }
+    overlay?.classList.remove("video-needs-gesture");
+  }
+
+  function showManualPlayButton(video, reason = "autoplay-blocked") {
+    if (!overlay || !video?.isConnected) return;
+    clearVideoWatchdog();
+    videoActive = false;
+    videoState = "blocked";
+    videoPlaybackError = cleanText(reason, 120) || "autoplay-blocked";
+    overlay.classList.remove("has-video");
+    overlay.classList.add("video-needs-gesture");
+    const button = overlay.querySelector("#authEntryV2PlayButton");
+    if (!button) return;
+    button.hidden = false;
+    button.disabled = false;
+    button.onclick = async () => {
+      button.disabled = true;
+      videoPlaybackError = "";
+      setVideoPlaybackRate(video, 1);
+      try {
+        await video.play();
+      } catch (error) {
+        button.disabled = false;
+        videoPlaybackError = cleanText(error?.name || error?.message || "manual-play-failed", 120);
+      }
+    };
+  }
+
+  function startPlaybackWatchdog(video) {
+    clearVideoWatchdog();
+    if (!overlay || !video?.isConnected || video.ended) return;
+    const baseline = currentVideoTime(video);
+    videoWatchdogTimer = window.setTimeout(async () => {
+      videoWatchdogTimer = 0;
+      if (!overlay || !video.isConnected || video.ended) return;
+      if (currentVideoTime(video) > baseline + 0.12) return;
+
+      videoState = "stalled";
+      videoActive = false;
+      const retryBaseline = currentVideoTime(video);
+      setVideoPlaybackRate(video, 1);
+      try {
+        video.pause();
+        await video.play();
+        await delay(520);
+        if (currentVideoTime(video) <= retryBaseline + 0.08) {
+          throw new Error("playback-time-not-advancing");
+        }
+      } catch (error) {
+        showManualPlayButton(video, error?.name || error?.message || "playback-stalled");
+      }
+    }, 1100);
+  }
+
+  function markVideoPlaying(video) {
+    if (!overlay || !video?.isConnected) return;
+    videoActive = true;
+    videoState = "playing";
+    videoPlaybackError = "";
+    hideManualPlayButton();
+    overlay.classList.add("has-video");
+    setVideoPlaybackRate(video, CONFIG.videoPlaybackRate);
+    startPlaybackWatchdog(video);
+  }
+
+  async function attemptVideoPlay(video) {
+    if (!overlay || !video?.isConnected || videoPlayPending) return;
+    videoPlayPending = true;
+    try {
+      setVideoPlaybackRate(video, 1);
+      const playAttempt = video.play();
+      if (playAttempt?.then) await playAttempt;
+      markVideoPlaying(video);
+    } catch (error) {
+      showManualPlayButton(video, error?.name || error?.message || "autoplay-blocked");
+    } finally {
+      videoPlayPending = false;
+    }
+  }
+
+  function activateVideo(video) {
+    if (!overlay || !video?.isConnected || videoActive) return;
+    void attemptVideoPlay(video);
   }
 
   function prepareVideo() {
-    if (!overlay || prefersReducedMotion()) {
-      videoState = prefersReducedMotion() ? "reduced-motion" : "idle";
+    if (!overlay) {
+      videoState = "idle";
       return;
     }
 
@@ -192,27 +289,34 @@
     if (!video) return;
     entryVideo = video;
     videoState = "loading";
-    video.defaultPlaybackRate = CONFIG.videoPlaybackRate;
-    video.playbackRate = CONFIG.videoPlaybackRate;
+    videoPlaybackError = "";
+    video.defaultMuted = true;
     video.muted = true;
     video.playsInline = true;
+    video.setAttribute("muted", "");
+    video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
+    setVideoPlaybackRate(video, 1);
 
     const ready = () => activateVideo(video);
+    video.addEventListener("loadedmetadata", ready, { once: true });
     video.addEventListener("loadeddata", ready, { once: true });
     video.addEventListener("canplay", ready, { once: true });
-    video.addEventListener("playing", () => {
-      if (!overlay || !video.isConnected) return;
-      videoActive = true;
-      videoState = "playing";
-      overlay.classList.add("has-video");
-    }, { once: true });
+    video.addEventListener("playing", () => markVideoPlaying(video));
+    video.addEventListener("timeupdate", () => {
+      if (videoState === "playing" && videoActive) startPlaybackWatchdog(video);
+    });
     video.addEventListener("ended", () => {
+      clearVideoWatchdog();
       videoState = "ended";
       video.pause();
     }, { once: true });
     video.addEventListener("error", () => {
+      clearVideoWatchdog();
       videoState = "fallback";
       videoActive = false;
+      videoPlaybackError = cleanText(video.error?.message || `media-error-${video.error?.code || 0}`, 120);
+      hideManualPlayButton();
       overlay?.classList.remove("has-video");
     }, { once: true });
 
@@ -252,6 +356,8 @@
   }
 
   function disposeVideo() {
+    clearVideoWatchdog();
+    hideManualPlayButton();
     if (!entryVideo) return;
     try {
       entryVideo.pause();
@@ -278,9 +384,9 @@
 
   async function start() {
     const showEntry = shouldShowEntry();
-    const duration = prefersReducedMotion()
-      ? CONFIG.reducedMotionDurationMs
-      : CONFIG.minimumDurationMs;
+    // Keep the user-requested poker video available even when the OS asks
+    // decorative CSS motion to be reduced.
+    const duration = CONFIG.minimumDurationMs;
 
     if (showEntry) {
       active = true;
@@ -302,7 +408,7 @@
   }
 
   window.AuthEntryV2 = Object.freeze({
-    version: "2.1.0-trial",
+    version: "2.1.3-safari-runtime",
     minimumDurationMs: CONFIG.minimumDurationMs,
     videoUrl: CONFIG.videoUrl,
     status: () => ({
@@ -312,6 +418,9 @@
       visible: Boolean(overlay?.isConnected),
       videoActive,
       videoState,
+      videoCurrentTime: currentVideoTime(),
+      videoError: videoPlaybackError,
+      reducedMotion: prefersReducedMotion(),
     }),
   });
 
