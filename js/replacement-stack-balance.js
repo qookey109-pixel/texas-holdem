@@ -4,10 +4,13 @@
 
   if (window.ReplacementStackBalance?.version === "2.1.0") return;
 
-  const NORMAL_TABLE_AVERAGE_RATIO = 0.70;
-  const NORMAL_BUY_IN_RATIO_CAP = 0.60;
-  const NORMAL_MAX_BIG_BLINDS = 40;
-  const NORMAL_MIN_BIG_BLINDS = 10;
+  // Normal Economy V2: base replacements on the table median so one chip leader
+  // cannot distort the next entrant. Survivors retain an edge, while very short
+  // tables no longer force a newcomer above the typical live stack.
+  const NORMAL_TABLE_MEDIAN_RATIO = 0.80;
+  const NORMAL_BUY_IN_RATIO_CAP = 0.75;
+  const NORMAL_MAX_BIG_BLINDS = 60;
+  const NORMAL_SOFT_FLOOR_BIG_BLINDS = 12;
 
   const TOURNAMENT_FULL_TABLE_TARGET_BB = 170;
   const TOURNAMENT_BLEND_RESPONSE = 0.15;
@@ -56,12 +59,28 @@
       .map(player => Number(player.stack));
   }
 
+  function median(values) {
+    if (!Array.isArray(values) || !values.length) return 0;
+    const sorted = [...values].sort((left, right) => left - right);
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2
+      ? sorted[middle]
+      : (sorted[middle - 1] + sorted[middle]) / 2;
+  }
+
   function isTournamentActive() {
     return Boolean(window.TournamentMode?.isActive?.());
   }
 
-  function levelForNormalBalance({ nextHand = false } = {}) {
-    const handNumber = Math.max(1, Number(state?.handNumber || 0) + (nextHand ? 1 : 0));
+  function levelForNormalBalance(options = {}) {
+    if (options.bigBlind || options.buyIn) {
+      const big = Math.max(1, Number(options.bigBlind || currentBigBlind?.() || 20));
+      return {
+        big,
+        buyIn: Math.max(big, Number(options.buyIn || currentBuyIn?.() || big * 100)),
+      };
+    }
+    const handNumber = Math.max(1, Number(state?.handNumber || 0) + (options.nextHand ? 1 : 0));
     if (typeof originalBlindLevelForHand === "function") {
       return originalBlindLevelForHand(handNumber);
     }
@@ -72,22 +91,37 @@
     };
   }
 
-  function calculateNormalReplacementStack(players = state?.players, options = {}) {
+  function calculateNormalReplacementPlan(players = state?.players, options = {}) {
     const level = levelForNormalBalance(options);
     const bigBlind = Math.max(1, Number(level?.big || 20));
     const fullBuyIn = Math.max(bigBlind, Number(level?.buyIn || bigBlind * 100));
     const stacks = positiveStacks(players);
-    const tableAverage = stacks.length
-      ? stacks.reduce((sum, stack) => sum + stack, 0) / stacks.length
-      : fullBuyIn;
-    const minimum = bigBlind * NORMAL_MIN_BIG_BLINDS;
+    const tableMedian = stacks.length ? median(stacks) : fullBuyIn;
     const rawTarget = Math.min(
-      tableAverage * NORMAL_TABLE_AVERAGE_RATIO,
+      tableMedian * NORMAL_TABLE_MEDIAN_RATIO,
       fullBuyIn * NORMAL_BUY_IN_RATIO_CAP,
       bigBlind * NORMAL_MAX_BIG_BLINDS,
     );
-    const roundedDown = Math.floor(rawTarget / bigBlind) * bigBlind;
-    return Math.max(minimum, roundedDown || minimum);
+    const softFloor = Math.min(tableMedian, bigBlind * NORMAL_SOFT_FLOOR_BIG_BLINDS);
+    const boundedTarget = Math.min(tableMedian, Math.max(rawTarget, softFloor));
+    const roundedDown = Math.floor(boundedTarget / bigBlind) * bigBlind;
+    const minimumPlayable = Math.min(tableMedian, bigBlind);
+    const stack = Math.max(minimumPlayable, roundedDown || minimumPlayable);
+    return {
+      strategy: "median-v2",
+      bigBlind,
+      fullBuyIn,
+      tableMedian,
+      rawTarget,
+      softFloor,
+      boundedTarget,
+      stack,
+      actualEntryBb: stack / bigBlind,
+    };
+  }
+
+  function calculateNormalReplacementStack(players = state?.players, options = {}) {
+    return calculateNormalReplacementPlan(players, options).stack;
   }
 
   function tournamentBlindLevelForHand(handNumber) {
@@ -238,13 +272,18 @@
     const balancedBuildNextAiSeats = function balancedBuildNextAiSeats(previousPlayers) {
       const seats = originalBuildNextAiSeats.apply(this, arguments);
       if (!Array.isArray(previousPlayers) || !previousPlayers.length) return seats;
-      const replacementStack = calculateNormalReplacementStack(previousPlayers);
+      const plan = calculateNormalReplacementPlan(previousPlayers);
       latestNormalReplacementStacks.clear();
       return seats.map(seat => {
         if (!seat?.replaced) return seat;
         const name = seat.profile?.name || "";
-        if (name) latestNormalReplacementStacks.set(name, replacementStack);
-        return { ...seat, stack: replacementStack, replacementStackBalanced: true };
+        if (name) latestNormalReplacementStacks.set(name, plan.stack);
+        return {
+          ...seat,
+          stack: plan.stack,
+          replacementStackBalanced: true,
+          replacementStackPolicy: plan.strategy,
+        };
       });
     };
     balancedBuildNextAiSeats.__replacementStackBalancedV2 = true;
@@ -309,6 +348,15 @@
   window.ReplacementStackBalance = {
     version: "2.1.0",
     calculate: calculateNormalReplacementStack,
+    calculateNormalReplacementPlan,
+    normalConfig: Object.freeze({
+      version: "2.0.0",
+      strategy: "median-v2",
+      tableMedianRatio: NORMAL_TABLE_MEDIAN_RATIO,
+      buyInRatioCap: NORMAL_BUY_IN_RATIO_CAP,
+      softFloorBigBlinds: NORMAL_SOFT_FLOOR_BIG_BLINDS,
+      maxBigBlinds: NORMAL_MAX_BIG_BLINDS,
+    }),
     calculateTournamentEntries,
     tournamentBlindLevelForHand,
     tournamentConfig: Object.freeze({
@@ -330,6 +378,7 @@
     refresh: install,
   };
 
+  document.documentElement.dataset.normalEconomy = "median-v2";
   document.documentElement.dataset.tournamentEconomyPlaytest = "G1";
   install();
 })();

@@ -64,6 +64,7 @@ qoo109/texas-holdem
 → 中階有界公開 Range 與樣本信心 V2.6
 → 中高階分級、決定性多人 Equity V2.7
 → 籌碼經濟與長期棄牌反制 V1
+→ Normal Economy V2
 → Gemini
 ```
 
@@ -78,7 +79,7 @@ AiTieredMultiwayEquityV27 2.7.0
 
 ```text
 js/economy-fold-defense-v1.js
-EconomyFoldDefenseV1 1.0.1
+EconomyFoldDefenseV1 1.1.0
 ```
 
 AI 只可使用自己的底牌、公共牌、公開位置、公開下注行動、可見籌碼與聚合後的玩家統計；不得讀取對手隱藏底牌、實際牌堆順序、未來公共牌或預定勝負答案。
@@ -101,7 +102,7 @@ npm run test:ai-calibration:v2.7
 
 詳細文件：`docs/ai-gameplay-calibration-v2-7.md`。
 
-### 一般模式公平重新買入
+### 一般模式公平重新買入 — Normal Economy V2
 
 初始籌碼與盲注不變：
 
@@ -110,17 +111,27 @@ npm run test:ai-calibration:v2.7
 小盲 / 大盲 10 / 20
 ```
 
-玩家與 AI 籌碼歸零後改用相同公開公式：
+玩家與 AI 籌碼歸零後共用 `ReplacementStackBalance` 的 `median-v2` 計算來源。補位基準改用正籌碼玩家的中位數，避免單一籌碼王把下一位新玩家的帶入額拉高：
 
 ```text
 min(
-  正籌碼牌桌平均 × 70%,
-  當前完整買入 × 60%,
-  50BB
+  正籌碼牌桌中位數 × 80%,
+  當前完整買入 × 75%,
+  60BB
 )
 ```
 
-結果向下取整至大盲單位，最低為 `20BB`。因此玩家不再取得完整 Buy-in、AI 卻只拿短碼補位的非對稱待遇。
+另有 `12BB` 軟保底，但不會高於牌桌中位籌碼；若全桌已低於 `12BB`，新玩家不會被硬補到 `12BB` 或舊版的 `20BB`。結果向下取整至大盲單位。
+
+因此：
+
+- 正常 `100BB` 桌的新玩家帶入約 `60BB`，不再只有舊版約 `50BB`。
+- 一位超大籌碼王不會扭曲補位值，主要依大多數存活玩家的典型深度計算。
+- 極短碼桌的新玩家不會因最低 `20BB` 規則反而比存活玩家更富。
+- 玩家爆掉後與 AI 補位使用同一計算來源。
+- 一般模式每手開始時使用同一實際補位值作為當手重新買入顯示，避免牌局紀錄顯示名義 Buy-in、實際籌碼卻不同。
+
+G1 淘汰賽經濟不使用這套一般模式公式。
 
 ### 長期低 VPIP／高棄牌反制
 
@@ -166,7 +177,8 @@ VPIP <= 18%
 
 ```text
 ReplacementStackBalance 2.1.0
-EconomyFoldDefenseV1 1.0.1
+EconomyFoldDefenseV1 1.1.0
+Normal Economy policy 2.0.0 / median-v2
 ```
 
 ### 公平 Boss 與 Gemini 公開觀察
@@ -248,7 +260,7 @@ tests/e2e/economy-fold-defense-v1.spec.js
 tests/e2e/replacement-stack-balance.spec.js
 ```
 
-覆蓋一般模式對稱重買入、Boss 追趕上下限、低 VPIP／高棄牌分類、小尺寸壓力、公平資訊邊界與 Gemini Worker 公開觀察白名單。
+覆蓋一般模式 median-v2 對稱重買入、籌碼王離群值、極短碼桌、Boss 追趕上下限、低 VPIP／高棄牌分類、小尺寸壓力、公平資訊邊界與 Gemini Worker 公開觀察白名單。
 
 ### AI 固定種子校準
 

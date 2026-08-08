@@ -142,8 +142,17 @@ test.describe("Economy and persistent-fold defense V1", () => {
       };
     });
 
-    expect(report.normalRebuy).toBe(1000);
-    expect(report.minimumRebuy).toBe(400);
+    expect(report.normalRebuy).toBe(1200);
+    expect(report.minimumRebuy).toBe(100);
+    expect(report.config.normalRebuy).toEqual({
+      source: "ReplacementStackBalance.normalConfig",
+      strategy: "median-v2",
+      tableMedianRatio: 0.8,
+      buyInRatioCap: 0.75,
+      softFloorBigBlinds: 12,
+      maxBigBlinds: 60,
+    });
+    expect(report.status.normalRebuySource).toBe("median-v2");
     expect(report.oracleWarning.adjusted).toBe(true);
     expect(report.oracleWarning.actualEntryBb).toBe(47.5);
     expect(report.oracleStandard.actualEntryBb).toBe(50);
