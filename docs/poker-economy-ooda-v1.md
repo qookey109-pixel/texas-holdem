@@ -13,7 +13,7 @@ soft floor = 12BB
 max = 60BB
 ```
 
-V1 候選：
+V1 初始候選：
 
 ```text
 80/75
@@ -23,6 +23,15 @@ V1 候選：
 ```
 
 其中第一個數字是牌桌正籌碼中位數比例，第二個數字是完整 Buy-in 上限比例。
+
+Stage 1 已完成 `4 candidates × 10 seeds × 500 hands = 20,000 hands`。人工 evidence review 後，Stage 2 聚焦：
+
+```text
+80/75 baseline
+80/85 challenger
+```
+
+`85/75` 與 `85/85` 不進 Stage 2。正式 production 仍維持 `80/75`。
 
 ## 架構
 
@@ -56,7 +65,10 @@ tests/e2e/poker-economy-ooda-v1.spec.js
 - AI replacement events / seats。
 - 平均、最低、最高 entry BB。
 - replacement 前 table median BB。
+- 每一手公開籌碼快照：Hero BB、正籌碼對手 median BB、Hero/對手 median ratio。
 - fairness boundary。
+
+Hero domination telemetry 只讀桌上已公開的籌碼，不讀對手底牌、牌堆順序、未來公共牌或預定勝者。
 
 ## OODA
 
@@ -74,14 +86,22 @@ scripts/evaluate-poker-economy-ooda-v1.mjs
 - state failures / scheduler errors。
 - fairness / telemetry integrity。
 - production config mutation guard。
-- replacement depth。
+- replacement depth 與估算注入 BB。
 - aggregate role BB/100 與 bust rate。
+- 全程 Hero/對手 median ratio。
+- 後 20% hands 的平均 Hero/對手 median ratio。
+- 後 20% P90 ratio。
+- Hero >= 2x / 3x / 5x 的 hand rate。
+- 全部對手同時 0 籌碼的 hand rate。
+
+對 Hero domination 而言，ratio 越低越好；但改善必須同時滿足 injection、fairness、integrity 與 replacement bounds，不能靠無限補籌碼製造假難度。
 
 ### Orient
 
 硬 gate：
 
 - 所有 hands 完成。
+- 每個完成 hand 都有 stack-balance sample。
 - 無 state / scheduler error。
 - public-information fairness 通過。
 - telemetry integrity 通過。
@@ -91,7 +111,14 @@ scripts/evaluate-poker-economy-ooda-v1.mjs
 
 ### Decide
 
-Smoke 或小樣本只允許升級到下一證據階段，不允許直接推薦正式參數。
+Smoke 或小樣本只允許升級到下一證據階段，不允許直接推薦正式參數。Deep/evidence 仍由人工比較 Hero domination、注入成本、AI 存活與玩法品質。
+
+評估器可用環境變數限制候選，例如 Stage 2：
+
+```bash
+POKER_ECONOMY_OODA_CANDIDATES=80-75,80-85 \
+node scripts/evaluate-poker-economy-ooda-v1.mjs economy-ooda-results economy-ooda-summary
+```
 
 ### Act
 
@@ -119,12 +146,12 @@ scripts/check-poker-economy-repro-v1.mjs
 - `seed` 相同。
 - `configuredHands` / `completedHands` 相同。
 - `deterministicFingerprint` 完全一致。
-- `economyOoda` replacement telemetry 完全一致。
+- `economyOoda` telemetry 完全一致，包含 replacement 與每手 stack-balance samples。
 - `telemetryIntegrity` 完全一致。
 - 無 state failure / scheduler error。
 - public-information fairness 通過。
 
-只要任何一項不同，`reproducibility` job 直接失敗，後續候選 `evaluate` matrix 不執行。這個 gate 用來阻止「同 seed 仍受前一候選、瀏覽器生命週期、timer 或 runtime evidence 殘留影響」的資料進入 OODA 判斷。
+只要任何一項不同，`reproducibility` job 直接失敗，後續候選 `evaluate` matrix 不執行。
 
 ## 分階段長跑
 
@@ -141,12 +168,12 @@ reproducibility: 100 hands × 1 shard × 2 independent runs on 80/75
 smoke:          25 hands × 1 shard × 4 candidates
 ```
 
-手動 workflow dispatch 可升級：
+手動 workflow dispatch：
 
 ```text
-smoke    25 hands × 1 shard / candidate
-screen  100 hands × 2 shards / candidate
-deep    250 hands × 4 shards / candidate
+smoke     25 hands × 1 shard / candidate
+screen   100 hands × 2 shards / candidate
+deep     250 hands × 4 shards / candidate
 evidence 1000 hands × 10 shards / candidate
 ```
 
@@ -164,7 +191,7 @@ npm run test:economy-ooda:smoke
 
 ```bash
 POKER_ECONOMY_OODA=1 \
-POKER_ECONOMY_OODA_POLICY=85-85 \
+POKER_ECONOMY_OODA_POLICY=80-85 \
 POKER_ECONOMY_OODA_STAGE=screen \
 POKER_ECONOMY_OODA_HANDS=100 \
 POKER_ECONOMY_OODA_SHARD=0 \

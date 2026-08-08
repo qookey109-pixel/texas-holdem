@@ -1,11 +1,17 @@
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 
-const VERSION = "1.0.0";
-const CANDIDATES = ["80-75", "85-75", "80-85", "85-85"];
+const VERSION = "1.1.0";
+const DEFAULT_CANDIDATES = ["80-75", "85-75", "80-85", "85-85"];
 const BASELINE = "80-75";
+const CANDIDATES = (process.env.POKER_ECONOMY_OODA_CANDIDATES || DEFAULT_CANDIDATES.join(","))
+  .split(",")
+  .map(value => value.trim())
+  .filter(Boolean);
 const inputDirectory = resolve(process.argv[2] || "economy-ooda-results");
 const outputDirectory = resolve(process.argv[3] || "economy-ooda-summary");
+
+if (!CANDIDATES.includes(BASELINE)) throw new Error(`Poker Economy OODA candidates must include baseline ${BASELINE}`);
 
 function walk(directory) {
   const files = [];
@@ -32,6 +38,30 @@ function rate(numerator, denominator) {
   return denominator > 0 ? numerator / denominator : 0;
 }
 
+function average(values) {
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+}
+
+function percentile(values, quantile) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((left, right) => left - right);
+  const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * quantile) - 1));
+  return sorted[index];
+}
+
+function stackSamples(report) {
+  return Array.isArray(report?.economyOoda?.handStackSamples)
+    ? report.economyOoda.handStackSamples
+    : [];
+}
+
+function validRatios(samples) {
+  return samples
+    .map(sample => sample?.heroToOpponentMedianRatio)
+    .filter(value => Number.isFinite(Number(value)))
+    .map(Number);
+}
+
 if (!statSync(inputDirectory).isDirectory()) throw new Error(`Economy OODA input is not a directory: ${inputDirectory}`);
 const files = walk(inputDirectory)
   .filter(path => /^poker-economy-ooda-.+-shard-\d+\.json$/.test(basename(path)))
@@ -43,10 +73,7 @@ const globalErrors = [];
 for (const path of files) {
   const report = JSON.parse(readFileSync(path, "utf8"));
   const id = report?.economyOoda?.policy?.id;
-  if (!groups.has(id)) {
-    globalErrors.push(`${basename(path)} unknown policy ${id || "<missing>"}`);
-    continue;
-  }
+  if (!groups.has(id)) continue;
   groups.get(id).push(report);
 }
 
@@ -72,6 +99,18 @@ function observe(id, reports) {
   const maximumEntryBb = reports.reduce((max, report) => Math.max(max, finite(report.economyOoda?.maximumEntryBb)), 0);
   const minimumEntryValues = reports
     .map(report => report.economyOoda?.minimumEntryBb)
+    .filter(value => Number.isFinite(Number(value)))
+    .map(Number);
+  const allStackSamples = reports.flatMap(stackSamples);
+  const allRatios = validRatios(allStackSamples);
+  const lateStackSamples = reports.flatMap(report => {
+    const samples = stackSamples(report);
+    const start = Math.floor(samples.length * 0.8);
+    return samples.slice(start);
+  });
+  const lateRatios = validRatios(lateStackSamples);
+  const finalRatios = reports
+    .map(report => stackSamples(report).at(-1)?.heroToOpponentMedianRatio)
     .filter(value => Number.isFinite(Number(value)))
     .map(Number);
   const roleTotals = {};
@@ -102,11 +141,25 @@ function observe(id, reports) {
     fingerprints: fingerprints.size,
     aiReplacementEvents,
     aiReplacedSeats,
+    estimatedInjectedBb: round(entryBbWeighted, 4),
     averageEntryBb: aiReplacedSeats ? round(entryBbWeighted / aiReplacedSeats, 4) : 0,
     averageTableMedianBb: aiReplacedSeats ? round(medianBbWeighted / aiReplacedSeats, 4) : 0,
     entryToMedianRatio: aiReplacedSeats && medianBbWeighted > 0 ? round(entryBbWeighted / medianBbWeighted, 6) : 0,
     minimumEntryBb: minimumEntryValues.length ? Math.min(...minimumEntryValues) : null,
     maximumEntryBb: round(maximumEntryBb, 4),
+    handStackSamples: allStackSamples.length,
+    averageHeroBb: round(average(allStackSamples.map(sample => finite(sample?.heroBb))), 4),
+    averageOpponentMedianBb: round(average(allStackSamples.map(sample => finite(sample?.opponentMedianBb))), 4),
+    averageHeroToOpponentMedianRatio: round(average(allRatios), 6),
+    p90HeroToOpponentMedianRatio: round(percentile(allRatios, 0.90), 6),
+    maximumHeroToOpponentMedianRatio: allRatios.length ? round(Math.max(...allRatios), 6) : null,
+    lateAverageHeroToOpponentMedianRatio: round(average(lateRatios), 6),
+    lateP90HeroToOpponentMedianRatio: round(percentile(lateRatios, 0.90), 6),
+    finalAverageHeroToOpponentMedianRatio: round(average(finalRatios), 6),
+    heroDominance2xRate: round(rate(allRatios.filter(value => value >= 2).length, allRatios.length), 6),
+    heroDominance3xRate: round(rate(allRatios.filter(value => value >= 3).length, allRatios.length), 6),
+    heroDominance5xRate: round(rate(allRatios.filter(value => value >= 5).length, allRatios.length), 6),
+    allOpponentsBustedRate: round(rate(allStackSamples.filter(sample => sample?.allOpponentsBusted).length, allStackSamples.length), 6),
     aggregateRoleBb100: roleHands ? round((roleBbWon / roleHands) * 100, 4) : 0,
     aggregateRoleBustRate: round(rate(roleBusts, roleHands), 6),
     activeRoles: Object.values(roleTotals).filter(role => role.hands > 0).length,
@@ -125,7 +178,8 @@ function orient(observation) {
   const telemetryReady = observation.completedHands > 0
     && observation.shards > 0
     && observation.fingerprints === observation.shards
-    && observation.activeRoles >= 5;
+    && observation.activeRoles >= 5
+    && observation.handStackSamples === observation.completedHands;
   return {
     safetyPassed,
     economyBoundsPassed,
@@ -138,13 +192,27 @@ const observations = Object.fromEntries(CANDIDATES.map(id => [id, observe(id, gr
 const orientations = Object.fromEntries(CANDIDATES.map(id => [id, orient(observations[id])]));
 const baseline = observations[BASELINE];
 
+function percentDelta(value, baselineValue) {
+  return baselineValue !== 0 ? round(((value / baselineValue) - 1) * 100, 4) : 0;
+}
+
 function decide(id) {
   const observation = observations[id];
   const orientation = orientations[id];
   const completed = observation.completedHands;
   const evidenceBand = completed >= 10_000 ? "evidence" : completed >= 1_000 ? "deep" : completed >= 200 ? "screen" : "smoke";
   const relative = {
+    estimatedInjectedBbDeltaPct: percentDelta(observation.estimatedInjectedBb, baseline.estimatedInjectedBb),
     averageEntryBbDelta: round(observation.averageEntryBb - baseline.averageEntryBb, 4),
+    lateHeroToOpponentMedianDelta: round(
+      observation.lateAverageHeroToOpponentMedianRatio - baseline.lateAverageHeroToOpponentMedianRatio,
+      6,
+    ),
+    lateHeroToOpponentMedianDeltaPct: percentDelta(
+      observation.lateAverageHeroToOpponentMedianRatio,
+      baseline.lateAverageHeroToOpponentMedianRatio,
+    ),
+    heroDominance3xRateDelta: round(observation.heroDominance3xRate - baseline.heroDominance3xRate, 6),
     aggregateRoleBb100Delta: round(observation.aggregateRoleBb100 - baseline.aggregateRoleBb100, 4),
     aggregateRoleBustRateDelta: round(observation.aggregateRoleBustRate - baseline.aggregateRoleBustRate, 6),
   };
@@ -156,7 +224,7 @@ function decide(id) {
       ? "Smoke gates passed; collect a larger staged sample before interpreting performance."
       : evidenceBand === "screen"
         ? "Screen gates passed; collect deep evidence before any policy recommendation."
-        : "Long-run gates passed; compare uncertainty and gameplay quality manually. Production remains unchanged by this runner.";
+        : "Long-run gates passed; compare hero domination, injection cost, uncertainty, and gameplay quality manually. Production remains unchanged by this runner.";
   }
   if (id === BASELINE && orientation.gatesPassed) {
     disposition = evidenceBand === "smoke" ? "baseline-pass" : disposition;
@@ -193,7 +261,7 @@ const summary = {
 const rows = CANDIDATES.map(id => {
   const o = observations[id];
   const d = decisions[id];
-  return `| ${id} | ${o.completedHands} | ${o.shards} | ${o.aiReplacedSeats} | ${o.averageEntryBb.toFixed(2)} | ${o.entryToMedianRatio.toFixed(3)} | ${o.aggregateRoleBb100.toFixed(2)} | ${(o.aggregateRoleBustRate * 100).toFixed(2)}% | ${orientations[id].gatesPassed ? "pass" : "fail"} | ${d.disposition} |`;
+  return `| ${id} | ${o.completedHands} | ${o.shards} | ${o.aiReplacedSeats} | ${o.estimatedInjectedBb.toFixed(0)} | ${o.averageEntryBb.toFixed(2)} | ${o.lateAverageHeroToOpponentMedianRatio.toFixed(2)}x | ${o.lateP90HeroToOpponentMedianRatio.toFixed(2)}x | ${(o.heroDominance3xRate * 100).toFixed(1)}% | ${o.aggregateRoleBb100.toFixed(2)} | ${(o.aggregateRoleBustRate * 100).toFixed(2)}% | ${orientations[id].gatesPassed ? "pass" : "fail"} | ${d.disposition} |`;
 });
 const markdown = [
   "# Poker Economy OODA Long-Run Runner V1",
@@ -203,14 +271,15 @@ const markdown = [
   `- Automatic promotion: ${action.automaticPromotion ? "yes" : "no"}`,
   `- Baseline: ${BASELINE}`,
   "",
-  "| Candidate | Hands | Shards | Replaced seats | Avg entry BB | Entry/median | Aggregate role BB/100 | Bust rate | Gates | Decision |",
-  "|---|---:|---:|---:|---:|---:|---:|---:|---|---|",
+  "| Candidate | Hands | Shards | Replaced seats | Est. injected BB | Avg entry BB | Late hero/opp median | Late P90 | Hero >=3x | Aggregate role BB/100 | Bust rate | Gates | Decision |",
+  "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
   ...rows,
   "",
   "## Act",
   "",
   `- Keep production policy unchanged: ${BASELINE}.`,
   `- Next-stage candidates: ${action.nextStageCandidates.join(", ") || "none"}.`,
+  "- Lower late hero/opponent-median ratios and lower hero >=3x rates are preferred when injection and safety remain bounded.",
   "- Any production parameter change requires separate evidence review and a normal validated PR.",
   ...(globalErrors.length ? ["", "## Validation errors", "", ...globalErrors.map(error => `- ${error}`)] : []),
 ].join("\n");
