@@ -10,7 +10,7 @@
     coreScriptUrl: "js/google-auth.js?v=google-auth-v1.1",
     styleUrl: "js/auth-entry-v2.css?v=auth-entry-video-trial-v1",
     videoStyleUrl: "js/auth-entry-video-trial.css?v=auth-entry-video-crop-v2",
-    videoUrl: "assets/auth-entry-poker-720p.mp4?v=auth-entry-video-720p-v1",
+    videoUrl: "assets/auth-entry-poker-720p.mp4?v=auth-entry-video-playback-v2",
     videoPlaybackRate: 1.55,
     minimumDurationMs: 6500,
     reducedMotionDurationMs: 900,
@@ -302,7 +302,7 @@
   }
 
   window.AuthEntryV2 = Object.freeze({
-    version: "2.1.1-hd",
+    version: "2.1.2-playback-fix",
     minimumDurationMs: CONFIG.minimumDurationMs,
     videoUrl: CONFIG.videoUrl,
     status: () => ({
