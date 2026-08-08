@@ -110,8 +110,11 @@ test("一般模式使用中位數補位策略，淘汰賽 G1 與公平重買入�
   expect(tournamentConfig.name).toBe("G1");
   expect(tournamentConfig.fullTableTargetBb).toBe(170);
   expect(tournamentConfig.blendResponse).toBe(0.15);
-  expect(tournamentConfig.theoreticalReplacementCeilingBb).toBe(660);
-  expect(tournamentConfig.roleProfiles.special).toEqual({ min: 35, target: 45, max: 60 });
+  expect(tournamentConfig.theoreticalReplacementCeilingBb).toBe(1500);
+  expect(tournamentConfig.roleProfiles.middle).toEqual({ min: 80, target: 90, max: 100 });
+  expect(tournamentConfig.roleProfiles.elite).toEqual({ min: 90, target: 105, max: 120 });
+  expect(tournamentConfig.roleProfiles.special).toEqual({ min: 100, target: 115, max: 135 });
+  expect(tournamentConfig.roleProfiles.gemini).toEqual({ min: 110, target: 130, max: 150 });
   expect(tournamentConfig.level85.big).toBe(16000);
   expect(tournamentConfig.level100.big).toBe(24000);
   expect(tournamentConfig.level155.big).toBe(160000);
@@ -199,14 +202,14 @@ test("一般模式玩家與 AI 使用相同 median-v2 重買入，挑戰賽補�
   expect(["Ace", "Momo", "Nori", "Bruno", "Dodo", "Viper"]).toContain(
     tournamentReplacement.name,
   );
-  expect(tournamentReplacement.totalStack).toBe(500);
+  expect(tournamentReplacement.totalStack).toBe(1600);
   expect(tournamentReplacement.bigBlind).toBe(20);
   expect(tournamentReplacement.economy).toBe("G1");
   expect(tournamentReplacement.diagnostic).toMatchObject({
     tier: "middle",
     bigBlind: 20,
-    actualEntryBb: 25,
-    stack: 500,
+    actualEntryBb: 80,
+    stack: 1600,
     fullTableTargetBb: 170,
   });
 });
@@ -240,10 +243,10 @@ test("G1 依正式 19 位角色階級計算多位補位", async ({ page }) => {
   expect(plans.every(plan => plan.bigBlind === 2400)).toBe(true);
 
   const bounds = {
-    middle: [25, 45],
-    elite: [30, 50],
-    special: [35, 60],
-    gemini: [40, 70],
+    middle: [80, 100],
+    elite: [90, 120],
+    special: [100, 135],
+    gemini: [110, 150],
   };
   for (const plan of plans) {
     expect(plan.actualEntryBb).toBeGreaterThanOrEqual(bounds[plan.tier][0]);

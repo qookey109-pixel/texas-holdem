@@ -25,10 +25,10 @@
     [145, 64000, 128000], [155, 80000, 160000],
   ]);
   const TOURNAMENT_ROLE_BB = Object.freeze({
-    middle: Object.freeze({ min: 25, target: 35, max: 45 }),
-    elite: Object.freeze({ min: 30, target: 40, max: 50 }),
-    special: Object.freeze({ min: 35, target: 45, max: 60 }),
-    gemini: Object.freeze({ min: 40, target: 50, max: 70 }),
+    middle: Object.freeze({ min: 80, target: 90, max: 100 }),
+    elite: Object.freeze({ min: 90, target: 105, max: 120 }),
+    special: Object.freeze({ min: 100, target: 115, max: 135 }),
+    gemini: Object.freeze({ min: 110, target: 130, max: 150 }),
   });
   const MIDDLE_NAMES = new Set(["Ace", "Momo", "Nori", "Bruno", "Dodo", "Viper"]);
   const ELITE_NAMES = new Set(["Nova", "Unit-9", "Merlin", "Vlad"]);
@@ -364,7 +364,7 @@
       fullTableTargetBb: TOURNAMENT_FULL_TABLE_TARGET_BB,
       blendResponse: TOURNAMENT_BLEND_RESPONSE,
       roleProfiles: TOURNAMENT_ROLE_BB,
-      theoreticalReplacementCeilingBb: 660,
+      theoreticalReplacementCeilingBb: 1500,
     }),
     diagnostics() {
       return tournamentDiagnostics.map(entry => ({ ...entry }));
