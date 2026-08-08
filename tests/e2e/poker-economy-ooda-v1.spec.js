@@ -57,7 +57,10 @@ test.describe("Poker Economy OODA Long-Run Runner V1", () => {
     await expect.poll(() => page.evaluate(() => window.AiOpeningBalanceV294?.version || ""), { timeout: 15_000 }).toBe("2.9.4");
     await expect.poll(() => page.evaluate(() => window.AiOpeningBalanceV295?.version || ""), { timeout: 15_000 }).toBe("2.9.5");
     await expect.poll(() => page.evaluate(() => window.EconomyFoldDefenseV1?.version || ""), { timeout: 15_000 }).toBe("1.1.0");
-    await expect.poll(() => page.evaluate(() => Boolean(botAction?.__aiOpeningBalanceV295Wrapper)), { timeout: 15_000 }).toBe(true);
+    await expect.poll(
+      () => page.evaluate(() => document.documentElement.dataset.aiOpeningBalanceV295 || ""),
+      { timeout: 15_000 },
+    ).toBe("ready");
 
     const integritySource = await readFile(INTEGRITY_SCRIPT, "utf8");
     await page.addScriptTag({ content: integritySource });
