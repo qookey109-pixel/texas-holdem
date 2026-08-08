@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 const DEFAULT_CANDIDATES = ["80-75", "85-75", "80-85", "85-85"];
 const BASELINE = "80-75";
 const CANDIDATES = (process.env.POKER_ECONOMY_OODA_CANDIDATES || DEFAULT_CANDIDATES.join(","))
@@ -42,6 +42,15 @@ function average(values) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
 }
 
+function median(values) {
+  const sorted = values.filter(Number.isFinite).sort((left, right) => left - right);
+  if (!sorted.length) return 0;
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2
+    ? sorted[middle]
+    : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
 function percentile(values, quantile) {
   if (!values.length) return 0;
   const sorted = [...values].sort((left, right) => left - right);
@@ -60,6 +69,26 @@ function validRatios(samples) {
     .map(sample => sample?.heroToOpponentMedianRatio)
     .filter(value => Number.isFinite(Number(value)))
     .map(Number);
+}
+
+function seedMetrics(report) {
+  const samples = stackSamples(report);
+  const ratios = validRatios(samples);
+  const lateStart = Math.floor(samples.length * 0.8);
+  const lateRatios = validRatios(samples.slice(lateStart));
+  const replacedSeats = finite(report?.economyOoda?.aiReplacedSeats);
+  const averageEntryBb = finite(report?.economyOoda?.averageEntryBb);
+  return {
+    shardIndex: finite(report?.shardIndex, -1),
+    seed: finite(report?.seed),
+    completedHands: finite(report?.completedHands),
+    lateAverageHeroToOpponentMedianRatio: round(average(lateRatios), 6),
+    lateP90HeroToOpponentMedianRatio: round(percentile(lateRatios, 0.90), 6),
+    heroDominance3xRate: round(rate(ratios.filter(value => value >= 3).length, ratios.length), 6),
+    heroDominance5xRate: round(rate(ratios.filter(value => value >= 5).length, ratios.length), 6),
+    estimatedInjectedBb: round(replacedSeats * averageEntryBb, 4),
+    aiReplacedSeats: replacedSeats,
+  };
 }
 
 if (!statSync(inputDirectory).isDirectory()) throw new Error(`Economy OODA input is not a directory: ${inputDirectory}`);
@@ -196,6 +225,76 @@ function percentDelta(value, baselineValue) {
   return baselineValue !== 0 ? round(((value / baselineValue) - 1) * 100, 4) : 0;
 }
 
+function pairedSeedReview(challengerId) {
+  const baselineByShard = new Map(groups.get(BASELINE).map(report => [finite(report.shardIndex, -1), seedMetrics(report)]));
+  const challengerByShard = new Map(groups.get(challengerId).map(report => [finite(report.shardIndex, -1), seedMetrics(report)]));
+  const shardIndexes = [...baselineByShard.keys()]
+    .filter(index => challengerByShard.has(index) && index >= 0)
+    .sort((left, right) => left - right);
+  const pairs = shardIndexes.map(shardIndex => {
+    const current = baselineByShard.get(shardIndex);
+    const challenger = challengerByShard.get(shardIndex);
+    return {
+      shardIndex,
+      seed: current.seed,
+      baseline: current,
+      challenger,
+      delta: {
+        lateAverageHeroToOpponentMedianRatio: round(
+          challenger.lateAverageHeroToOpponentMedianRatio - current.lateAverageHeroToOpponentMedianRatio,
+          6,
+        ),
+        lateP90HeroToOpponentMedianRatio: round(
+          challenger.lateP90HeroToOpponentMedianRatio - current.lateP90HeroToOpponentMedianRatio,
+          6,
+        ),
+        heroDominance3xRate: round(challenger.heroDominance3xRate - current.heroDominance3xRate, 6),
+        heroDominance5xRate: round(challenger.heroDominance5xRate - current.heroDominance5xRate, 6),
+        estimatedInjectedBb: round(challenger.estimatedInjectedBb - current.estimatedInjectedBb, 4),
+      },
+    };
+  });
+  const lateDeltas = pairs.map(pair => pair.delta.lateAverageHeroToOpponentMedianRatio);
+  const p90Deltas = pairs.map(pair => pair.delta.lateP90HeroToOpponentMedianRatio);
+  const rate3Deltas = pairs.map(pair => pair.delta.heroDominance3xRate);
+  const rate5Deltas = pairs.map(pair => pair.delta.heroDominance5xRate);
+  const injectionDeltas = pairs.map(pair => pair.delta.estimatedInjectedBb);
+  const challengerBetterLateSeeds = lateDeltas.filter(value => value < 0).length;
+  const baselineBetterLateSeeds = lateDeltas.filter(value => value > 0).length;
+  const tiedLateSeeds = lateDeltas.filter(value => value === 0).length;
+  const baselineInjection = pairs.reduce((sum, pair) => sum + pair.baseline.estimatedInjectedBb, 0);
+  const challengerInjection = pairs.reduce((sum, pair) => sum + pair.challenger.estimatedInjectedBb, 0);
+  return {
+    challengerId,
+    pairedSeeds: pairs.length,
+    challengerBetterLateSeeds,
+    baselineBetterLateSeeds,
+    tiedLateSeeds,
+    lateDirectionConsensus: challengerBetterLateSeeds > baselineBetterLateSeeds
+      ? "challenger"
+      : baselineBetterLateSeeds > challengerBetterLateSeeds
+        ? "baseline"
+        : "tied",
+    seedMedianLateAverage: {
+      baseline: round(median(pairs.map(pair => pair.baseline.lateAverageHeroToOpponentMedianRatio)), 6),
+      challenger: round(median(pairs.map(pair => pair.challenger.lateAverageHeroToOpponentMedianRatio)), 6),
+    },
+    pairedMedianDelta: {
+      lateAverageHeroToOpponentMedianRatio: round(median(lateDeltas), 6),
+      lateP90HeroToOpponentMedianRatio: round(median(p90Deltas), 6),
+      heroDominance3xRate: round(median(rate3Deltas), 6),
+      heroDominance5xRate: round(median(rate5Deltas), 6),
+      estimatedInjectedBb: round(median(injectionDeltas), 4),
+    },
+    totalEstimatedInjectedBb: {
+      baseline: round(baselineInjection, 4),
+      challenger: round(challengerInjection, 4),
+      deltaPct: percentDelta(challengerInjection, baselineInjection),
+    },
+    pairs,
+  };
+}
+
 function decide(id) {
   const observation = observations[id];
   const orientation = orientations[id];
@@ -224,7 +323,7 @@ function decide(id) {
       ? "Smoke gates passed; collect a larger staged sample before interpreting performance."
       : evidenceBand === "screen"
         ? "Screen gates passed; collect deep evidence before any policy recommendation."
-        : "Long-run gates passed; compare hero domination, injection cost, uncertainty, and gameplay quality manually. Production remains unchanged by this runner.";
+        : "Long-run gates passed; compare hero domination, injection cost, paired-seed robustness, uncertainty, and gameplay quality manually. Production remains unchanged by this runner.";
   }
   if (id === BASELINE && orientation.gatesPassed) {
     disposition = evidenceBand === "smoke" ? "baseline-pass" : disposition;
@@ -233,6 +332,11 @@ function decide(id) {
 }
 
 const decisions = Object.fromEntries(CANDIDATES.map(id => [id, decide(id)]));
+const pairedSeedReviews = Object.fromEntries(
+  CANDIDATES
+    .filter(id => id !== BASELINE)
+    .map(id => [id, pairedSeedReview(id)]),
+);
 const missingCandidates = CANDIDATES.filter(id => groups.get(id).length === 0);
 if (missingCandidates.length) globalErrors.push(`missing candidates: ${missingCandidates.join(", ")}`);
 const validationPassed = globalErrors.length === 0 && CANDIDATES.every(id => orientations[id].gatesPassed);
@@ -253,6 +357,7 @@ const summary = {
   ooda: {
     observe: observations,
     orient: orientations,
+    pairedSeedReview: pairedSeedReviews,
     decide: decisions,
     act: action,
   },
@@ -262,6 +367,10 @@ const rows = CANDIDATES.map(id => {
   const o = observations[id];
   const d = decisions[id];
   return `| ${id} | ${o.completedHands} | ${o.shards} | ${o.aiReplacedSeats} | ${o.estimatedInjectedBb.toFixed(0)} | ${o.averageEntryBb.toFixed(2)} | ${o.lateAverageHeroToOpponentMedianRatio.toFixed(2)}x | ${o.lateP90HeroToOpponentMedianRatio.toFixed(2)}x | ${(o.heroDominance3xRate * 100).toFixed(1)}% | ${o.aggregateRoleBb100.toFixed(2)} | ${(o.aggregateRoleBustRate * 100).toFixed(2)}% | ${orientations[id].gatesPassed ? "pass" : "fail"} | ${d.disposition} |`;
+});
+const pairedRows = CANDIDATES.filter(id => id !== BASELINE).map(id => {
+  const review = pairedSeedReviews[id];
+  return `| ${id} | ${review.pairedSeeds} | ${review.challengerBetterLateSeeds} | ${review.baselineBetterLateSeeds} | ${review.seedMedianLateAverage.baseline.toFixed(3)}x | ${review.seedMedianLateAverage.challenger.toFixed(3)}x | ${review.pairedMedianDelta.lateAverageHeroToOpponentMedianRatio.toFixed(3)}x | ${(review.pairedMedianDelta.heroDominance3xRate * 100).toFixed(2)}% | ${review.totalEstimatedInjectedBb.deltaPct.toFixed(2)}% | ${review.lateDirectionConsensus} |`;
 });
 const markdown = [
   "# Poker Economy OODA Long-Run Runner V1",
@@ -275,10 +384,19 @@ const markdown = [
   "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
   ...rows,
   "",
+  "## Paired-seed robustness",
+  "",
+  "Lower late Hero/opponent-median ratios are better. A negative paired delta favors the challenger.",
+  "",
+  "| Challenger | Paired seeds | Challenger better | Baseline better | Baseline seed median | Challenger seed median | Paired median late delta | Paired median >=3x delta | Injection delta | Late consensus |",
+  "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+  ...pairedRows,
+  "",
   "## Act",
   "",
   `- Keep production policy unchanged: ${BASELINE}.`,
   `- Next-stage candidates: ${action.nextStageCandidates.join(", ") || "none"}.`,
+  "- Use both pooled tail suppression and paired-seed robustness; heavy-tail arithmetic means alone are not sufficient for promotion.",
   "- Lower late hero/opponent-median ratios and lower hero >=3x rates are preferred when injection and safety remain bounded.",
   "- Any production parameter change requires separate evidence review and a normal validated PR.",
   ...(globalErrors.length ? ["", "## Validation errors", "", ...globalErrors.map(error => `- ${error}`)] : []),
