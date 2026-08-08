@@ -132,11 +132,14 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
   }), guardedIds);
 
   const count = (snapshot, id) => snapshot.writesById[id] || 0;
+  const skippedCount = (snapshot, id) => snapshot.skippedById[id] || 0;
   const maxIdleWrites = 12;
-  // Chromium consistently performs one legitimate mode sync during the two
-  // post-probe animation frames. Three requests remain far below a per-frame
-  // observer loop and preserve the stricter 420 ms idle-loop budget below.
-  const maxUnrelatedMutationWrites = 3;
+  // This counter measures refresh requests, not DOM replacements. Chromium can
+  // legitimately service a handful of coalesced background refreshes while the
+  // unrelated probe settles. Keep a strict request budget, but require every
+  // request in this phase to be idempotent below. A runaway per-frame loop would
+  // exceed this small bound quickly and is separately guarded by the idle budget.
+  const maxUnrelatedMutationWrites = 6;
 
   expect(before.supported).toBe(true);
   expect(afterRefresh.status.guardedCount).toBeGreaterThanOrEqual(guardedIds.length);
@@ -146,9 +149,11 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
   expect(afterIdle.sameNodes).toBe(true);
 
   for (const id of ["tournamentModeButton", "geminiBossButton"]) {
-    expect(
-      count(afterUnrelatedMutations, id) - count(settledBaseline.status, id),
-    ).toBeLessThanOrEqual(maxUnrelatedMutationWrites);
+    const writeAttempts = count(afterUnrelatedMutations, id) - count(settledBaseline.status, id);
+    const skippedAttempts = skippedCount(afterUnrelatedMutations, id)
+      - skippedCount(settledBaseline.status, id);
+    expect(writeAttempts).toBeLessThanOrEqual(maxUnrelatedMutationWrites);
+    expect(skippedAttempts).toBe(writeAttempts);
   }
 
   // Other UI modules can legitimately request several sync passes. At 60 fps,
