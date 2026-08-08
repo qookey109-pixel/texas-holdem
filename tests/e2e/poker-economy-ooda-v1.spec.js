@@ -19,7 +19,7 @@ function padShard(value) {
   return String(value).padStart(3, "0");
 }
 
-function injectIntegrityHooks(source) {
+function injectTelemetryHooks(source) {
   const replacements = [
     {
       target: "    function recordAction(player, action) {\n      const metric = metricFor(player);",
@@ -28,6 +28,10 @@ function injectIntegrityHooks(source) {
     {
       target: "        activeHand = createHandState(state.players, bigBlind, heroProfile);\n        const expectedChips",
       replacement: "        activeHand = createHandState(state.players, bigBlind, heroProfile);\n        window.AiLongRunTelemetryIntegrityV294?.beginHand?.();\n        const expectedChips",
+    },
+    {
+      target: "        if (state.handOver && finalValidation.totalChips === expectedChips) handsCompleted += 1;",
+      replacement: "        if (state.handOver && finalValidation.totalChips === expectedChips) {\n          window.PokerEconomyOodaV1?.recordHandSnapshot?.(state.players, bigBlind);\n          handsCompleted += 1;\n        }",
     },
     {
       target: "        cleanupTimers();\n        activeHand = null;",
@@ -78,7 +82,7 @@ test.describe("Poker Economy OODA Long-Run Runner V1", () => {
 
     const adapterSource = await readFile(ECONOMY_ADAPTER, "utf8");
     await page.addScriptTag({ content: adapterSource });
-    await expect.poll(() => page.evaluate(() => window.PokerEconomyOodaV1?.version || ""), { timeout: 10_000 }).toBe("1.0.0");
+    await expect.poll(() => page.evaluate(() => window.PokerEconomyOodaV1?.version || ""), { timeout: 10_000 }).toBe("1.1.0");
     const installedPolicy = await page.evaluate(policy => window.PokerEconomyOodaV1.install(policy), POLICY);
     expect(installedPolicy).toMatchObject({
       installed: true,
@@ -90,7 +94,7 @@ test.describe("Poker Economy OODA Long-Run Runner V1", () => {
     });
 
     const rawLabSource = (await Promise.all(LAB_PARTS.map(path => readFile(path, "utf8")))).join("");
-    await page.addScriptTag({ content: injectIntegrityHooks(rawLabSource) });
+    await page.addScriptTag({ content: injectTelemetryHooks(rawLabSource) });
     await expect.poll(() => page.evaluate(() => window.AiLongRunTelemetryV29?.version || ""), { timeout: 10_000 }).toBe("2.9.0");
 
     const report = await page.evaluate(options => window.AiLongRunTelemetryV29.runShard(options), {
@@ -120,16 +124,18 @@ test.describe("Poker Economy OODA Long-Run Runner V1", () => {
       fairness: { publicInformationOnly: true },
       telemetryIntegrity: { integrityPassed: true, errors: [] },
       economyOoda: {
-        version: "1.0.0",
+        version: "1.1.0",
         experimentOnly: true,
         productionBehaviorChanged: false,
         productionConfigUnchanged: true,
         publicInformationOnly: true,
         policy: { id: POLICY },
+        handStackSampleCount: HANDS,
       },
     });
     expect(report.failures).toEqual([]);
     expect(report.schedulerErrors).toEqual([]);
+    expect(report.economyOoda.handStackSamples).toHaveLength(HANDS);
     expect(report.economyOoda.maximumEntryBb === null || report.economyOoda.maximumEntryBb <= 60).toBe(true);
     expect(pageErrors).toEqual([]);
   });
