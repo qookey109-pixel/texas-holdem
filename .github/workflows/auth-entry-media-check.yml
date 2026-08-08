@@ -1,0 +1,64 @@
+name: Auth entry media check
+
+on:
+  pull_request:
+    paths:
+      - assets/auth-entry-poker-720p.mp4
+      - js/auth-entry-v2.js
+      - js/config.js
+      - tests/e2e/auth-entry-v2.spec.js
+      - tests/e2e/auth-entry-video-playback.spec.js
+      - .github/workflows/auth-entry-media-check.yml
+  push:
+    branches:
+      - main
+    paths:
+      - assets/auth-entry-poker-720p.mp4
+      - js/auth-entry-v2.js
+      - js/config.js
+      - tests/e2e/auth-entry-v2.spec.js
+      - tests/e2e/auth-entry-video-playback.spec.js
+      - .github/workflows/auth-entry-media-check.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify-media:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install ffmpeg
+        run: |
+          if ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+
+      - name: Verify Safari-friendly moving 720p video
+        shell: bash
+        run: |
+          set -euo pipefail
+          file="assets/auth-entry-poker-720p.mp4"
+
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "$file")" = "h264"
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=profile -of csv=p=0 "$file")" = "Main"
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 "$file")" = "1280"
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$file")" = "720"
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt -of csv=p=0 "$file")" = "yuv420p"
+
+          unique_frames="$(ffmpeg -v error -i "$file" -vf fps=1 -t 6 -f framemd5 - | awk -F, '!/^#/ {gsub(/ /,"",$NF); print $NF}' | sort -u | wc -l | tr -d ' ')"
+          echo "unique sampled frames: ${unique_frames}"
+          test "$unique_frames" -ge 3
+
+          python - <<'PY'
+          from pathlib import Path
+          data = Path('assets/auth-entry-poker-720p.mp4').read_bytes()
+          moov = data.find(b'moov')
+          mdat = data.find(b'mdat')
+          print({'size': len(data), 'moov': moov, 'mdat': mdat})
+          assert 0 <= moov < mdat, 'MP4 must be fast-start optimized'
+          assert len(data) < 8_000_000, 'video unexpectedly large'
+          PY
