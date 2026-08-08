@@ -104,6 +104,28 @@ automaticPromotion = false
 
 任何正式 economy 修改必須另開正常 PR，並重新通過完整驗證。
 
+## Deterministic reproducibility gate
+
+在任何候選矩陣開始前，workflow 先以正式基準 `80/75`、固定 seed base `26890246`、`100 hands × 1 shard` 執行兩次彼此獨立的 Chromium Playwright run。
+
+比較器：
+
+```text
+scripts/check-poker-economy-repro-v1.mjs
+```
+
+兩次 replay 必須同時符合：
+
+- `seed` 相同。
+- `configuredHands` / `completedHands` 相同。
+- `deterministicFingerprint` 完全一致。
+- `economyOoda` replacement telemetry 完全一致。
+- `telemetryIntegrity` 完全一致。
+- 無 state failure / scheduler error。
+- public-information fairness 通過。
+
+只要任何一項不同，`reproducibility` job 直接失敗，後續候選 `evaluate` matrix 不執行。這個 gate 用來阻止「同 seed 仍受前一候選、瀏覽器生命週期、timer 或 runtime evidence 殘留影響」的資料進入 OODA 判斷。
+
 ## 分階段長跑
 
 Workflow：
@@ -112,10 +134,11 @@ Workflow：
 .github/workflows/poker-economy-ooda.yml
 ```
 
-Pull Request 自動執行 smoke：
+Pull Request 先執行 deterministic reproducibility gate，再執行 smoke：
 
 ```text
-25 hands × 1 shard × 4 candidates
+reproducibility: 100 hands × 1 shard × 2 independent runs on 80/75
+smoke:          25 hands × 1 shard × 4 candidates
 ```
 
 手動 workflow dispatch 可升級：
@@ -153,6 +176,14 @@ npm run test:economy-ooda:shard
 
 ```bash
 node scripts/evaluate-poker-economy-ooda-v1.mjs economy-ooda-results economy-ooda-summary
+```
+
+重跑比對：
+
+```bash
+node scripts/check-poker-economy-repro-v1.mjs \
+  economy-ooda-repro/run-a/poker-economy-ooda-80-75-shard-000.json \
+  economy-ooda-repro/run-b/poker-economy-ooda-80-75-shard-000.json
 ```
 
 ## 非目標
