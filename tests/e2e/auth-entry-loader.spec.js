@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-function installDelayedReturningSession(page, delayMs = 900) {
+function installDelayedReturningSession(page, delayMs = 2500) {
   return page.addInitScript(({ sessionDelay }) => {
     const session = {
       access_token: "loader-access-token",
@@ -39,48 +39,44 @@ function installDelayedReturningSession(page, delayMs = 900) {
   }, { sessionDelay: delayMs });
 }
 
-test("返回登入驗證期間顯示牌桌動畫，完成後立即收起", async ({ page }) => {
+test("返回登入驗證期間顯示專用牌桌動畫，完成後立即收起", async ({ page }) => {
   await installDelayedReturningSession(page);
   await page.goto("/", { waitUntil: "domcontentloaded" });
 
   await expect.poll(
-    () => page.evaluate(() => document.querySelector("#authAccountStatus")?.dataset.tone || ""),
+    () => page.evaluate(() => window.AuthEntryV2?.version || ""),
     { timeout: 5_000 },
-  ).toBe("pending");
+  ).toBe("2.1.3-safari-runtime");
 
-  const overlay = page.locator("#authAccountOverlay");
-  const table = overlay.locator(".auth-account-modal");
-  await expect(overlay).toHaveAttribute("hidden", "");
-  await expect(overlay).toBeVisible();
-  await expect(table).toBeVisible();
-  await expect(page.locator("#authAccountStatus")).toContainText("正在連接登入服務");
+  const entryOverlay = page.locator("#authEntryV2Overlay");
+  const accountOverlay = page.locator("#authAccountOverlay");
 
-  const presentation = await table.evaluate(element => {
-    const style = getComputedStyle(element);
-    const before = getComputedStyle(element, "::before");
-    const after = getComputedStyle(element, "::after");
-    return {
-      borderRadius: style.borderRadius,
-      tableAnimation: style.animationName,
-      cardsContent: before.content,
-      cardsAnimation: before.animationName,
-      chipsContent: after.content,
-      chipsAnimation: after.animationName,
-    };
-  });
+  await expect(entryOverlay).toBeVisible();
+  await expect(entryOverlay.locator(".auth-entry-v2-table")).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-auth-entry-v2", "active");
 
-  expect(presentation.borderRadius).not.toBe("0px");
-  expect(presentation.tableAnimation).toContain("auth-table-unfold");
-  expect(presentation.cardsContent).not.toBe("none");
-  expect(presentation.cardsAnimation).toContain("auth-cards-deal");
-  expect(presentation.chipsContent).not.toBe("none");
-  expect(presentation.chipsAnimation).toContain("auth-chips-drop");
+  // Returning-session loading belongs to the dedicated AuthEntryV2 surface.
+  // The player-account dialog stays closed unless the user explicitly opens it.
+  await expect.poll(
+    () => page.evaluate(() => window.TexasHoldemAuth?.status().loading ?? false),
+    { timeout: 5_000 },
+  ).toBe(true);
+  await expect(accountOverlay).toBeHidden();
 
   await expect.poll(
     () => page.evaluate(() => window.TexasHoldemAuth?.status().signedIn || false),
-    { timeout: 5_000 },
+    { timeout: 7_000 },
   ).toBe(true);
-  await expect(overlay).toBeHidden();
+
+  // Auth may settle before the minimum returning-entry presentation duration.
+  await expect(entryOverlay).toBeVisible();
+
+  await expect.poll(
+    () => page.evaluate(() => window.AuthEntryV2?.status().visible ?? true),
+    { timeout: 7_000 },
+  ).toBe(false);
+  await expect(accountOverlay).toBeHidden();
+  await expect(page.locator("html")).not.toHaveAttribute("data-auth-entry-v2", "active");
 });
 
 test("沒有返回工作階段時不增加額外開場等待", async ({ page }) => {
@@ -91,6 +87,7 @@ test("沒有返回工作階段時不增加額外開場等待", async ({ page }) 
     { timeout: 5_000 },
   ).toBe(false);
 
+  await expect(page.locator("#authEntryV2Overlay")).toHaveCount(0);
   await expect(page.locator("#authAccountOverlay")).toBeHidden();
   await expect(page.locator("#authAccountStatus")).not.toHaveAttribute("data-tone", "pending");
 });
