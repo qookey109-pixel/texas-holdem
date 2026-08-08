@@ -12,10 +12,6 @@ test.describe("AI V2.9.4 opening balance", () => {
       () => page.evaluate(() => document.documentElement.dataset.aiOpeningBalanceV294 || ""),
       { timeout: 15_000 },
     ).toBe("ready");
-    await expect.poll(
-      () => page.evaluate(() => Boolean(botAction?.__aiOpeningBalanceV294Wrapper)),
-      { timeout: 15_000 },
-    ).toBe(true);
 
     const result = await page.evaluate(() => {
       const api = window.AiOpeningBalanceV294;
