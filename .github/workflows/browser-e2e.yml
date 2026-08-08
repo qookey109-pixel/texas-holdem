@@ -57,6 +57,7 @@ jobs:
           tests/e2e/poker-settlement.spec.js
           tests/e2e/game-mode-controls-v2.spec.js
           tests/e2e/google-auth.spec.js
+          tests/e2e/auth-entry-loader.spec.js
           tests/e2e/auth-entry-v2.spec.js
           tests/e2e/auth-entry-video-playback.spec.js
           tests/e2e/ai-opening-balance-v2-9-4.spec.js
