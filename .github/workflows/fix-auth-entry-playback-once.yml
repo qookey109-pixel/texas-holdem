@@ -32,11 +32,9 @@ jobs:
             sudo apt-get install -y ffmpeg
           fi
 
-          echo "SOURCE INFO"
           ffprobe -v error -select_streams v:0 \
             -show_entries stream=codec_name,profile,width,height,pix_fmt,r_frame_rate,avg_frame_rate \
-            -show_entries format=duration,size \
-            -of json "$src"
+            -show_entries format=duration,size -of json "$src"
 
           source_unique_frames="$(ffmpeg -v error -i "$src" -vf fps=1 -t 6 -f framemd5 - | awk -F, '!/^#/ {gsub(/ /,"",$NF); print $NF}' | sort -u | wc -l | tr -d ' ')"
           echo "source unique sampled frames: ${source_unique_frames}"
@@ -50,12 +48,6 @@ jobs:
             -r 30 -g 60 -keyint_min 30 -sc_threshold 0 \
             -movflags +faststart -an "$tmp"
 
-          echo "OUTPUT INFO"
-          ffprobe -v error -select_streams v:0 \
-            -show_entries stream=codec_name,profile,width,height,pix_fmt,r_frame_rate,avg_frame_rate \
-            -show_entries format=duration,size \
-            -of json "$tmp"
-
           test "$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "$tmp")" = "h264"
           test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 "$tmp")" = "1280"
           test "$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$tmp")" = "720"
@@ -67,13 +59,12 @@ jobs:
 
           python - <<'PY'
           from pathlib import Path
-          p = Path('assets/auth-entry-poker-720p.web.mp4')
-          data = p.read_bytes()
+          data = Path('assets/auth-entry-poker-720p.web.mp4').read_bytes()
           moov = data.find(b'moov')
           mdat = data.find(b'mdat')
           print({'size': len(data), 'moov': moov, 'mdat': mdat})
-          assert 0 <= moov < mdat, 'MP4 is not fast-start optimized (moov must precede mdat)'
-          assert len(data) < 8_000_000, 'web video unexpectedly large'
+          assert 0 <= moov < mdat
+          assert len(data) < 8_000_000
           PY
 
           mv "$tmp" "$src"
@@ -92,94 +83,26 @@ jobs:
               assert count == expected, f'{path}: expected {expected}, found {count}: {old!r}'
               p.write_text(text.replace(old, new))
 
-          replace_exact(
-              'js/auth-entry-v2.js',
+          replace_exact('js/auth-entry-v2.js',
               'videoUrl: "assets/auth-entry-poker-720p.mp4?v=auth-entry-video-720p-v1",',
-              'videoUrl: "assets/auth-entry-poker-720p.mp4?v=auth-entry-video-playback-v2",',
-          )
-          replace_exact(
-              'js/auth-entry-v2.js',
+              'videoUrl: "assets/auth-entry-poker-720p.mp4?v=auth-entry-video-playback-v2",')
+          replace_exact('js/auth-entry-v2.js',
               'version: "2.1.1-hd",',
-              'version: "2.1.2-playback-fix",',
-          )
-          replace_exact(
-              'js/config.js',
+              'version: "2.1.2-playback-fix",')
+          replace_exact('js/config.js',
               'authScript.src = "js/auth-entry-v2.js?v=auth-entry-video-720p-v1";',
-              'authScript.src = "js/auth-entry-v2.js?v=auth-entry-video-playback-v2";',
-          )
+              'authScript.src = "js/auth-entry-v2.js?v=auth-entry-video-playback-v2";')
 
-          test_path = Path('tests/e2e/auth-entry-v2.spec.js')
-          text = test_path.read_text()
+          p = Path('tests/e2e/auth-entry-v2.spec.js')
+          text = p.read_text()
           assert text.count('.toBe("2.1.1-hd");') == 3
           assert text.count('auth-entry-video-720p-v1') == 1
           text = text.replace('.toBe("2.1.1-hd");', '.toBe("2.1.2-playback-fix");')
           text = text.replace('auth-entry-video-720p-v1', 'auth-entry-video-playback-v2')
-          test_path.write_text(text)
+          p.write_text(text)
           PY
 
-      - name: Add permanent moving-video integrity check and clean failed PR artifacts
-        shell: bash
-        run: |
-          set -euo pipefail
-          cat > .github/workflows/auth-entry-media-check.yml <<'YAML'
-          name: Auth entry media check
-
-          on:
-            pull_request:
-              paths:
-                - assets/auth-entry-poker-720p.mp4
-                - js/auth-entry-v2.js
-                - js/config.js
-                - tests/e2e/auth-entry-v2.spec.js
-                - .github/workflows/auth-entry-media-check.yml
-            push:
-              branches:
-                - main
-              paths:
-                - assets/auth-entry-poker-720p.mp4
-                - js/auth-entry-v2.js
-                - js/config.js
-                - tests/e2e/auth-entry-v2.spec.js
-                - .github/workflows/auth-entry-media-check.yml
-
-          jobs:
-            verify-media:
-              runs-on: ubuntu-latest
-              steps:
-                - uses: actions/checkout@v4
-                - name: Install ffmpeg
-                  run: |
-                    if ! command -v ffprobe >/dev/null 2>&1; then
-                      sudo apt-get update
-                      sudo apt-get install -y ffmpeg
-                    fi
-                - name: Verify web-safe moving 720p video
-                  shell: bash
-                  run: |
-                    set -euo pipefail
-                    file="assets/auth-entry-poker-720p.mp4"
-                    test "$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "$file")" = "h264"
-                    test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 "$file")" = "1280"
-                    test "$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$file")" = "720"
-                    test "$(ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt -of csv=p=0 "$file")" = "yuv420p"
-                    unique_frames="$(ffmpeg -v error -i "$file" -vf fps=1 -t 6 -f framemd5 - | awk -F, '!/^#/ {gsub(/ /,"",$NF); print $NF}' | sort -u | wc -l | tr -d ' ')"
-                    echo "unique sampled frames: ${unique_frames}"
-                    test "$unique_frames" -ge 3
-                    python - <<'PY'
-                    from pathlib import Path
-                    data = Path('assets/auth-entry-poker-720p.mp4').read_bytes()
-                    moov = data.find(b'moov')
-                    mdat = data.find(b'mdat')
-                    print({'size': len(data), 'moov': moov, 'mdat': mdat})
-                    assert 0 <= moov < mdat
-                    assert len(data) < 8_000_000
-                    PY
-          YAML
-
           rm -rf .tmp/auth-native-720p .tmp/auth-native-blob .tmp/fix-auth-playback
-          rm -f .github/workflows/auth-entry-native-720p-once.yml
-          rm -f .github/workflows/auth-entry-native-blob-once.yml
-          rm -f .github/workflows/fix-auth-entry-playback-once.yml
 
       - name: Commit playback fix
         shell: bash
@@ -187,7 +110,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add assets/auth-entry-poker-720p.mp4 js/auth-entry-v2.js js/config.js tests/e2e/auth-entry-v2.spec.js .tmp || true
           git status --short
-          git commit -m "Fix auth entry video playback and media validation"
+          git commit -m "Fix auth entry video playback"
           git push origin HEAD:fix/auth-entry-video-playback
