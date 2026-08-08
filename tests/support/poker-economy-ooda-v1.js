@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "1.0.0";
+  const VERSION = "1.1.0";
   const POLICY_VERSION = "1.0.0";
   const POLICIES = Object.freeze({
     "80-75": Object.freeze({ id: "80-75", tableMedianRatio: 0.80, buyInRatioCap: 0.75 }),
@@ -25,6 +25,7 @@
     entryBbMaximum: null,
     tableMedianBbTotal: 0,
     samples: [],
+    handStackSamples: [],
   };
 
   function finite(value, fallback = 0) {
@@ -37,6 +38,15 @@
     return Math.round(finite(value) * factor) / factor;
   }
 
+  function median(values) {
+    const sorted = values.filter(Number.isFinite).sort((left, right) => left - right);
+    if (!sorted.length) return 0;
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2
+      ? sorted[middle]
+      : (sorted[middle - 1] + sorted[middle]) / 2;
+  }
+
   function resetTelemetry() {
     telemetry.sharedCalculatorCalls = 0;
     telemetry.aiReplacementEvents = 0;
@@ -46,6 +56,7 @@
     telemetry.entryBbMaximum = null;
     telemetry.tableMedianBbTotal = 0;
     telemetry.samples.length = 0;
+    telemetry.handStackSamples.length = 0;
   }
 
   function candidatePlan(players, options = {}) {
@@ -105,6 +116,29 @@
         replacedSeats: count,
       });
     }
+  }
+
+  function recordHandSnapshot(players, bigBlind) {
+    if (!installed || !Array.isArray(players) || !players.length) return false;
+    const bb = Math.max(1, finite(bigBlind, 20));
+    const hero = players[0];
+    const heroBb = Math.max(0, finite(hero?.stack)) / bb;
+    const positiveOpponentBbs = players
+      .slice(1)
+      .map(player => Math.max(0, finite(player?.stack)) / bb)
+      .filter(stackBb => stackBb > 0);
+    const opponentMedianBb = median(positiveOpponentBbs);
+    const ratio = opponentMedianBb > 0 ? heroBb / opponentMedianBb : null;
+    if (telemetry.handStackSamples.length < 1_000) {
+      telemetry.handStackSamples.push({
+        heroBb: round(heroBb, 4),
+        opponentMedianBb: round(opponentMedianBb, 4),
+        heroToOpponentMedianRatio: ratio === null ? null : round(ratio, 6),
+        positiveOpponentSeats: positiveOpponentBbs.length,
+        allOpponentsBusted: positiveOpponentBbs.length === 0,
+      });
+    }
+    return true;
   }
 
   function configUnchanged() {
@@ -181,6 +215,14 @@
 
   function snapshot() {
     const seats = telemetry.aiReplacedSeats;
+    const stackSamples = telemetry.handStackSamples;
+    const ratioSamples = stackSamples
+      .map(sample => sample.heroToOpponentMedianRatio)
+      .filter(value => Number.isFinite(Number(value)))
+      .map(Number);
+    const average = values => values.length
+      ? values.reduce((sum, value) => sum + value, 0) / values.length
+      : 0;
     return {
       version: VERSION,
       schemaVersion: 1,
@@ -209,6 +251,13 @@
       minimumEntryBb: telemetry.entryBbMinimum === null ? null : round(telemetry.entryBbMinimum, 4),
       maximumEntryBb: telemetry.entryBbMaximum === null ? null : round(telemetry.entryBbMaximum, 4),
       averageTableMedianBb: seats ? round(telemetry.tableMedianBbTotal / seats, 4) : 0,
+      handStackSampleCount: stackSamples.length,
+      averageHeroBb: round(average(stackSamples.map(sample => sample.heroBb)), 4),
+      averageOpponentMedianBb: round(average(stackSamples.map(sample => sample.opponentMedianBb)), 4),
+      averageHeroToOpponentMedianRatio: round(average(ratioSamples), 6),
+      maximumHeroToOpponentMedianRatio: ratioSamples.length ? round(Math.max(...ratioSamples), 6) : null,
+      allOpponentsBustedHands: stackSamples.filter(sample => sample.allOpponentsBusted).length,
+      handStackSamples: stackSamples.map(sample => ({ ...sample })),
       samples: telemetry.samples.map(sample => ({ ...sample })),
     };
   }
@@ -236,5 +285,6 @@
     snapshot,
     restore,
     resetTelemetry,
+    recordHandSnapshot,
   };
 })();
