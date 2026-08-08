@@ -6,6 +6,7 @@ on:
       - ".github/workflows/poker-economy-ooda.yml"
       - "tests/e2e/poker-economy-ooda-v1.spec.js"
       - "tests/support/poker-economy-ooda-v1.js"
+      - "scripts/check-poker-economy-repro-v1.mjs"
       - "scripts/evaluate-poker-economy-ooda-v1.mjs"
       - "package.json"
   workflow_dispatch:
@@ -61,8 +62,71 @@ jobs:
           echo "shard_count=$shards" >> "$GITHUB_OUTPUT"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
+  reproducibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      POKER_ECONOMY_OODA: "1"
+      POKER_ECONOMY_OODA_POLICY: "80-75"
+      POKER_ECONOMY_OODA_STAGE: "reproducibility"
+      POKER_ECONOMY_OODA_HANDS: "100"
+      POKER_ECONOMY_OODA_SHARD: "0"
+      POKER_ECONOMY_OODA_SHARD_COUNT: "1"
+      POKER_ECONOMY_OODA_SEED_BASE: "26890246"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install locked test dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run deterministic replay A
+        env:
+          POKER_ECONOMY_OODA_OUTPUT_DIR: economy-ooda-repro/run-a
+        run: >-
+          npx playwright test
+          tests/e2e/poker-economy-ooda-v1.spec.js
+          --project=chromium
+          --retries=0
+
+      - name: Run deterministic replay B
+        env:
+          POKER_ECONOMY_OODA_OUTPUT_DIR: economy-ooda-repro/run-b
+        run: >-
+          npx playwright test
+          tests/e2e/poker-economy-ooda-v1.spec.js
+          --project=chromium
+          --retries=0
+
+      - name: Compare deterministic fingerprints and economy telemetry
+        run: >-
+          node scripts/check-poker-economy-repro-v1.mjs
+          economy-ooda-repro/run-a/poker-economy-ooda-80-75-shard-000.json
+          economy-ooda-repro/run-b/poker-economy-ooda-80-75-shard-000.json
+          economy-ooda-repro/reproducibility-summary.json
+
+      - name: Upload reproducibility evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: poker-economy-ooda-reproducibility
+          path: economy-ooda-repro/
+          if-no-files-found: warn
+          retention-days: 30
+
   evaluate:
-    needs: plan
+    needs:
+      - plan
+      - reproducibility
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
