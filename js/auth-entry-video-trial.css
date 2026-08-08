@@ -115,6 +115,33 @@
   box-shadow: 0 0 18px rgba(76, 208, 146, 0.1);
 }
 
+.auth-entry-v2-play-button {
+  position: absolute;
+  z-index: 12;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 150px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid rgba(234, 205, 136, .7);
+  border-radius: 999px;
+  background: rgba(3, 12, 17, .88);
+  color: #f7f3e8;
+  font: 800 13px/1 system-ui, sans-serif;
+  letter-spacing: .05em;
+  box-shadow: 0 12px 34px rgba(0,0,0,.48);
+  cursor: pointer;
+}
+
+.auth-entry-v2-play-button[hidden] {
+  display: none !important;
+}
+
+.auth-entry-v2-overlay.video-needs-gesture .auth-entry-v2-video-shell {
+  opacity: .42;
+}
+
 @media (max-width: 620px) {
   .auth-entry-v2-stage {
     width: 96vw;
@@ -147,10 +174,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-entry-v2-video-shell {
-    display: none !important;
-  }
-
+  .auth-entry-v2-video-shell,
   .auth-entry-v2-table-wrap,
   .auth-entry-v2-halo {
     transition: none !important;
