@@ -45,13 +45,13 @@ test("返回登入影片在瀏覽器中真的持續播放而非停在單一畫�
   await expect.poll(
     () => page.evaluate(() => window.AuthEntryV2?.version || ""),
     { timeout: 5_000 },
-  ).toBe("2.1.2-playback-fix");
+  ).toBe("2.1.3-safari-runtime");
 
   const video = page.locator("#authEntryV2Video");
   await expect(video).toHaveCount(1);
   await expect(video).toHaveAttribute(
     "src",
-    /assets\/auth-entry-poker-720p\.mp4\?v=auth-entry-video-playback-v2$/,
+    /assets\/auth-entry-poker-720p\.mp4\?v=auth-entry-video-safari-runtime-v3$/,
   );
 
   await expect.poll(
@@ -82,4 +82,45 @@ test("返回登入影片在瀏覽器中真的持續播放而非停在單一畫�
   expect(runtime.currentTime).toBeGreaterThan(0.25);
   expect(runtime.videoWidth).toBe(1280);
   expect(runtime.videoHeight).toBe(720);
+});
+
+
+test("Safari/macOS 減少動態偏好仍播放主影片，只停用周邊 CSS 動效", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await installReturningSession(page);
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+
+  await expect.poll(
+    () => page.evaluate(() => window.AuthEntryV2?.version || ""),
+    { timeout: 5_000 },
+  ).toBe("2.1.3-safari-runtime");
+
+  await expect.poll(
+    () => page.evaluate(() => window.AuthEntryV2?.status().reducedMotion ?? false),
+    { timeout: 5_000 },
+  ).toBe(true);
+
+  const video = page.locator("#authEntryV2Video");
+  await expect(video).toHaveCount(1);
+  await expect.poll(
+    () => page.evaluate(() => window.AuthEntryV2?.status().videoState || ""),
+    { timeout: 8_000 },
+  ).toBe("playing");
+
+  const shellDisplay = await page.locator(".auth-entry-v2-video-shell").evaluate(
+    element => getComputedStyle(element).display,
+  );
+  expect(shellDisplay).not.toBe("none");
+
+  const firstTime = await video.evaluate(element => element.currentTime);
+  await page.waitForTimeout(900);
+  const secondTime = await video.evaluate(element => element.currentTime);
+  expect(secondTime).toBeGreaterThan(firstTime + 0.25);
+
+  const animationState = await page.evaluate(() => ({
+    table: getComputedStyle(document.querySelector(".auth-entry-v2-table")).animationName,
+    copy: getComputedStyle(document.querySelector(".auth-entry-v2-copy")).animationName,
+  }));
+  expect(animationState.table).toBe("none");
+  expect(animationState.copy).toBe("none");
 });
