@@ -1,0 +1,128 @@
+name: Poker Economy OODA
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: Evidence stage
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - screen
+          - deep
+          - evidence
+
+permissions:
+  contents: read
+
+concurrency:
+  group: poker-economy-ooda-${{ github.ref }}-${{ inputs.stage }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      hands: ${{ steps.plan.outputs.hands }}
+      shard_count: ${{ steps.plan.outputs.shard_count }}
+    steps:
+      - id: plan
+        name: Build staged candidate matrix
+        shell: bash
+        run: |
+          case "${{ inputs.stage }}" in
+            smoke) hands=25; shards=1 ;;
+            screen) hands=100; shards=2 ;;
+            deep) hands=250; shards=4 ;;
+            evidence) hands=1000; shards=10 ;;
+            *) echo "Unknown stage" >&2; exit 1 ;;
+          esac
+          matrix=$(node -e '
+            const policies = ["80-75", "85-75", "80-85", "85-85"];
+            const shards = Number(process.argv[1]);
+            const include = [];
+            for (const policy of policies) for (let shard = 0; shard < shards; shard += 1) include.push({ policy, shard });
+            process.stdout.write(JSON.stringify({ include }));
+          ' "$shards")
+          echo "hands=$hands" >> "$GITHUB_OUTPUT"
+          echo "shard_count=$shards" >> "$GITHUB_OUTPUT"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  evaluate:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install locked test dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run full-hand economy candidate shard
+        env:
+          POKER_ECONOMY_OODA: "1"
+          POKER_ECONOMY_OODA_POLICY: ${{ matrix.policy }}
+          POKER_ECONOMY_OODA_STAGE: ${{ inputs.stage }}
+          POKER_ECONOMY_OODA_HANDS: ${{ needs.plan.outputs.hands }}
+          POKER_ECONOMY_OODA_SHARD: ${{ matrix.shard }}
+          POKER_ECONOMY_OODA_SHARD_COUNT: ${{ needs.plan.outputs.shard_count }}
+          POKER_ECONOMY_OODA_SEED_BASE: "26890246"
+          POKER_ECONOMY_OODA_OUTPUT_DIR: economy-ooda-results
+        run: >-
+          npx playwright test
+          tests/e2e/poker-economy-ooda-v1.spec.js
+          --project=chromium
+          --retries=0
+
+      - name: Upload candidate telemetry
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: economy-ooda-${{ matrix.policy }}-${{ matrix.shard }}
+          path: economy-ooda-results/
+          if-no-files-found: error
+          retention-days: 14
+
+  summarize:
+    needs:
+      - plan
+      - evaluate
+    if: ${{ always() && needs.evaluate.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Download candidate telemetry
+        uses: actions/download-artifact@v6
+        with:
+          pattern: economy-ooda-*
+          path: economy-ooda-results
+          merge-multiple: false
+
+      - name: Evaluate OODA evidence
+        run: node scripts/evaluate-poker-economy-ooda-v1.mjs economy-ooda-results economy-ooda-summary
+
+      - name: Upload OODA summary
+        uses: actions/upload-artifact@v5
+        with:
+          name: poker-economy-ooda-${{ inputs.stage }}-summary
+          path: economy-ooda-summary/
+          if-no-files-found: error
+          retention-days: 30
