@@ -19,6 +19,7 @@ on:
         options:
           - smoke
           - screen
+          - stage1
           - deep
           - evidence
 
@@ -26,7 +27,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: poker-economy-ooda-${{ github.ref }}-${{ inputs.stage || 'smoke' }}
+  group: poker-economy-ooda-${{ github.ref }}-${{ inputs.stage || 'stage1' }}
   cancel-in-progress: false
 
 jobs:
@@ -42,10 +43,11 @@ jobs:
         name: Build staged candidate matrix
         shell: bash
         run: |
-          stage="${{ inputs.stage || 'smoke' }}"
+          stage="${{ inputs.stage || 'stage1' }}"
           case "$stage" in
             smoke) hands=25; shards=1 ;;
             screen) hands=100; shards=2 ;;
+            stage1) hands=500; shards=10 ;;
             deep) hands=250; shards=4 ;;
             evidence) hands=1000; shards=10 ;;
             *) echo "Unknown stage: $stage" >&2; exit 1 ;;
