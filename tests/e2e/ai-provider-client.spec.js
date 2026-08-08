@@ -205,7 +205,7 @@ test("直接 API 模式使用 session-only Key 並支援 OpenAI 相容回傳", a
   expect(storage.localValues).not.toContain(secret);
 
   await page.locator("#aiProviderOfficial").click();
-  await expect(page.locator("#aiProviderStatus")).toContainText("已還原官方 AI");
+  await expect(page.locator("#aiProviderStatus")).toContainText("官方 AI");
   await expect.poll(
     () => page.evaluate(() => AIProviderClient.status()),
     { timeout: 5_000 },
