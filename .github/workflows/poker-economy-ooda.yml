@@ -21,12 +21,13 @@ on:
           - screen
           - deep
           - evidence
+          - screen80
 
 permissions:
   contents: read
 
 concurrency:
-  group: poker-economy-ooda-${{ github.ref }}-${{ inputs.stage || 'smoke' }}
+  group: poker-economy-ooda-${{ github.ref }}-${{ inputs.stage || 'screen80' }}
   cancel-in-progress: false
 
 jobs:
@@ -39,19 +40,20 @@ jobs:
       shard_count: ${{ steps.plan.outputs.shard_count }}
     steps:
       - id: plan
-        name: Build staged candidate matrix
+        name: Build 80/75 vs 80/80 screening matrix
         shell: bash
         run: |
-          stage="${{ inputs.stage || 'smoke' }}"
+          stage="${{ inputs.stage || 'screen80' }}"
           case "$stage" in
             smoke) hands=25; shards=1 ;;
             screen) hands=100; shards=2 ;;
             deep) hands=250; shards=4 ;;
             evidence) hands=1000; shards=10 ;;
+            screen80) hands=1000; shards=10 ;;
             *) echo "Unknown stage: $stage" >&2; exit 1 ;;
           esac
           matrix=$(node -e '
-            const policies = ["80-75", "85-75", "80-85", "85-85"];
+            const policies = ["80-75", "80-80"];
             const shards = Number(process.argv[1]);
             const include = [];
             for (const policy of policies) for (let shard = 0; shard < shards; shard += 1) include.push({ policy, shard });
@@ -136,6 +138,19 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      - name: Register one-shot 80-80 experiment policy
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const path = "tests/support/poker-economy-ooda-v1.js";
+          const source = fs.readFileSync(path, "utf8");
+          const needle = '    "80-75": Object.freeze({ id: "80-75", tableMedianRatio: 0.80, buyInRatioCap: 0.75 }),\n';
+          const addition = '    "80-80": Object.freeze({ id: "80-80", tableMedianRatio: 0.80, buyInRatioCap: 0.80 }),\n';
+          if (!source.includes(needle)) throw new Error("80-75 policy anchor not found");
+          if (!source.includes('"80-80"')) fs.writeFileSync(path, source.replace(needle, needle + addition));
+          NODE
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
@@ -171,7 +186,7 @@ jobs:
           name: economy-ooda-${{ matrix.policy }}-${{ matrix.shard }}
           path: economy-ooda-results/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
   summarize:
     needs:
@@ -179,6 +194,8 @@ jobs:
       - evaluate
     if: ${{ always() && needs.evaluate.result == 'success' }}
     runs-on: ubuntu-latest
+    env:
+      POKER_ECONOMY_OODA_CANDIDATES: "80-75,80-80"
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
