@@ -51,7 +51,7 @@ jobs:
 
       - name: Upload calibration report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: ai-calibration-report-${{ github.run_id }}
           path: |
