@@ -71,6 +71,22 @@ test.describe("Economy and persistent-fold defense V1", () => {
         heroStack: 16900,
         secondStack: 10000,
       });
+      const oracleCurrentG1Base = api.calculateBossCatchup({
+        name: "Oracle",
+        baseStack: 10000,
+        bigBlind: 100,
+        smallBlind: 50,
+        heroStack: 22000,
+        secondStack: 10000,
+      });
+      const geminiCurrentG1Base = api.calculateBossCatchup({
+        name: "Gemini",
+        baseStack: 11000,
+        bigBlind: 100,
+        smallBlind: 50,
+        heroStack: 35000,
+        secondStack: 10000,
+      });
       const tight = api.classifyHeroTightness({
         hands: 10,
         vpipHands: 1,
@@ -133,6 +149,8 @@ test.describe("Economy and persistent-fold defense V1", () => {
         oraclePressure,
         gemini,
         noCatchup,
+        oracleCurrentG1Base,
+        geminiCurrentG1Base,
         tight,
         balanced,
         pressurePlan,
@@ -162,6 +180,10 @@ test.describe("Economy and persistent-fold defense V1", () => {
     expect(report.gemini.actualEntryBb).toBe(90);
     expect(report.noCatchup.adjusted).toBe(false);
     expect(report.noCatchup.stack).toBe(4500);
+    expect(report.oracleCurrentG1Base.adjusted).toBe(false);
+    expect(report.oracleCurrentG1Base.actualEntryBb).toBe(100);
+    expect(report.geminiCurrentG1Base.adjusted).toBe(false);
+    expect(report.geminiCurrentG1Base.actualEntryBb).toBe(110);
     expect(report.config.catchup.heroLeadTrigger).toBe(1.7);
     expect(report.config.catchup.softWarningRange).toEqual([1.7, 1.8]);
     expect(report.tight.tightPassive).toBe(true);
