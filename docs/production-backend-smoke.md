@@ -31,9 +31,11 @@ npm run validate:production-contract
 - Google Auth 與淘汰賽雲端存檔使用相同 Supabase URL。
 - Google Auth 與雲端存檔使用相同 publishable key。
 - Gemini Worker 使用 HTTPS。
-- `js/config.js` 正式快取鏈為 AI V2.7。
-- Build Manifest 包含 AI V2.7、V2.7 校準與正式 Smoke 資產。
-- README 與 PROJECT_STATUS 已記錄 V2.7。
+- `js/config.js` 會載入正式 AI runtime loader `js/elite-character-presentation.js`，不再把特定 cache query 當成版本真相。
+- AI runtime loader 必須保留 V2.7 核心，並依序包含目前 V2.9.5 runtime 與最後的 action dispatcher。
+- Build Manifest 必須同時包含 runtime loader、V2.7 核心、V2.9.5 與 dispatcher，build ID 同時標示 V2.7 core 與 V2.9.5 runtime。
+- Build Manifest 仍包含 V2.7 校準與正式 Smoke 資產。
+- README 保留 V2.7 核心／校準脈絡，PROJECT_STATUS 必須記錄目前正式 AI V2.9.5。
 - Poker State Stress 文件與 workflow 都是每週日台北時間 03:30。
 - Supabase migration 已啟用 RLS、撤銷 anon 權限，且 CRUD policy 都綁定 `auth.uid() = user_id`。
 - 雲端存檔 migration 允許 V1／V2。
@@ -57,10 +59,11 @@ node scripts/production-backend-smoke.mjs \
 
 ### GitHub Pages
 
-- 首頁 HTTP 成功。
-- 首頁載入 AI V2.7 的 config cache key。
-- 線上 `js/config.js` 載入 AI V2.7。
-- 線上 Build Manifest 的 build ID 與資產清單包含 AI V2.7。
+- 首頁 HTTP 成功並載入 `js/config.js`。
+- 線上 `js/config.js` 會載入正式 AI runtime loader。
+- 線上 runtime loader 同時存在 V2.7 核心、V2.9.5 runtime 與最後 dispatcher，且載入順序正確。
+- 線上 Build Manifest 的 build ID 同時辨識 V2.7 core 與 V2.9.5 runtime。
+- 線上 Build Manifest 的資產與 feature map 包含 runtime loader、V2.7 核心、V2.9.5 與 dispatcher。
 
 ### Supabase Auth
 
@@ -119,5 +122,5 @@ Artifact 保留 14 天。
 
 - 本機契約失敗：不得建立 PR。
 - PR CI 失敗：不得合併。
-- 合併後 Production Smoke 失敗：正式版本不可宣告完全驗收；需分辨 Pages 傳播、Supabase 設定、RLS 或 Worker Secret 問題。
+- 合併後 Production Smoke 失敗：正式版本不可宣告完全驗收；需分辨 Pages 傳播、AI runtime、Manifest、Supabase 設定、RLS 或 Worker Secret 問題。
 - Google 真人登入未人工驗證時，只能宣告公開環境契約通過，不能宣告 OAuth 真人流程已驗證。
