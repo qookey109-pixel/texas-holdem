@@ -116,7 +116,7 @@ jobs:
 
       - name: Upload reproducibility evidence
         if: ${{ always() }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: poker-economy-ooda-reproducibility
           path: economy-ooda-repro/
@@ -166,7 +166,7 @@ jobs:
 
       - name: Upload candidate telemetry
         if: ${{ always() }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: economy-ooda-${{ matrix.policy }}-${{ matrix.shard }}
           path: economy-ooda-results/
@@ -184,7 +184,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download candidate telemetry
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           pattern: economy-ooda-*
           path: economy-ooda-results
@@ -194,7 +194,7 @@ jobs:
         run: node scripts/evaluate-poker-economy-ooda-v1.mjs economy-ooda-results economy-ooda-summary
 
       - name: Upload OODA summary
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: poker-economy-ooda-${{ needs.plan.outputs.stage }}-summary
           path: economy-ooda-summary/
