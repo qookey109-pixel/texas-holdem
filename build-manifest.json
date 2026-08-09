@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "desktop-main-ai-v2-7-calibration-production-smoke-2026-08-05",
+  "buildId": "desktop-main-ai-v2-7-core-v2-9-5-runtime-manifest-2026-08-09",
   "channel": "main",
   "entrypoint": "index.html",
   "diagnostics": "diagnostics.html",
@@ -46,8 +46,19 @@
     { "path": "js/ai-mid-elite-decision-chain-v2-5.js", "label": "AI V2.6 完整中高階決策鏈" },
     { "path": "js/ai-middle-range-decision-v2-6.js", "label": "AI V2.6 中階有界 Range" },
     { "path": "js/ai-tiered-multiway-equity-v2-7.js", "label": "AI V2.7 分級決定性多人 Equity" },
+    { "path": "js/ai-tier-strategy-v2-8.js", "label": "AI V2.8 分級策略品質" },
+    { "path": "js/ai-tier-strategy-v2-9-2.js", "label": "AI V2.9.2 實證校準" },
+    { "path": "js/ai-mid-elite-preflop-recovery-v2-9-3.js", "label": "AI V2.9.3 中高階翻牌前恢復" },
+    { "path": "js/ai-opening-balance-v2-9-4.js", "label": "AI V2.9.4 Opening Balance" },
+    { "path": "js/ai-opening-balance-v2-9-5.js", "label": "AI V2.9.5 Opening／WTSD 修正" },
+    { "path": "js/ai-action-dispatcher-v1.js", "label": "AI 最新策略 Dispatcher" },
+    { "path": "js/economy-fold-defense-v1.js", "label": "經濟壓力與棄牌防禦" },
+    { "path": "js/tournament-observation-memory-v1.js", "label": "淘汰賽公開觀察記憶" },
+    { "path": "js/ai-provider-legacy-worker-migration.js", "label": "舊 AI Worker 遷移相容層" },
+    { "path": "js/ai-provider-client-v1.js", "label": "自訂 AI Provider 客戶端" },
     { "path": "js/elite-character-presentation.js", "label": "高階角色與 AI 策略載入器" },
     { "path": "js/elite-character-presentation-v2.js", "label": "高階角色外觀與 Vlad" },
+    { "path": "js/elite-character-progress-fix.js", "label": "19 位角色進度修正" },
     { "path": "js/ai-tier-boss-system.js", "label": "AI 階級與七星 Boss" },
     { "path": "js/fair-special-bosses.js", "label": "特殊 Boss 公開資訊策略" },
     { "path": "js/fair-boss-core-guard.js", "label": "公平 Boss 核心防作弊保護" },
@@ -117,9 +128,9 @@
       "assets": ["index.html", "styles.css", "app.js", "js/config.js", "js/cards-data.js", "js/card-engine.js", "js/positions.js", "js/game-flow.js", "js/showdown-actions.js", "js/render-ui.js", "js/events-boot.js"]
     },
     {
-      "id": "ai-strategy-stack-v2-7",
-      "label": "AI V1～V2.7 位置、Range、EV、Board、Blocker、SPR 與分級多人 Equity",
-      "assets": ["js/ai-data.js", "js/ai-logic.js", "js/ai-action-memory-v1.js", "js/ai-range-tools-v1.js", "js/ai-range-weight-v1.js", "js/ai-character-strategies-v1.js", "js/ai-character-strategies-v1-1.js", "js/ai-preflop-range-engine-v1.js", "js/ai-character-strategies-v1-2.js", "js/ai-player-model-v1.js", "js/ai-player-model-memory-v1.js", "js/ai-character-strategies-v1-3.js", "js/ai-multiway-range-model-v1.js", "js/ai-character-strategies-v1-5.js", "js/ai-repeated-allin-counter-v1.js", "js/ai-ev-accounting-v1.js", "js/ai-effective-stack-spr-v1.js", "js/ai-role-strength-balance-v1.js", "js/ai-opening-strategies-v2-3.js", "js/ai-range-decision-integration-v2-4.js", "js/ai-board-intelligence-v2-5.js", "js/ai-mid-elite-decision-chain-v2-5.js", "js/ai-middle-range-decision-v2-6.js", "js/ai-tiered-multiway-equity-v2-7.js", "js/elite-character-presentation.js"]
+      "id": "ai-strategy-stack-v2-9-5",
+      "label": "AI V1～V2.9.5 位置、Range、EV、Board、多人 Equity、校準、Opening 與 WTSD",
+      "assets": ["js/ai-data.js", "js/ai-logic.js", "js/elite-character-presentation.js", "js/elite-character-presentation-v2.js", "js/elite-character-progress-fix.js", "js/ai-tier-boss-system.js", "js/fair-boss-core-guard.js", "js/ai-action-memory-v1.js", "js/ai-range-tools-v1.js", "js/ai-range-weight-v1.js", "js/ai-character-strategies-v1.js", "js/ai-opening-strategies-v2-3.js", "js/ai-character-strategies-v1-1.js", "js/ai-preflop-range-engine-v1.js", "js/ai-character-strategies-v1-2.js", "js/ai-player-model-v1.js", "js/ai-player-model-memory-v1.js", "js/ai-character-strategies-v1-3.js", "js/ai-multiway-range-model-v1.js", "js/ai-character-strategies-v1-5.js", "js/ai-range-decision-integration-v2-4.js", "js/ai-middle-range-decision-v2-6.js", "js/ai-board-intelligence-v2-5.js", "js/ai-repeated-allin-counter-v1.js", "js/fair-special-bosses.js", "js/ai-ev-accounting-v1.js", "js/ai-effective-stack-spr-v1.js", "js/boss-public-range-model-v1.js", "js/boss-equity-engine-v1.js", "js/boss-equity-integration-v1.js", "js/ai-role-strength-balance-v1.js", "js/ai-mid-elite-decision-chain-v2-5.js", "js/tournament-observation-memory-v1.js", "js/ai-provider-legacy-worker-migration.js", "js/ai-provider-client-v1.js", "js/economy-fold-defense-v1.js", "js/ai-tiered-multiway-equity-v2-7.js", "js/ai-tier-strategy-v2-8.js", "js/ai-tier-strategy-v2-9-2.js", "js/ai-mid-elite-preflop-recovery-v2-9-3.js", "js/ai-opening-balance-v2-9-4.js", "js/ai-opening-balance-v2-9-5.js", "js/ai-action-dispatcher-v1.js"]
     },
     {
       "id": "ai-v2-7-calibration",
