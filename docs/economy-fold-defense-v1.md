@@ -1,126 +1,117 @@
 # 籌碼經濟與長期棄牌反制 V1
 
+> Current maintenance document. 現行 replacement 參數以 `js/replacement-stack-balance.js` 為單一來源；本文件只描述 Economy/Fold Defense 如何接在其外層。
+
 ## 目的
 
-本版修正兩個會讓後期難度下降的問題：
+這個模組處理三件事：
 
-1. 一般模式玩家與 AI 使用不對稱的重新買入籌碼。
-2. 玩家可用長期低 VPIP／高翻牌前棄牌率等待 AI 互相淘汰，而初階角色缺乏一致反制。
+1. 一般模式玩家與 AI 使用同一套 replacement 計算來源。
+2. 玩家長期低 VPIP／高翻牌前棄牌率時，非 Boss AI 可做有限度公開資訊反制。
+3. Gemini Worker 只保留經清理的公開 `tournamentObservation`。
 
-同時補上 Gemini Worker 未保留 `tournamentObservation` 的接線缺口。
-
-## 正式模組
+正式模組：
 
 ```text
 js/economy-fold-defense-v1.js
-EconomyFoldDefenseV1 1.1.0
+EconomyFoldDefenseV1 1.1.1
 ```
 
-`1.0.1` 固定模組載入順序：棄牌反制先接入既有策略鏈，AI V2.7 再作為最外層診斷包裝，避免後續 refresh 形成互相遞迴。
+## 一般模式 replacement
 
-`1.1.0` 將 Boss 追趕改為漸進曲線：玩家領先 `1.7 倍`時只進入柔和預警區，直到 `1.8 倍`才完成第一段補強，避免跨過單一門檻後籌碼突然跳升。
+正式計算不再由 Economy/Fold Defense 自己維護第二套參數，而是委派給：
 
-## 一般模式重新買入
+```text
+ReplacementStackBalance.normalConfig
+strategy = median-v2
+```
 
-玩家與 AI 改用同一個公開公式：
+現行公式：
 
 ```text
 min(
-  正籌碼玩家平均值 × 70%,
-  當前完整買入 × 60%,
-  50BB
+  正籌碼桌面中位數 × 80%,
+  當前完整買入 × 75%,
+  60BB
 )
 ```
 
-結果再向下取整至大盲單位，並保證至少 `20BB`。
+另使用 `12BB` soft floor，且最終結果不會高於正籌碼桌面中位數。結果依大盲單位向下取整。
 
-此調整只影響籌碼歸零後的重新買入／補位；初始籌碼 `2,000` 與初始盲注 `10 / 20` 不變。
+這只影響籌碼歸零後的重新買入／補位；初始六人與一般牌局核心規則不由此模組改寫。
 
-## 淘汰賽 Boss 漸進追趕
+## 挑戰賽 replacement 與舊 Boss catch-up
 
-原 G1 盲注表與一般中高階補位設定不變。追趕仍只套用 Oracle、Chronos 與 Gemini，且只使用牌桌上可見的籌碼。
+現行 G1 role min / target / max 由 `ReplacementStackBalance 2.1.0` 定義：
 
-### 領先比例錨點
+| Tier | min | target | max |
+|---|---:|---:|---:|
+| Middle | 80BB | 90BB | 100BB |
+| Elite | 90BB | 105BB | 120BB |
+| Special Boss | 100BB | 115BB | 135BB |
+| Gemini | 110BB | 130BB | 150BB |
 
-| 玩家相對最大 AI 的領先 | 狀態 | Oracle／Chronos | Gemini |
-|---|---|---:|---:|
-| 未達 `1.7 倍` | 不啟動 | 原本入場籌碼 | 原本入場籌碼 |
-| `1.7～1.8 倍` | 柔和預警 | 從原本籌碼平滑靠近 `50BB` | 從原本籌碼平滑靠近 `58BB` |
-| `1.8～2.0 倍` | 標準追趕 | `50 → 55BB` | `58 → 65BB` |
-| `2.0～2.2 倍` | 加強追趕 | `55 → 60BB` | `65 → 72BB` |
-| `2.2～3.5 倍` | 極大領先 | `60 → 75BB` | `72 → 90BB` |
-| `3.5 倍以上` | 封頂 | `75BB` | `90BB` |
+Economy/Fold Defense 仍保留較早期的 Boss catch-up profile，作為相容層；它只能**提高**既有 base stack，不能把 `ReplacementStackBalance` 算出的 base stack 降低。
 
-在 `1.7 倍`的起點不會直接增加籌碼；系統依玩家領先比例線性插值，並以小盲為籌碼單位取整。若 G1 原本計算出的 Boss 籌碼已高於當前追趕目標，系統不會把籌碼降低。
+`1.1.1` 修正這個邊界：舊 profile 的 Special / Gemini cap（75BB / 90BB）若低於新版 G1 base，會保留新版 base，不再反向壓低進場籌碼。
 
-追趕只提高 Boss 入場籌碼，不減少玩家籌碼，也不改變牌面、底牌或勝負結果。
+因此目前 Special Boss / Gemini 的正式進場基準仍以 `ReplacementStackBalance` 為準；catch-up 不構成第二個 G1 source of truth。
 
 ## 低 VPIP／高棄牌偵測
 
-至少觀察 `8` 手後，符合任一條件才標記為偏緊被動：
+至少觀察 `8` 手後，符合任一條件才標記偏緊被動：
 
 ```text
 VPIP <= 18%
 翻牌前棄牌率 >= 70%
 ```
 
-系統只記錄玩家每手第一個翻牌前公開行動，不讀取任何隱藏牌。
+只記錄玩家每手第一個翻牌前公開行動，不讀取隱藏牌。
 
 ## AI 反制方式
 
-反制採用小尺寸、低頻率與角色差異，不讓所有 AI 突然變成同一種打法：
+反制維持小尺寸、低頻率與角色差異：
 
-- 未開池且位於 HJ／CO／BTN／SB 時，合格牌力可用約 `2.2～2.4BB` 偷盲。
+- 未開池且位於 HJ／CO／BTN／SB，合格牌力可用約 `2.2～2.4BB` 偷盲。
 - 翻牌或轉牌為乾燥牌面、仍有玩家在池內且尚無下注時，可用約 `33～40% pot` 小尺寸施壓。
 - Leo、Foxy、Momo、Nova、Vlad 的啟動頻率較高。
-- Toto、Pao、Dodo、Bruno 維持較保守角色性格。
-- Oracle、Chronos 與 Gemini 不由此通用壓力層接管，避免覆蓋既有 Boss 決策引擎。
+- Toto、Pao、Dodo、Bruno 維持較保守性格。
+- Oracle、Chronos、Gemini 不由這個通用 pressure layer 接管。
 
 ## Gemini 公開觀察接線
 
-Worker 現在會保留並清理 `tournamentObservation`，讓 Gemini 能使用：
+Worker 可保留經白名單清理的：
 
-- 各街與各位置的公開行動率。
-- VPIP、棄牌、跟注、加注與 All-in 等聚合率。
+- 各街／位置公開行動率。
+- VPIP、棄牌、跟注、加注與 All-in 聚合率。
 - 最近公開行動。
-- 重複翻牌前 All-in 的聚合資訊。
+- 重複翻牌前 All-in 聚合資訊。
 - 已公開攤牌的樣本數與牌力分類計數。
 
-Worker 會丟棄未列入白名單的欄位；不傳遞對手隱藏底牌、牌堆順序、未來公共牌，亦不傳遞原始攤牌牌張清單。
-
-## 公平資訊邊界
-
-允許：
-
-- AI 自己的底牌。
-- 公共牌、位置、下注尺寸與公開行動。
-- 可見籌碼。
-- 聚合後的玩家歷史統計。
-
-禁止：
+禁止傳遞：
 
 - 對手目前隱藏底牌。
 - 實際牌堆順序。
-- 未來公共牌答案。
+- 未來公共牌。
 - 預定勝負結果。
+- 未經白名單保留的原始 hidden / revealed card payload。
 
 ## 驗證
 
-正式測試：
+主要 regression：
 
 ```text
 tests/e2e/economy-fold-defense-v1.spec.js
+tests/e2e/tournament-economy-g1.spec.js
 ```
 
-覆蓋：
+涵蓋：
 
-- 一般模式重新買入上下限。
-- Boss 在 `1.7／1.75／1.8／2.0／2.2／3.5` 等關鍵區間的漸進追趕與上限。
-- 低 VPIP／高棄牌分類。
-- 小尺寸翻牌前偷盲計畫。
+- median-v2 一般模式 replacement。
+- 舊 catch-up 的漸進行為。
+- **新版 G1 的 100BB Special / 110BB Gemini base 不得被舊 cap 降低。**
+- 低 VPIP／高棄牌分類與小尺寸 pressure。
 - 公平資訊政策。
-- Gemini Worker 保留公開觀察並移除隱藏欄位。
+- Gemini Worker 公開 observation 清理。
 
-此外，既有自然牌局壓力測試會驗證 AI 策略包裝不會產生遞迴、卡死或殘留計時器。
-
-完整驗證仍以 Pull Request 的 Static Site Check、Chromium 全套 E2E、WebKit 關鍵回歸，以及 Poker State Stress 為準。
+完整驗證仍以 `npm run validate`、Chromium / WebKit E2E、相關 state stress / economy workflow 與正式 Production smoke 為準。
