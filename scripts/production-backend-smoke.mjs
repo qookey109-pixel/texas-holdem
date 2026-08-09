@@ -4,6 +4,12 @@ import process from "node:process";
 const ROOT = new URL("../", import.meta.url);
 const FORMAL_SITE = "https://qookey109-pixel.github.io/texas-holdem/";
 const REQUEST_TIMEOUT_MS = 12_000;
+const AI_CORE_CACHE_MARKER = "tiered-multiway-equity-v2-7";
+const AI_CORE_MODULE = "js/ai-tiered-multiway-equity-v2-7.js";
+const AI_LATEST_RUNTIME_MODULE = "js/ai-opening-balance-v2-9-5.js";
+const AI_LATEST_RUNTIME_MARKER = "v2-9-5";
+const AI_RUNTIME_LOADER = "js/elite-character-presentation.js";
+const AI_DISPATCHER_MODULE = "js/ai-action-dispatcher-v1.js";
 
 function parseArguments(argv) {
   const values = new Map();
@@ -75,9 +81,29 @@ async function jsonOrText(response) {
   }
 }
 
+function manifestFeatureAssets(manifest) {
+  return new Set(
+    (manifest.features || []).flatMap(feature => Array.isArray(feature.assets) ? feature.assets : []),
+  );
+}
+
+function assertAiManifest(manifest, label) {
+  const assetPaths = new Set((manifest.assets || []).map(asset => asset.path));
+  const featureAssets = manifestFeatureAssets(manifest);
+  const buildId = String(manifest.buildId || "");
+
+  assert(assetPaths.has(AI_CORE_MODULE), `${label} is missing AI V2.7 core module`);
+  assert(featureAssets.has(AI_CORE_MODULE), `${label} feature map is missing AI V2.7 core module`);
+  assert(assetPaths.has(AI_LATEST_RUNTIME_MODULE), `${label} is missing AI V2.9.5 runtime module`);
+  assert(featureAssets.has(AI_LATEST_RUNTIME_MODULE), `${label} feature map is missing AI V2.9.5 runtime module`);
+  assert(buildId.includes("ai-v2-7"), `${label} build ID does not identify AI V2.7 core`);
+  assert(buildId.includes(AI_LATEST_RUNTIME_MARKER), `${label} build ID does not identify AI V2.9.5 runtime`);
+}
+
 async function contractCheck() {
   const [
     config,
+    runtimeLoader,
     auth,
     cloudSave,
     manifestText,
@@ -88,6 +114,7 @@ async function contractCheck() {
     stressWorkflow,
   ] = await Promise.all([
     read("js/config.js"),
+    read(AI_RUNTIME_LOADER),
     read("js/google-auth.js"),
     read("js/tournament-cloud-save.js"),
     read("build-manifest.json"),
@@ -109,23 +136,20 @@ async function contractCheck() {
   const savePublishableKey = match(cloudSave, /publishableKey:\s*["']([^"']+)["']/, "cloud-save publishable key");
   const manifest = JSON.parse(manifestText);
   const assetPaths = new Set((manifest.assets || []).map(asset => asset.path));
-  const featureAssets = new Set(
-    (manifest.features || []).flatMap(feature => Array.isArray(feature.assets) ? feature.assets : []),
-  );
 
   assert(authProjectUrl === saveProjectUrl, "Auth and cloud-save Supabase URLs differ");
   assert(authPublishableKey === savePublishableKey, "Auth and cloud-save publishable keys differ");
   assert(workerEndpoint.startsWith("https://"), "Gemini Worker endpoint must use HTTPS");
   assert(authProjectUrl.startsWith("https://"), "Supabase project URL must use HTTPS");
   assert(authPublishableKey.startsWith("sb_publishable_"), "Expected a Supabase publishable key");
-  assert(config.includes("tiered-multiway-equity-v2-7"), "Config cache chain is not on AI V2.7");
-  assert(assetPaths.has("js/ai-tiered-multiway-equity-v2-7.js"), "Build Manifest is missing AI V2.7 module");
-  assert(featureAssets.has("js/ai-tiered-multiway-equity-v2-7.js"), "Build Manifest feature map is missing AI V2.7 module");
+  assert(config.includes(AI_CORE_CACHE_MARKER), "Config is not loading the AI V2.7 compatibility core");
+  assert(runtimeLoader.includes(AI_LATEST_RUNTIME_MODULE), "AI runtime loader is missing V2.9.5");
+  assert(runtimeLoader.includes(AI_DISPATCHER_MODULE), "AI runtime loader is missing the current dispatcher");
+  assertAiManifest(manifest, "Build Manifest");
   assert(assetPaths.has("tests/support/ai-gameplay-calibration-v2-7.js"), "Build Manifest is missing V2.7 calibration lab");
   assert(assetPaths.has("scripts/production-backend-smoke.mjs"), "Build Manifest is missing production smoke script");
-  assert(String(manifest.buildId || "").includes("ai-v2-7"), "Build ID does not identify AI V2.7");
-  assert(readme.includes("V2.7"), "README does not document AI V2.7");
-  assert(projectStatus.includes("V2.7"), "PROJECT_STATUS does not document AI V2.7");
+  assert(readme.includes("V2.9.5"), "README does not identify the current AI V2.9.5 runtime");
+  assert(projectStatus.includes("V2.9.5"), "PROJECT_STATUS does not identify the current AI V2.9.5 runtime");
   assert(projectStatus.includes("5d2179b917b86b8b187a1936918ab6dbd32fee3a") || projectStatus.includes("每次開始工作仍須重新讀取"), "PROJECT_STATUS lacks a current-baseline warning");
   assert(stressWorkflow.includes('cron: "30 19 * * 6"'), "Poker state stress is not scheduled for Sunday 03:30 Taiwan time");
   assert(readme.includes("每週日") && projectStatus.includes("每週日"), "Documentation still describes the stress run as daily");
@@ -148,7 +172,8 @@ async function contractCheck() {
     supabaseProjectRef: new URL(authProjectUrl).hostname.split(".")[0],
     publishableKeyPrefix: authPublishableKey.slice(0, 20),
     checks: {
-      v27CacheChain: true,
+      v27CoreChain: true,
+      v295Runtime: true,
       manifestAssets: true,
       documentation: true,
       weeklyStressSchedule: true,
@@ -171,16 +196,18 @@ async function liveCheck(contract, baseUrl) {
   const liveConfigResponse = await fetchWithTimeout(new URL("js/config.js", site));
   const liveConfig = await liveConfigResponse.text();
   assert(liveConfigResponse.ok, `Live config failed: HTTP ${liveConfigResponse.status}`);
-  assert(liveConfig.includes("tiered-multiway-equity-v2-7"), "Live config is not loading AI V2.7");
+  assert(liveConfig.includes(AI_CORE_CACHE_MARKER), "Live config is not loading the AI V2.7 compatibility core");
+
+  const liveRuntimeResponse = await fetchWithTimeout(new URL(AI_RUNTIME_LOADER, site));
+  const liveRuntime = await liveRuntimeResponse.text();
+  assert(liveRuntimeResponse.ok, `Live AI runtime loader failed: HTTP ${liveRuntimeResponse.status}`);
+  assert(liveRuntime.includes(AI_LATEST_RUNTIME_MODULE), "Live AI runtime loader is missing V2.9.5");
+  assert(liveRuntime.includes(AI_DISPATCHER_MODULE), "Live AI runtime loader is missing the current dispatcher");
 
   const manifestResponse = await fetchWithTimeout(new URL("build-manifest.json", site));
   const manifestPayload = await jsonOrText(manifestResponse);
   assert(manifestResponse.ok && manifestPayload.json, `Live Build Manifest failed: HTTP ${manifestResponse.status}`);
-  assert(String(manifestPayload.json.buildId || "").includes("ai-v2-7"), "Live Build Manifest is not on AI V2.7");
-  assert(
-    (manifestPayload.json.assets || []).some(asset => asset.path === "js/ai-tiered-multiway-equity-v2-7.js"),
-    "Live Build Manifest omits AI V2.7",
-  );
+  assertAiManifest(manifestPayload.json, "Live Build Manifest");
 
   const workerResponse = await fetchWithTimeout(`${contract.workerEndpoint.replace(/\/$/, "")}/health`);
   const workerPayload = await jsonOrText(workerResponse);
@@ -220,6 +247,11 @@ async function liveCheck(contract, baseUrl) {
     site,
     buildId: manifestPayload.json.buildId,
     pages: { status: pagesRoot.status },
+    ai: {
+      core: "V2.7",
+      runtime: "V2.9.5",
+      dispatcher: true,
+    },
     worker: {
       status: workerResponse.status,
       configured: workerPayload.json.configured,
