@@ -6,7 +6,7 @@
 
 ## 目前基準
 
-- 本輪 manifest 修正前正式基準：`03e865c3579223db1c35c73ba8c75fc3a865fe37`（PR #160）。
+- 本輪 Production Smoke 增強前正式基準：`b080e30e6e632648c64919453add41f1567bb85e`（PR #161）。
 - **每次開始工作仍須重新讀取** `main` 最新 SHA、目前 open PR 與 CI；上面的 SHA 只記錄本輪檢查起點，不可永久當成最新基準。
 - 核心牌局、下注、攤牌、教學、設定、版面、登入入口、挑戰賽與後端整合均維持在既有架構內。
 - 公平 Boss 保護維持啟用；Oracle / Chronos 不應取得未公開底牌、未發公共牌或未來牌序。
@@ -24,7 +24,9 @@
 
 舊版 V1.x～V2.8（包含 V2.7）的文件只作歷史設計參考；正式行為以 `main` 的程式、測試與最新 V2.9.x 文件為準。
 
-`build-manifest.json` 現在保留 V2.7 核心與校準的歷史真實名稱，同時把目前策略鏈標示為 V2.9.5，並列入 V2.8、V2.9.2～V2.9.5、economy fold defense、provider、observation memory 與最新 dispatcher 等實際 runtime 模組。
+`build-manifest.json` 保留 V2.7 核心與校準的歷史真實名稱，同時把目前策略鏈標示為 V2.9.5，並列入 V2.8、V2.9.2～V2.9.5、economy fold defense、provider、observation memory 與最新 dispatcher 等實際 runtime 模組。
+
+Production Smoke 現在同時守住兩層真相：V2.7 是仍存在的核心 runtime；目前正式外層必須能追到 V2.9.5，且 action dispatcher 必須在 loader 最後載入。線上 smoke 會直接抓正式 loader 與 manifest 驗證，不再把 `js/config.js` 的舊 cache query 當成目前 AI 版本。
 
 ## 籌碼經濟
 
@@ -61,7 +63,7 @@ PR #158 已把後進角色補位提高，避免新角色一進桌就被迫短碼
 
 ## 測試基準
 
-本輪 manifest 修正前的 `main`（`03e865c3579223db1c35c73ba8c75fc3a865fe37`）已確認：
+本輪 Production Smoke 增強前的 `main`（`b080e30e6e632648c64919453add41f1567bb85e`）已確認：
 
 - Static site check：PASS
 - Browser E2E / Chromium：PASS
@@ -71,9 +73,9 @@ PR #158 已把後進角色補位提高，避免新角色一進桌就被迫短碼
 - PR #158 對 G1 80BB floor 有專用 regression test
 - Poker state stress：正式排程為**每週日 03:30（台灣時間）**，不是每日長跑
 
-manifest 修正新增 `scripts/validate-manifest-runtime.mjs`，由 `npm run validate` 自動比對正式 AI loader 與 manifest。之後新增 runtime 模組卻忘記列入 manifest，或 build ID 未反映最新 runtime 版本時，Static validation 應直接失敗。
+`validate-manifest-runtime.mjs` 由 `npm run validate` 自動比對正式 AI loader 與 manifest；Production Smoke 則進一步驗證本機契約與正式 Pages 上的 loader / manifest 確實同時包含 V2.7 core、V2.9.5 runtime 與最後 dispatcher。
 
-任何本輪變更仍須重新通過 Static + Browser E2E；未通過前不得合併回 `main`。
+任何本輪變更仍須重新通過 Static + Browser E2E；合併後還必須確認 Production Smoke 與 Pages deployment 為綠色，才算正式驗收完成。
 
 ## 文件規則
 
