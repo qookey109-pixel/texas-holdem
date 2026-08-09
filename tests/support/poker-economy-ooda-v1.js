@@ -1,13 +1,36 @@
 (() => {
   "use strict";
 
-  const VERSION = "1.1.0";
-  const POLICY_VERSION = "1.0.0";
+  const VERSION = "1.2.0";
+  const POLICY_VERSION = "1.1.0";
   const POLICIES = Object.freeze({
-    "80-75": Object.freeze({ id: "80-75", tableMedianRatio: 0.80, buyInRatioCap: 0.75 }),
-    "85-75": Object.freeze({ id: "85-75", tableMedianRatio: 0.85, buyInRatioCap: 0.75 }),
-    "80-85": Object.freeze({ id: "80-85", tableMedianRatio: 0.80, buyInRatioCap: 0.85 }),
-    "85-85": Object.freeze({ id: "85-85", tableMedianRatio: 0.85, buyInRatioCap: 0.85 }),
+    "80-75": Object.freeze({
+      id: "80-75",
+      tableMedianRatio: 0.80,
+      buyInRatioCap: 0.75,
+      maxBigBlinds: 60,
+      tailLeadThreshold: null,
+      tailBuyInRatioCap: 0.75,
+      tailMaxBigBlinds: 60,
+    }),
+    "tail3-70": Object.freeze({
+      id: "tail3-70",
+      tableMedianRatio: 0.80,
+      buyInRatioCap: 0.75,
+      maxBigBlinds: 60,
+      tailLeadThreshold: 3,
+      tailBuyInRatioCap: 0.85,
+      tailMaxBigBlinds: 70,
+    }),
+    "tail5-75": Object.freeze({
+      id: "tail5-75",
+      tableMedianRatio: 0.80,
+      buyInRatioCap: 0.75,
+      maxBigBlinds: 60,
+      tailLeadThreshold: 5,
+      tailBuyInRatioCap: 0.85,
+      tailMaxBigBlinds: 75,
+    }),
   });
 
   let installed = false;
@@ -24,6 +47,13 @@
     entryBbMinimum: null,
     entryBbMaximum: null,
     tableMedianBbTotal: 0,
+    tailEligibleEvents: 0,
+    tailEligibleSeats: 0,
+    tailAppliedEvents: 0,
+    tailAppliedSeats: 0,
+    tailExtraInjectedBb: 0,
+    tailLeadRatioTotal: 0,
+    tailLeadRatioSamples: 0,
     samples: [],
     handStackSamples: [],
   };
@@ -47,6 +77,22 @@
       : (sorted[middle - 1] + sorted[middle]) / 2;
   }
 
+  function heroLeadSnapshot(players, bigBlind) {
+    const list = Array.isArray(players) ? players : [];
+    const hero = list.find(player => player?.isHuman) || list[0] || null;
+    const heroStack = Math.max(0, finite(hero?.stack));
+    const opponentStacks = list
+      .filter(player => player && player !== hero && !player.isHuman && finite(player.stack) > 0)
+      .map(player => finite(player.stack));
+    const opponentMedian = median(opponentStacks);
+    return {
+      heroStack,
+      opponentMedian,
+      heroLeadRatio: opponentMedian > 0 ? heroStack / opponentMedian : 0,
+      bigBlind: Math.max(1, finite(bigBlind, 20)),
+    };
+  }
+
   function resetTelemetry() {
     telemetry.sharedCalculatorCalls = 0;
     telemetry.aiReplacementEvents = 0;
@@ -55,6 +101,13 @@
     telemetry.entryBbMinimum = null;
     telemetry.entryBbMaximum = null;
     telemetry.tableMedianBbTotal = 0;
+    telemetry.tailEligibleEvents = 0;
+    telemetry.tailEligibleSeats = 0;
+    telemetry.tailAppliedEvents = 0;
+    telemetry.tailAppliedSeats = 0;
+    telemetry.tailExtraInjectedBb = 0;
+    telemetry.tailLeadRatioTotal = 0;
+    telemetry.tailLeadRatioSamples = 0;
     telemetry.samples.length = 0;
     telemetry.handStackSamples.length = 0;
   }
@@ -68,10 +121,19 @@
     const fullBuyIn = Math.max(bigBlind, finite(baseline?.fullBuyIn, bigBlind * 100));
     const tableMedian = Math.max(bigBlind, finite(baseline?.tableMedian, fullBuyIn));
     const softFloorBb = Math.max(0, finite(productionConfig?.softFloorBigBlinds, 12));
-    const maxBigBlinds = Math.max(1, finite(productionConfig?.maxBigBlinds, 60));
+    const productionMaxBb = Math.max(1, finite(productionConfig?.maxBigBlinds, 60));
+    const lead = heroLeadSnapshot(players, bigBlind);
+    const threshold = Number(activePolicy.tailLeadThreshold);
+    const tailEligible = Number.isFinite(threshold) && threshold > 0 && lead.heroLeadRatio >= threshold;
+    const buyInRatioCap = tailEligible
+      ? finite(activePolicy.tailBuyInRatioCap, activePolicy.buyInRatioCap)
+      : finite(activePolicy.buyInRatioCap, 0.75);
+    const maxBigBlinds = tailEligible
+      ? Math.max(productionMaxBb, finite(activePolicy.tailMaxBigBlinds, productionMaxBb))
+      : productionMaxBb;
     const rawTarget = Math.min(
       tableMedian * activePolicy.tableMedianRatio,
-      fullBuyIn * activePolicy.buyInRatioCap,
+      fullBuyIn * buyInRatioCap,
       bigBlind * maxBigBlinds,
     );
     const softFloor = Math.min(tableMedian, bigBlind * softFloorBb);
@@ -79,13 +141,25 @@
     const roundedDown = Math.floor(boundedTarget / bigBlind) * bigBlind;
     const minimumPlayable = Math.min(tableMedian, bigBlind);
     const stack = Math.max(minimumPlayable, roundedDown || minimumPlayable);
+    const baselineStack = Math.max(0, finite(baseline?.stack));
+    const tailExtraBb = Math.max(0, (stack - baselineStack) / bigBlind);
     return {
       ...baseline,
       strategy: `ooda-${activePolicy.id}`,
       experimentOnly: true,
       policyVersion: POLICY_VERSION,
       tableMedianRatio: activePolicy.tableMedianRatio,
-      buyInRatioCap: activePolicy.buyInRatioCap,
+      buyInRatioCap,
+      maxBigBlinds,
+      tailLeadThreshold: Number.isFinite(threshold) ? threshold : null,
+      heroLeadRatio: lead.heroLeadRatio,
+      heroStack: lead.heroStack,
+      opponentMedian: lead.opponentMedian,
+      tailEligible,
+      tailApplied: tailExtraBb > 0,
+      tailExtraBb,
+      baselineStack,
+      baselineEntryBb: baselineStack / bigBlind,
       rawTarget,
       softFloor,
       boundedTarget,
@@ -109,10 +183,26 @@
     telemetry.entryBbMaximum = telemetry.entryBbMaximum === null
       ? entryBb
       : Math.max(telemetry.entryBbMaximum, entryBb);
-    if (telemetry.samples.length < 200) {
+    if (plan?.tailEligible) {
+      telemetry.tailEligibleEvents += 1;
+      telemetry.tailEligibleSeats += count;
+      telemetry.tailLeadRatioTotal += finite(plan.heroLeadRatio) * count;
+      telemetry.tailLeadRatioSamples += count;
+    }
+    if (plan?.tailApplied) {
+      telemetry.tailAppliedEvents += 1;
+      telemetry.tailAppliedSeats += count;
+      telemetry.tailExtraInjectedBb += finite(plan.tailExtraBb) * count;
+    }
+    if (telemetry.samples.length < 240) {
       telemetry.samples.push({
         entryBb: round(entryBb, 4),
+        baselineEntryBb: round(plan?.baselineEntryBb, 4),
         tableMedianBb: round(tableMedianBb, 4),
+        heroLeadRatio: round(plan?.heroLeadRatio, 6),
+        tailEligible: Boolean(plan?.tailEligible),
+        tailApplied: Boolean(plan?.tailApplied),
+        tailExtraBb: round(plan?.tailExtraBb, 4),
         replacedSeats: count,
       });
     }
@@ -121,10 +211,10 @@
   function recordHandSnapshot(players, bigBlind) {
     if (!installed || !Array.isArray(players) || !players.length) return false;
     const bb = Math.max(1, finite(bigBlind, 20));
-    const hero = players[0];
+    const hero = players.find(player => player?.isHuman) || players[0];
     const heroBb = Math.max(0, finite(hero?.stack)) / bb;
     const positiveOpponentBbs = players
-      .slice(1)
+      .filter(player => player && player !== hero && !player.isHuman)
       .map(player => Math.max(0, finite(player?.stack)) / bb)
       .filter(stackBb => stackBb > 0);
     const opponentMedianBb = median(positiveOpponentBbs);
@@ -223,9 +313,15 @@
     const average = values => values.length
       ? values.reduce((sum, value) => sum + value, 0) / values.length
       : 0;
+    const experimentMaxBb = activePolicy
+      ? Math.max(
+        finite(productionConfig?.maxBigBlinds, 60),
+        finite(activePolicy.tailMaxBigBlinds, activePolicy.maxBigBlinds || 60),
+      )
+      : finite(productionConfig?.maxBigBlinds, 60);
     return {
       version: VERSION,
-      schemaVersion: 1,
+      schemaVersion: 2,
       policyVersion: POLICY_VERSION,
       installed,
       experimentOnly: true,
@@ -235,7 +331,11 @@
         tableMedianRatio: activePolicy.tableMedianRatio,
         buyInRatioCap: activePolicy.buyInRatioCap,
         softFloorBigBlinds: finite(productionConfig?.softFloorBigBlinds, 12),
-        maxBigBlinds: finite(productionConfig?.maxBigBlinds, 60),
+        productionMaxBigBlinds: finite(productionConfig?.maxBigBlinds, 60),
+        maxBigBlinds: experimentMaxBb,
+        tailLeadThreshold: activePolicy.tailLeadThreshold,
+        tailBuyInRatioCap: activePolicy.tailBuyInRatioCap,
+        tailMaxBigBlinds: activePolicy.tailMaxBigBlinds,
       } : null,
       productionConfig: productionConfig ? { ...productionConfig } : null,
       productionConfigUnchanged: configUnchanged(),
@@ -251,6 +351,14 @@
       minimumEntryBb: telemetry.entryBbMinimum === null ? null : round(telemetry.entryBbMinimum, 4),
       maximumEntryBb: telemetry.entryBbMaximum === null ? null : round(telemetry.entryBbMaximum, 4),
       averageTableMedianBb: seats ? round(telemetry.tableMedianBbTotal / seats, 4) : 0,
+      tailEligibleEvents: telemetry.tailEligibleEvents,
+      tailEligibleSeats: telemetry.tailEligibleSeats,
+      tailAppliedEvents: telemetry.tailAppliedEvents,
+      tailAppliedSeats: telemetry.tailAppliedSeats,
+      tailExtraInjectedBb: round(telemetry.tailExtraInjectedBb, 4),
+      averageTailLeadRatio: telemetry.tailLeadRatioSamples
+        ? round(telemetry.tailLeadRatioTotal / telemetry.tailLeadRatioSamples, 6)
+        : 0,
       handStackSampleCount: stackSamples.length,
       averageHeroBb: round(average(stackSamples.map(sample => sample.heroBb)), 4),
       averageOpponentMedianBb: round(average(stackSamples.map(sample => sample.opponentMedianBb)), 4),
