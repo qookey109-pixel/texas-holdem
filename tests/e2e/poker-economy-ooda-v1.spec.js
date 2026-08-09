@@ -82,7 +82,7 @@ test.describe("Poker Economy OODA Long-Run Runner V1", () => {
 
     const adapterSource = await readFile(ECONOMY_ADAPTER, "utf8");
     await page.addScriptTag({ content: adapterSource });
-    await expect.poll(() => page.evaluate(() => window.PokerEconomyOodaV1?.version || ""), { timeout: 10_000 }).toBe("1.1.0");
+    await expect.poll(() => page.evaluate(() => window.PokerEconomyOodaV1?.version || ""), { timeout: 10_000 }).toBe("1.2.0");
     const installedPolicy = await page.evaluate(policy => window.PokerEconomyOodaV1.install(policy), POLICY);
     expect(installedPolicy).toMatchObject({
       installed: true,
@@ -124,11 +124,16 @@ test.describe("Poker Economy OODA Long-Run Runner V1", () => {
       fairness: { publicInformationOnly: true },
       telemetryIntegrity: { integrityPassed: true, errors: [] },
       economyOoda: {
-        version: "1.1.0",
+        version: "1.2.0",
+        schemaVersion: 2,
         experimentOnly: true,
         productionBehaviorChanged: false,
         productionConfigUnchanged: true,
         publicInformationOnly: true,
+        hiddenOpponentCards: false,
+        actualDeckOrder: false,
+        futureBoardAnswer: false,
+        predeterminedWinner: false,
         policy: { id: POLICY },
         handStackSampleCount: HANDS,
       },
@@ -136,7 +141,9 @@ test.describe("Poker Economy OODA Long-Run Runner V1", () => {
     expect(report.failures).toEqual([]);
     expect(report.schedulerErrors).toEqual([]);
     expect(report.economyOoda.handStackSamples).toHaveLength(HANDS);
-    expect(report.economyOoda.maximumEntryBb === null || report.economyOoda.maximumEntryBb <= 60).toBe(true);
+    const allowedMaxBigBlinds = Number(report.economyOoda.policy?.maxBigBlinds || 60);
+    expect(report.economyOoda.maximumEntryBb === null || report.economyOoda.maximumEntryBb <= allowedMaxBigBlinds).toBe(true);
+    expect(report.economyOoda.productionConfig?.maxBigBlinds).toBe(60);
     expect(pageErrors).toEqual([]);
   });
 });
