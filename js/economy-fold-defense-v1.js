@@ -4,7 +4,7 @@
 
   if (window.EconomyFoldDefenseV1?.version) return;
 
-  const VERSION = "1.1.0";
+  const VERSION = "1.1.1";
   const STORAGE_KEY = "texasHoldemEconomyFoldDefenseV1";
   const OPENING = new Set(["Leo", "Toto", "Foxy", "Wolf", "Pao", "Shark"]);
   const MIDDLE = new Set(["Ace", "Momo", "Nori", "Bruno", "Dodo", "Viper"]);
@@ -258,7 +258,7 @@
       );
     }
 
-    const actual = clamp(Math.max(baseBb, desired), profile.min, profile.max);
+    const actual = Math.max(baseBb, clamp(desired, profile.min, profile.max));
     const stack = roundUnit(actual * bb, sb);
     return {
       stack,
