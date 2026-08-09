@@ -1,0 +1,12 @@
+AI V2.9.5 current-main formal 25,000-hand telemetry
+
+baseline_main=4413583a019b98572b2cf6138a8e862a6553c7d9
+previous_full_run_id=31277677078
+previous_full_head=03e865c3579223db1c35c73ba8c75fc3a865fe37
+reason=economy-fold-defense-v1 1.1.1 boss catch-up floor behavior changed after previous full evidence
+profile=full
+shards=50
+hands_per_shard=500
+expected_hands=25000
+
+Trigger only. No AI strategy, economy parameters, gameplay behavior, or validation threshold changes.
