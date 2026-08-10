@@ -221,11 +221,11 @@ test("shadow progression uses observed completed-hand stack, conserves wealth, a
       return result;
     };
 
-    apply(3500); // stay table 1: total 3500 < table-2 entry 4000
-    apply(4500); // move table 1 -> 2, bankroll 500
-    apply(9200); // table 2 total 9700 < table-3 entry 10000
-    apply(9800); // table 2 total 10300 -> table 3, bankroll 300
-    apply(25000); // table 3 total 25300 -> table 4 only, not table 5
+    apply(3500);
+    apply(4500);
+    apply(9200);
+    apply(9800);
+    apply(25000);
 
     return rows;
   });
@@ -373,7 +373,10 @@ test("10k synthetic completed-hand shadow decisions preserve accounting, one-ste
           }
         } else if (proposal.transition === "session-ended") {
           ended += 1;
-          break;
+          if (beforeTotal < 0) failures.push("negative-prior-total");
+          session = api.createShadowSession({ tableIndex: 0, bankroll: 120000 });
+          tableStack = api.tableAt(0).entry;
+          continue;
         } else if (proposal.transition === "stay") {
           stays += 1;
           if (proposal.table.index !== inputIndex) failures.push("stay-table-drift");
@@ -383,13 +386,11 @@ test("10k synthetic completed-hand shadow decisions preserve accounting, one-ste
           failures.push("unknown-transition");
         }
 
-        if (proposal.transition !== "session-ended") {
-          session = api.createShadowSession({
-            tableIndex: proposal.table.index,
-            bankroll: proposal.bankroll,
-          });
-          tableStack = proposal.tableStack;
-        }
+        session = api.createShadowSession({
+          tableIndex: proposal.table.index,
+          bankroll: proposal.bankroll,
+        });
+        tableStack = proposal.tableStack;
 
         if (beforeTotal < 0) failures.push("negative-prior-total");
       }
