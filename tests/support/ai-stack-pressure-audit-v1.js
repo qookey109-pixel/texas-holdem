@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "1.0.0";
+  const VERSION = "1.1.0";
   const BAND_KEYS = ["under3x", "threeTo5x", "fivePlus"];
   const ACTION_KEYS = ["fold", "check", "call", "raise", "allin", "other"];
   const SPR_KEYS = ["shallow", "medium", "deep", "unknown"];
@@ -27,10 +27,19 @@
     return Object.fromEntries(keys.map(key => [key, 0]));
   }
 
+  function newSprCell() {
+    return {
+      actions: emptyCounts(ACTION_KEYS),
+      totalActions: 0,
+      voluntaryActions: 0,
+    };
+  }
+
   function newBand() {
     return {
       actions: emptyCounts(ACTION_KEYS),
       sprBands: emptyCounts(SPR_KEYS),
+      bySpr: Object.fromEntries(SPR_KEYS.map(key => [key, newSprCell()])),
       totalActions: 0,
       voluntaryActions: 0,
       heroLeadRatioTotal: 0,
@@ -100,18 +109,25 @@
     const band = telemetry.bands[bandKey];
     const spr = window.AiEffectiveStackSprV1?.effectiveStackContext?.(player, { bigBlind }) || null;
     const sprBand = SPR_KEYS.includes(spr?.sprBand) ? spr.sprBand : "unknown";
+    const sprCell = band.bySpr[sprBand];
     const actorStackBb = Math.max(0, finite(player.stack)) / bigBlind;
     const effectiveStackBb = Math.max(0, finite(spr?.effectiveStackInBigBlinds));
     const effectiveSpr = Math.max(0, finite(spr?.effectiveSpr));
+    const voluntary = ["fold", "call", "raise", "allin"].includes(normalized);
 
     band.actions[normalized] += 1;
     band.sprBands[sprBand] += 1;
     band.totalActions += 1;
-    if (["fold", "call", "raise", "allin"].includes(normalized)) band.voluntaryActions += 1;
+    if (voluntary) band.voluntaryActions += 1;
     band.heroLeadRatioTotal += stacks.ratio;
     band.actorStackBbTotal += actorStackBb;
     band.effectiveStackBbTotal += effectiveStackBb;
     band.effectiveSprTotal += effectiveSpr;
+
+    sprCell.actions[normalized] += 1;
+    sprCell.totalActions += 1;
+    if (voluntary) sprCell.voluntaryActions += 1;
+
     telemetry.totalActions += 1;
 
     if (stacks.ratio >= 5 && telemetry.samples.length < 240) {
@@ -131,6 +147,21 @@
     return true;
   }
 
+  function summarizeCell(cell) {
+    const decisions = Math.max(0, cell.voluntaryActions);
+    const aggression = cell.actions.raise + cell.actions.allin;
+    return {
+      totalActions: cell.totalActions,
+      voluntaryActions: decisions,
+      actions: { ...cell.actions },
+      foldRate: decisions ? round(cell.actions.fold / decisions, 6) : 0,
+      callRate: decisions ? round(cell.actions.call / decisions, 6) : 0,
+      raiseRate: decisions ? round(cell.actions.raise / decisions, 6) : 0,
+      allInRate: decisions ? round(cell.actions.allin / decisions, 6) : 0,
+      aggressionRate: decisions ? round(aggression / decisions, 6) : 0,
+    };
+  }
+
   function summarizeBand(band) {
     const decisions = Math.max(0, band.voluntaryActions);
     const aggression = band.actions.raise + band.actions.allin;
@@ -139,6 +170,7 @@
       voluntaryActions: decisions,
       actions: { ...band.actions },
       sprBands: { ...band.sprBands },
+      bySpr: Object.fromEntries(SPR_KEYS.map(key => [key, summarizeCell(band.bySpr[key])])),
       foldRate: decisions ? round(band.actions.fold / decisions, 6) : 0,
       callRate: decisions ? round(band.actions.call / decisions, 6) : 0,
       raiseRate: decisions ? round(band.actions.raise / decisions, 6) : 0,
