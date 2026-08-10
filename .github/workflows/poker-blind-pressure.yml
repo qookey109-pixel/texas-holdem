@@ -34,7 +34,7 @@ jobs:
       shard_count: ${{ steps.plan.outputs.shard_count }}
     steps:
       - id: plan
-        name: Build blind pressure candidate matrix
+        name: Build gentle bounded blind pressure candidate matrix
         shell: bash
         run: |
           stage="${{ inputs.stage || 'screen' }}"
@@ -45,7 +45,7 @@ jobs:
             *) echo "Unknown stage: $stage" >&2; exit 1 ;;
           esac
           matrix=$(node -e '
-            const policies = ["baseline", "linear50", "linear100"];
+            const policies = ["baseline", "gentle50", "gentle100"];
             const shards = Number(process.argv[1]);
             const include = [];
             for (const policy of policies) for (let shard = 0; shard < shards; shard += 1) include.push({ policy, shard });
@@ -61,7 +61,7 @@ jobs:
     timeout-minutes: 35
     env:
       POKER_BLIND_PRESSURE: "1"
-      POKER_BLIND_PRESSURE_POLICY: "linear100"
+      POKER_BLIND_PRESSURE_POLICY: "gentle100"
       POKER_BLIND_PRESSURE_HANDS: "150"
       POKER_BLIND_PRESSURE_SHARD: "0"
       POKER_BLIND_PRESSURE_SHARD_COUNT: "1"
@@ -85,8 +85,8 @@ jobs:
       - name: Compare deterministic evidence
         run: >-
           node scripts/check-poker-blind-pressure-repro-v1.mjs
-          blind-pressure-repro/run-a/poker-blind-pressure-linear100-shard-000.json
-          blind-pressure-repro/run-b/poker-blind-pressure-linear100-shard-000.json
+          blind-pressure-repro/run-a/poker-blind-pressure-gentle100-shard-000.json
+          blind-pressure-repro/run-b/poker-blind-pressure-gentle100-shard-000.json
           blind-pressure-repro/reproducibility-summary.json
       - if: ${{ always() }}
         uses: actions/upload-artifact@v7
