@@ -1,11 +1,11 @@
 (() => {
   "use strict";
 
-  const VERSION = "1.0.0";
+  const VERSION = "1.1.0";
   const POLICIES = Object.freeze({
-    baseline: Object.freeze({ id: "baseline", cadenceHands: null, bigBlindStep: 0, buyInStep: 0 }),
-    linear50: Object.freeze({ id: "linear50", cadenceHands: 50, bigBlindStep: 200, buyInStep: 7500 }),
-    linear100: Object.freeze({ id: "linear100", cadenceHands: 100, bigBlindStep: 200, buyInStep: 7500 }),
+    baseline: Object.freeze({ id: "baseline", cadenceHands: null, bigBlindStep: 0, buyInStep: 0, maxBigBlind: 400 }),
+    gentle50: Object.freeze({ id: "gentle50", cadenceHands: 50, bigBlindStep: 100, buyInStep: 3750, maxBigBlind: 1200 }),
+    gentle100: Object.freeze({ id: "gentle100", cadenceHands: 100, bigBlindStep: 100, buyInStep: 3750, maxBigBlind: 1200 }),
   });
 
   let installed = false;
@@ -20,7 +20,6 @@
     replacedSeats: 0,
     replacementEntryBbTotal: 0,
     replacementEntryBbMax: 0,
-    blindStepHands: [],
   };
 
   function finite(value, fallback = 0) {
@@ -46,7 +45,6 @@
     telemetry.replacedSeats = 0;
     telemetry.replacementEntryBbTotal = 0;
     telemetry.replacementEntryBbMax = 0;
-    telemetry.blindStepHands.length = 0;
   }
 
   function candidateLevel(handNumber) {
@@ -57,11 +55,14 @@
     const increments = cadence > 0 ? Math.max(0, Math.floor((handNumber - 21) / cadence)) : 0;
     if (!increments) return base;
 
-    const big = 400 + increments * finite(activePolicy.bigBlindStep);
+    const step = Math.max(1, finite(activePolicy.bigBlindStep, 100));
+    const maxBigBlind = Math.max(400, finite(activePolicy.maxBigBlind, 1200));
+    const big = Math.min(maxBigBlind, 400 + increments * step);
+    const appliedSteps = Math.max(0, Math.floor((big - 400) / step));
     const small = Math.floor(big / 2);
-    const buyIn = 15000 + increments * finite(activePolicy.buyInStep);
+    const buyIn = 15000 + appliedSteps * finite(activePolicy.buyInStep);
     return {
-      level: 5 + increments,
+      level: 5 + appliedSteps,
       small,
       big,
       buyIn,
