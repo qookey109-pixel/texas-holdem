@@ -79,7 +79,7 @@ test.describe("Poker blind pressure benchmark V1", () => {
     await page.addScriptTag({ content: integritySource });
     await page.addScriptTag({ content: adapterSource });
     await expect.poll(() => page.evaluate(() => window.AiLongRunTelemetryIntegrityV294?.version || ""), { timeout: 10_000 }).toBe("2.9.4");
-    await expect.poll(() => page.evaluate(() => window.BlindPressureBenchmarkV1?.version || ""), { timeout: 10_000 }).toBe("1.0.0");
+    await expect.poll(() => page.evaluate(() => window.BlindPressureBenchmarkV1?.version || ""), { timeout: 10_000 }).toBe("1.1.0");
 
     await page.evaluate(() => {
       window.EconomyFoldDefenseV1?.refresh?.();
@@ -128,7 +128,7 @@ test.describe("Poker blind pressure benchmark V1", () => {
       fairness: { publicInformationOnly: true },
       telemetryIntegrity: { integrityPassed: true, errors: [] },
       blindPressure: {
-        version: "1.0.0",
+        version: "1.1.0",
         schemaVersion: 1,
         experimentOnly: true,
         productionSourceChanged: false,
