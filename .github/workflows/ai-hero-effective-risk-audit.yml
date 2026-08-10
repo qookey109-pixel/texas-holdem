@@ -1,0 +1,75 @@
+name: AI Hero Effective Risk Audit
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/ai-hero-effective-risk-audit.yml"
+      - "tests/e2e/ai-hero-effective-risk-audit-v1.spec.js"
+      - "tests/support/ai-hero-effective-risk-audit-v1.js"
+      - "scripts/summarize-ai-hero-effective-risk-audit-v1.mjs"
+      - "tests/support/ai-long-run-telemetry-v2-9.part-*"
+      - "tests/support/ai-long-run-telemetry-integrity-v2-9-4.js"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-hero-effective-risk-audit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        profile: ["tight", "balanced", "calling"]
+        pair: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install locked test dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run 250-hand paired effective-risk audit
+        env:
+          AI_HERO_EFFECTIVE_RISK_AUDIT: "1"
+          AI_HERO_EFFECTIVE_RISK_PROFILE: ${{ matrix.profile }}
+          AI_HERO_EFFECTIVE_RISK_PAIR: ${{ matrix.pair }}
+          AI_HERO_EFFECTIVE_RISK_HANDS: "250"
+          AI_HERO_EFFECTIVE_RISK_SEED_BASE: "26893246"
+          AI_HERO_EFFECTIVE_RISK_OUTPUT_DIR: ai-hero-effective-risk-results
+        run: npx playwright test tests/e2e/ai-hero-effective-risk-audit-v1.spec.js --project=chromium --retries=0
+      - if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ai-hero-effective-risk-${{ matrix.profile }}-pair-${{ matrix.pair }}
+          path: ai-hero-effective-risk-results/
+          if-no-files-found: error
+          retention-days: 14
+
+  summarize:
+    needs: [audit]
+    if: ${{ always() && needs.audit.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: ai-hero-effective-risk-*
+          path: ai-hero-effective-risk-results
+          merge-multiple: false
+      - name: Summarize effective-risk evidence
+        run: node scripts/summarize-ai-hero-effective-risk-audit-v1.mjs ai-hero-effective-risk-results ai-hero-effective-risk-summary
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ai-hero-effective-risk-audit-summary
+          path: ai-hero-effective-risk-summary/
+          if-no-files-found: error
+          retention-days: 30
