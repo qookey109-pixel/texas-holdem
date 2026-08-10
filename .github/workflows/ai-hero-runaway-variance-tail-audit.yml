@@ -1,0 +1,85 @@
+name: AI Hero Runaway Variance Tail Audit
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/ai-hero-runaway-variance-tail-audit.yml"
+      - "scripts/summarize-ai-hero-runaway-variance-tail-audit-v1.mjs"
+      - "tests/e2e/ai-hero-runaway-variance-tail-audit-v1.spec.js"
+      - "tests/support/ai-hero-runaway-variance-tail-audit-v1.js"
+  workflow_dispatch:
+
+concurrency:
+  group: ai-hero-runaway-variance-tail-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { profile: tight, pair: 0 }
+          - { profile: balanced, pair: 0 }
+          - { profile: calling, pair: 0 }
+          - { profile: tight, pair: 1 }
+          - { profile: balanced, pair: 1 }
+          - { profile: calling, pair: 1 }
+          - { profile: tight, pair: 2 }
+          - { profile: balanced, pair: 2 }
+          - { profile: calling, pair: 2 }
+          - { profile: tight, pair: 3 }
+          - { profile: balanced, pair: 3 }
+          - { profile: calling, pair: 3 }
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install locked test dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run 250-hand paired variance-tail audit
+        env:
+          AI_HERO_RUNAWAY_VARIANCE_TAIL_AUDIT: "1"
+          AI_HERO_RUNAWAY_VARIANCE_TAIL_HANDS: "250"
+          AI_HERO_RUNAWAY_VARIANCE_TAIL_PROFILE: ${{ matrix.profile }}
+          AI_HERO_RUNAWAY_VARIANCE_TAIL_PAIR: ${{ matrix.pair }}
+          AI_HERO_RUNAWAY_VARIANCE_TAIL_OUTPUT_DIR: ai-hero-runaway-variance-tail-results
+        run: npx playwright test tests/e2e/ai-hero-runaway-variance-tail-audit-v1.spec.js --project=chromium --workers=1
+      - name: Upload variance-tail shard
+        uses: actions/upload-artifact@v7
+        with:
+          name: ai-hero-runaway-variance-tail-${{ matrix.profile }}-pair-${{ matrix.pair }}
+          path: ai-hero-runaway-variance-tail-results/
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    needs: audit
+    if: ${{ always() && needs.audit.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download variance-tail shards
+        uses: actions/download-artifact@v8
+        with:
+          pattern: ai-hero-runaway-variance-tail-*
+          path: ai-hero-runaway-variance-tail-results
+          merge-multiple: false
+      - name: Summarize variance tails
+        run: node scripts/summarize-ai-hero-runaway-variance-tail-audit-v1.mjs ai-hero-runaway-variance-tail-results ai-hero-runaway-variance-tail-summary
+      - name: Upload variance-tail summary
+        uses: actions/upload-artifact@v7
+        with:
+          name: ai-hero-runaway-variance-tail-audit-summary
+          path: ai-hero-runaway-variance-tail-summary/
+          if-no-files-found: error
+          retention-days: 30
