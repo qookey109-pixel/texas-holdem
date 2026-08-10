@@ -14,7 +14,7 @@ on:
       stage:
         description: Evidence stage
         required: true
-        default: smoke
+        default: screen
         type: choice
         options:
           - smoke
@@ -26,7 +26,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: poker-economy-ooda-${{ github.ref }}-${{ inputs.stage || 'smoke' }}
+  group: poker-economy-ooda-${{ github.ref }}-${{ inputs.stage || 'screen' }}
   cancel-in-progress: false
 
 jobs:
