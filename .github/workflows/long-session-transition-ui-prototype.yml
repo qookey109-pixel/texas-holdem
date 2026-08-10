@@ -1,0 +1,48 @@
+name: Long Session Transition UI Prototype
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/long-session-transition-ui-prototype.yml"
+      - "tests/e2e/long-session-transition-ui-v1.spec.js"
+      - "tests/support/long-session-transition-ui-v1.js"
+
+permissions:
+  contents: read
+
+jobs:
+  ui:
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked test dependencies
+        run: npm ci
+
+      - name: Install browser
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Run Long Session transition UI prototype tests
+        run: npx playwright test tests/e2e/long-session-transition-ui-v1.spec.js --project=${{ matrix.browser }} --retries=0
+
+      - name: Upload transition UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: long-session-transition-ui-${{ matrix.browser }}
+          path: long-session-transition-ui-artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
