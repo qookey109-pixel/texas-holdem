@@ -60,6 +60,7 @@
       bigBlind: bb,
       heroName: String(hero?.name || "Hero"),
       heroBb,
+      heroFolded: Boolean(hero?.folded),
       opponentMedianBb: round(opponentMedianBb, 4),
       heroToOpponentMedianRatio: ratio,
       band: bandFor(ratio),
@@ -109,7 +110,7 @@
       const endRatio = end.heroToOpponentMedianRatio;
       const startRatio = active.heroToOpponentMedianRatio;
       const winnerNames = new Set((Array.isArray(winners) ? winners : []).map(value => String(value)));
-      const activeAtEnd = end.opponents.filter(player => !player.folded).length + 1;
+      const activeAtEnd = end.opponents.filter(player => !player.folded).length + (end.heroFolded ? 0 : 1);
       const showdown = finite(boardCount) === 5 && activeAtEnd >= 2;
       const record = {
         handNumber: active.handNumber,
