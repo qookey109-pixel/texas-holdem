@@ -42,7 +42,7 @@ jobs:
         name: Build full-buyin tail catch-up candidate matrix
         shell: bash
         run: |
-          stage="${{ inputs.stage || 'smoke' }}"
+          stage="${{ inputs.stage || 'screen' }}"
           case "$stage" in
             smoke) hands=25; shards=1 ;;
             screen) hands=100; shards=2 ;;
