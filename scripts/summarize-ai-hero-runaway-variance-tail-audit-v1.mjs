@@ -55,6 +55,16 @@ function summarizeRun(report) {
   const maxRatio = ratios.length ? Math.max(...ratios) : 0;
   const longest5x = longestRun(ratios, value => value >= 5);
   const tailFlag = maxRatio >= 10 || rate5x >= 0.10 || longest5x >= 15;
+
+  const late100AverageRatio = late.length ? round(sum(late) / late.length, 4) : 0;
+  const late100P90Ratio = round(percentile(late, 0.90), 4);
+  const lateRate3x = rate(late.filter(value => value >= 3).length, late.length);
+  const lateRate5x = rate(late.filter(value => value >= 5).length, late.length);
+  const lateLongest5x = longestRun(late, value => value >= 5);
+  // This flag intentionally represents the user's reported late-session difficulty loss,
+  // not a transient spike anywhere in the full 250-hand path.
+  const latePersistentFlag = late100AverageRatio >= 3 || lateRate5x >= 0.10 || lateLongest5x >= 15;
+
   return {
     profile: String(report.heroProfile || ""),
     pairIndex: finite(report.shardIndex),
@@ -63,8 +73,11 @@ function summarizeRun(report) {
     rate3x,
     rate5x,
     longest5x,
-    late100AverageRatio: late.length ? round(sum(late) / late.length, 4) : 0,
-    late100P90Ratio: round(percentile(late, 0.90), 4),
+    late100AverageRatio,
+    late100P90Ratio,
+    lateRate3x,
+    lateRate5x,
+    lateLongest5x,
     maxHeroBb: hands.length ? round(Math.max(...hands.map(hand => finite(hand.heroStackBb))), 4) : 0,
     finalRatio: ratios.length ? round(ratios[ratios.length - 1], 4) : 0,
     largeShowdownEvents: large.length,
@@ -73,6 +86,7 @@ function summarizeRun(report) {
     largeShowdownWinRate: rate(largeWins.length, large.length),
     largeShowdownNetBb: round(grossLargeGainBb - grossLargeLossBb, 4),
     tailFlag,
+    latePersistentFlag,
   };
 }
 
@@ -110,10 +124,13 @@ function profileSummary(profile) {
   return {
     runs: rows.length,
     tailRuns: rows.filter(row => row.tailFlag).length,
+    latePersistentRuns: rows.filter(row => row.latePersistentFlag).length,
     medianMaxRatio: round(median(rows.map(row => row.maxRatio)), 4),
     medianRate5x: round(median(rows.map(row => row.rate5x)), 6),
     medianLongest5x: round(median(rows.map(row => row.longest5x)), 2),
     medianLate100AverageRatio: round(median(rows.map(row => row.late100AverageRatio)), 4),
+    medianLateRate5x: round(median(rows.map(row => row.lateRate5x)), 6),
+    medianLateLongest5x: round(median(rows.map(row => row.lateLongest5x)), 2),
     p90OfRunMaxRatio: round(percentile(rows.map(row => row.maxRatio), 0.90), 4),
     maximumObservedRatio: rows.length ? round(Math.max(...rows.map(row => row.maxRatio)), 4) : 0,
     maximumObservedHeroBb: rows.length ? round(Math.max(...rows.map(row => row.maxHeroBb)), 4) : 0,
@@ -142,8 +159,16 @@ if (sampleSufficient) {
   }
 }
 
+const latePersistentRuns = sum(PROFILES.map(profile => profiles[profile].latePersistentRuns));
+let latePersistenceDisposition = "NEED_MORE_LATE_PERSISTENCE_SAMPLE";
+if (sampleSufficient) {
+  if (latePersistentRuns <= 2) latePersistenceDisposition = "LATE_RUNAWAY_RARE_IN_SCREEN";
+  else if (latePersistentRuns <= 4) latePersistenceDisposition = "LATE_RUNAWAY_PRESENT_BUT_NOT_BROAD";
+  else latePersistenceDisposition = "LATE_RUNAWAY_BROAD_IN_SCREEN";
+}
+
 const summary = {
-  version: "1.0.0",
+  version: "1.1.0",
   observationOnly: true,
   causalClaim: false,
   configuredHands,
@@ -156,6 +181,8 @@ const summary = {
   auditErrors,
   sampleSufficient,
   disposition,
+  latePersistenceDisposition,
+  latePersistentRuns,
   profiles,
   runs,
 };
@@ -169,22 +196,24 @@ const md = [
   `- Hands: ${completedHands}/${configuredHands}`,
   `- Runs: ${files.length}/12`,
   `- Sample sufficient: ${sampleSufficient ? "YES" : "NO"}`,
-  `- Disposition: ${disposition}`,
-  "- Tail flag per run: max Hero/opponent-median ratio >=10x, or >=5x on at least 10% of hands, or a >=5x streak of at least 15 hands.",
+  `- Any-time tail disposition: ${disposition}`,
+  `- Late-persistence disposition: ${latePersistenceDisposition} (${latePersistentRuns}/12 runs)`,
+  "- Any-time tail: max Hero/opponent-median ratio >=10x, or >=5x on at least 10% of all hands, or an all-session >=5x streak of at least 15 hands.",
+  "- Late persistence: over the final 100 hands, average ratio >=3x, or >=5x on at least 10% of hands, or a >=5x streak of at least 15 hands.",
   "- Observation only; no production behavior is changed by this audit.",
   "",
-  "| Profile | Tail runs | Median max ratio | Max observed | Median >=5x share | Median longest 5x streak | Median late-100 avg | Max Hero BB | 50BB+ SD W/L | 50BB+ SD win rate | 50BB+ SD net BB |",
+  "| Profile | Any tail | Late persistent | Median max | Max observed | Median all >=5x | Median late >=5x | Median late avg | Max Hero BB | 50BB+ SD W/L | 50BB+ SD net BB |",
   "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
   ...PROFILES.map(profile => {
     const row = profiles[profile];
-    return `| ${profile} | ${row.tailRuns}/4 | ${row.medianMaxRatio.toFixed(2)}x | ${row.maximumObservedRatio.toFixed(2)}x | ${(row.medianRate5x * 100).toFixed(1)}% | ${row.medianLongest5x.toFixed(1)} | ${row.medianLate100AverageRatio.toFixed(2)}x | ${row.maximumObservedHeroBb.toFixed(1)} | ${row.largeShowdownWins}/${row.largeShowdownLosses} | ${(row.largeShowdownWinRate * 100).toFixed(1)}% | ${row.largeShowdownNetBb.toFixed(1)} |`;
+    return `| ${profile} | ${row.tailRuns}/4 | ${row.latePersistentRuns}/4 | ${row.medianMaxRatio.toFixed(2)}x | ${row.maximumObservedRatio.toFixed(2)}x | ${(row.medianRate5x * 100).toFixed(1)}% | ${(row.medianLateRate5x * 100).toFixed(1)}% | ${row.medianLate100AverageRatio.toFixed(2)}x | ${row.maximumObservedHeroBb.toFixed(1)} | ${row.largeShowdownWins}/${row.largeShowdownLosses} | ${row.largeShowdownNetBb.toFixed(1)} |`;
   }),
   "",
   "## Per-run tails",
   "",
-  "| Pair | Profile | Max ratio | >=3x | >=5x | Longest 5x | Late-100 avg | Late P90 | Max Hero BB | 50BB+ SD net | Tail |",
-  "|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
-  ...runs.sort((a, b) => a.pairIndex - b.pairIndex || a.profile.localeCompare(b.profile)).map(row => `| ${row.pairIndex} | ${row.profile} | ${row.maxRatio.toFixed(2)}x | ${(row.rate3x * 100).toFixed(1)}% | ${(row.rate5x * 100).toFixed(1)}% | ${row.longest5x} | ${row.late100AverageRatio.toFixed(2)}x | ${row.late100P90Ratio.toFixed(2)}x | ${row.maxHeroBb.toFixed(1)} | ${row.largeShowdownNetBb.toFixed(1)} | ${row.tailFlag ? "YES" : "NO"} |`),
+  "| Pair | Profile | Max ratio | All >=5x | All longest 5x | Late avg | Late >=5x | Late longest 5x | Late P90 | Max Hero BB | Any tail | Late persistent |",
+  "|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
+  ...runs.sort((a, b) => a.pairIndex - b.pairIndex || a.profile.localeCompare(b.profile)).map(row => `| ${row.pairIndex} | ${row.profile} | ${row.maxRatio.toFixed(2)}x | ${(row.rate5x * 100).toFixed(1)}% | ${row.longest5x} | ${row.late100AverageRatio.toFixed(2)}x | ${(row.lateRate5x * 100).toFixed(1)}% | ${row.lateLongest5x} | ${row.late100P90Ratio.toFixed(2)}x | ${row.maxHeroBb.toFixed(1)} | ${row.tailFlag ? "YES" : "NO"} | ${row.latePersistentFlag ? "YES" : "NO"} |`),
   "",
   `Validation failures: gameplay=${failures}, scheduler=${schedulerErrors}, fairness=${fairnessFailures}, integrity=${integrityFailures}, audit=${auditErrors}.`,
 ].join("\n");
