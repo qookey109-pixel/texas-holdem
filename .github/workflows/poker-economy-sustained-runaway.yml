@@ -69,6 +69,19 @@ jobs:
           merge-multiple: false
       - name: Summarize paired sustained-runaway evidence
         run: node scripts/evaluate-poker-economy-sustained-runaway-v1.mjs poker-economy-sustained-runaway-results poker-economy-sustained-runaway-summary
+      - name: Require a measurable challenger response
+        run: >-
+          node -e '
+          const fs = require("fs");
+          const p = "poker-economy-sustained-runaway-summary/poker-economy-sustained-runaway-v1.json";
+          const s = JSON.parse(fs.readFileSync(p, "utf8"));
+          const c = s.observations?.["sustain5-median100"] || {};
+          if ((c.sustainedEligibleEvents || 0) > 0 && (c.sustainedAppliedEvents || 0) === 0) {
+            console.error("INERT_CANDIDATE: sustained trigger fired but no replacement received extra BB");
+            process.exit(1);
+          }
+          console.log(`candidate effect: eligible=${c.sustainedEligibleEvents || 0} applied=${c.sustainedAppliedEvents || 0} extraBB=${c.sustainedExtraInjectedBb || 0}`);
+          '
       - uses: actions/upload-artifact@v7
         with:
           name: poker-economy-sustained-runaway-summary
