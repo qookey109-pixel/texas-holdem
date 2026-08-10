@@ -61,7 +61,7 @@ test.describe("AI stack pressure audit V1", () => {
     await page.addScriptTag({ content: integritySource });
     await page.addScriptTag({ content: auditSource });
     await expect.poll(() => page.evaluate(() => window.AiLongRunTelemetryIntegrityV294?.version || ""), { timeout: 10_000 }).toBe("2.9.4");
-    await expect.poll(() => page.evaluate(() => window.AiStackPressureAuditV1?.version || ""), { timeout: 10_000 }).toBe("1.1.0");
+    await expect.poll(() => page.evaluate(() => window.AiStackPressureAuditV1?.version || ""), { timeout: 10_000 }).toBe("1.2.0");
 
     await page.evaluate(() => {
       window.EconomyFoldDefenseV1?.refresh?.();
@@ -103,7 +103,7 @@ test.describe("AI stack pressure audit V1", () => {
       fairness: { publicInformationOnly: true },
       telemetryIntegrity: { integrityPassed: true, errors: [] },
       stackPressureAudit: {
-        version: "1.1.0",
+        version: "1.2.0",
         schemaVersion: 1,
         publicInformationOnly: true,
         hiddenOpponentCards: false,
@@ -117,6 +117,7 @@ test.describe("AI stack pressure audit V1", () => {
     expect(report.stackPressureAudit.totalActions).toBeGreaterThan(0);
     expect(report.stackPressureAudit.bands.under3x.totalActions).toBeGreaterThan(0);
     expect(report.stackPressureAudit.bands.under3x.bySpr.shallow).toBeTruthy();
+    expect(report.stackPressureAudit.bands.under3x.bySpr.shallow.byPressure.low).toBeTruthy();
     expect(pageErrors).toEqual([]);
   });
 });

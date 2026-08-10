@@ -1,10 +1,11 @@
 (() => {
   "use strict";
 
-  const VERSION = "1.1.0";
+  const VERSION = "1.2.0";
   const BAND_KEYS = ["under3x", "threeTo5x", "fivePlus"];
   const ACTION_KEYS = ["fold", "check", "call", "raise", "allin", "other"];
   const SPR_KEYS = ["shallow", "medium", "deep", "unknown"];
+  const PRESSURE_KEYS = ["free", "low", "medium", "high"];
 
   function finite(value, fallback = 0) {
     const number = Number(value);
@@ -27,11 +28,22 @@
     return Object.fromEntries(keys.map(key => [key, 0]));
   }
 
+  function newPressureCell() {
+    return {
+      actions: emptyCounts(ACTION_KEYS),
+      totalActions: 0,
+      voluntaryActions: 0,
+      potOddsTotal: 0,
+      neededBbTotal: 0,
+    };
+  }
+
   function newSprCell() {
     return {
       actions: emptyCounts(ACTION_KEYS),
       totalActions: 0,
       voluntaryActions: 0,
+      byPressure: Object.fromEntries(PRESSURE_KEYS.map(key => [key, newPressureCell()])),
     };
   }
 
@@ -83,6 +95,13 @@
     return "under3x";
   }
 
+  function pressureFor(needed, potOdds) {
+    if (needed <= 0) return "free";
+    if (potOdds <= 0.25) return "low";
+    if (potOdds <= 0.40) return "medium";
+    return "high";
+  }
+
   function heroAndMedian() {
     const players = Array.isArray(state?.players) ? state.players : [];
     const hero = players.find(player => player?.isHuman) || null;
@@ -113,6 +132,11 @@
     const actorStackBb = Math.max(0, finite(player.stack)) / bigBlind;
     const effectiveStackBb = Math.max(0, finite(spr?.effectiveStackInBigBlinds));
     const effectiveSpr = Math.max(0, finite(spr?.effectiveSpr));
+    const needed = Math.max(0, finite(typeof amountToCall === "function" ? amountToCall(player) : 0));
+    const pot = Math.max(1, finite(state?.pot, 1));
+    const potOdds = needed > 0 ? needed / Math.max(1, pot + needed) : 0;
+    const pressureBand = pressureFor(needed, potOdds);
+    const pressureCell = sprCell.byPressure[pressureBand];
     const voluntary = ["fold", "call", "raise", "allin"].includes(normalized);
 
     band.actions[normalized] += 1;
@@ -128,6 +152,12 @@
     sprCell.totalActions += 1;
     if (voluntary) sprCell.voluntaryActions += 1;
 
+    pressureCell.actions[normalized] += 1;
+    pressureCell.totalActions += 1;
+    if (voluntary) pressureCell.voluntaryActions += 1;
+    pressureCell.potOddsTotal += potOdds;
+    pressureCell.neededBbTotal += needed / bigBlind;
+
     telemetry.totalActions += 1;
 
     if (stacks.ratio >= 5 && telemetry.samples.length < 240) {
@@ -142,18 +172,39 @@
         effectiveStackBb: round(effectiveStackBb, 4),
         effectiveSpr: round(effectiveSpr, 6),
         sprBand,
+        pressureBand,
+        neededBb: round(needed / bigBlind, 4),
+        potOdds: round(potOdds, 6),
       });
     }
     return true;
   }
 
-  function summarizeCell(cell) {
+  function summarizePressureCell(cell) {
     const decisions = Math.max(0, cell.voluntaryActions);
     const aggression = cell.actions.raise + cell.actions.allin;
     return {
       totalActions: cell.totalActions,
       voluntaryActions: decisions,
       actions: { ...cell.actions },
+      foldRate: decisions ? round(cell.actions.fold / decisions, 6) : 0,
+      callRate: decisions ? round(cell.actions.call / decisions, 6) : 0,
+      raiseRate: decisions ? round(cell.actions.raise / decisions, 6) : 0,
+      allInRate: decisions ? round(cell.actions.allin / decisions, 6) : 0,
+      aggressionRate: decisions ? round(aggression / decisions, 6) : 0,
+      averagePotOdds: cell.totalActions ? round(cell.potOddsTotal / cell.totalActions, 6) : 0,
+      averageNeededBb: cell.totalActions ? round(cell.neededBbTotal / cell.totalActions, 4) : 0,
+    };
+  }
+
+  function summarizeSprCell(cell) {
+    const decisions = Math.max(0, cell.voluntaryActions);
+    const aggression = cell.actions.raise + cell.actions.allin;
+    return {
+      totalActions: cell.totalActions,
+      voluntaryActions: decisions,
+      actions: { ...cell.actions },
+      byPressure: Object.fromEntries(PRESSURE_KEYS.map(key => [key, summarizePressureCell(cell.byPressure[key])])),
       foldRate: decisions ? round(cell.actions.fold / decisions, 6) : 0,
       callRate: decisions ? round(cell.actions.call / decisions, 6) : 0,
       raiseRate: decisions ? round(cell.actions.raise / decisions, 6) : 0,
@@ -170,7 +221,7 @@
       voluntaryActions: decisions,
       actions: { ...band.actions },
       sprBands: { ...band.sprBands },
-      bySpr: Object.fromEntries(SPR_KEYS.map(key => [key, summarizeCell(band.bySpr[key])])),
+      bySpr: Object.fromEntries(SPR_KEYS.map(key => [key, summarizeSprCell(band.bySpr[key])])),
       foldRate: decisions ? round(band.actions.fold / decisions, 6) : 0,
       callRate: decisions ? round(band.actions.call / decisions, 6) : 0,
       raiseRate: decisions ? round(band.actions.raise / decisions, 6) : 0,

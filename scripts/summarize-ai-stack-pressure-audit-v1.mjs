@@ -7,6 +7,8 @@ const BAND_KEYS = ["under3x", "threeTo5x", "fivePlus"];
 const ACTION_KEYS = ["fold", "check", "call", "raise", "allin", "other"];
 const SPR_KEYS = ["shallow", "medium", "deep", "unknown"];
 const CONTROLLED_SPR_KEYS = ["shallow", "medium", "deep"];
+const PRESSURE_KEYS = ["free", "low", "medium", "high"];
+const FACING_PRESSURE_KEYS = ["low", "medium", "high"];
 
 function finite(value) {
   const number = Number(value);
@@ -33,11 +35,22 @@ function emptyCounts(keys) {
   return Object.fromEntries(keys.map(key => [key, 0]));
 }
 
+function emptyPressureCell() {
+  return {
+    actions: emptyCounts(ACTION_KEYS),
+    totalActions: 0,
+    voluntaryActions: 0,
+    weightedPotOdds: 0,
+    weightedNeededBb: 0,
+  };
+}
+
 function emptySprCell() {
   return {
     actions: emptyCounts(ACTION_KEYS),
     totalActions: 0,
     voluntaryActions: 0,
+    byPressure: Object.fromEntries(PRESSURE_KEYS.map(key => [key, emptyPressureCell()])),
   };
 }
 
@@ -96,6 +109,16 @@ for (const path of files) {
       targetCell.totalActions += finite(sourceCell.totalActions);
       targetCell.voluntaryActions += finite(sourceCell.voluntaryActions);
       for (const action of ACTION_KEYS) targetCell.actions[action] += finite(sourceCell.actions?.[action]);
+      for (const pressure of PRESSURE_KEYS) {
+        const sourcePressure = sourceCell.byPressure?.[pressure] || {};
+        const targetPressure = targetCell.byPressure[pressure];
+        const pressureActions = finite(sourcePressure.totalActions);
+        targetPressure.totalActions += pressureActions;
+        targetPressure.voluntaryActions += finite(sourcePressure.voluntaryActions);
+        for (const action of ACTION_KEYS) targetPressure.actions[action] += finite(sourcePressure.actions?.[action]);
+        targetPressure.weightedPotOdds += finite(sourcePressure.averagePotOdds) * pressureActions;
+        targetPressure.weightedNeededBb += finite(sourcePressure.averageNeededBb) * pressureActions;
+      }
     }
     target.weightedHeroLead += finite(source.averageHeroLeadRatio) * actions;
     target.weightedActorStackBb += finite(source.averageActorStackBb) * actions;
@@ -104,13 +127,31 @@ for (const path of files) {
   }
 }
 
-function summarizeCell(source) {
+function summarizePressureCell(source) {
   const decisions = source.voluntaryActions;
   const aggressive = source.actions.raise + source.actions.allin;
   return {
     totalActions: source.totalActions,
     voluntaryActions: decisions,
     actions: source.actions,
+    foldRate: decisions ? round(source.actions.fold / decisions) : 0,
+    callRate: decisions ? round(source.actions.call / decisions) : 0,
+    raiseRate: decisions ? round(source.actions.raise / decisions) : 0,
+    allInRate: decisions ? round(source.actions.allin / decisions) : 0,
+    aggressionRate: decisions ? round(aggressive / decisions) : 0,
+    averagePotOdds: source.totalActions ? round(source.weightedPotOdds / source.totalActions) : 0,
+    averageNeededBb: source.totalActions ? round(source.weightedNeededBb / source.totalActions, 4) : 0,
+  };
+}
+
+function summarizeSprCell(source) {
+  const decisions = source.voluntaryActions;
+  const aggressive = source.actions.raise + source.actions.allin;
+  return {
+    totalActions: source.totalActions,
+    voluntaryActions: decisions,
+    actions: source.actions,
+    byPressure: Object.fromEntries(PRESSURE_KEYS.map(key => [key, summarizePressureCell(source.byPressure[key])])),
     foldRate: decisions ? round(source.actions.fold / decisions) : 0,
     callRate: decisions ? round(source.actions.call / decisions) : 0,
     raiseRate: decisions ? round(source.actions.raise / decisions) : 0,
@@ -127,7 +168,7 @@ function summarizeBand(source) {
     voluntaryActions: decisions,
     actions: source.actions,
     sprBands: source.sprBands,
-    bySpr: Object.fromEntries(SPR_KEYS.map(key => [key, summarizeCell(source.bySpr[key])])),
+    bySpr: Object.fromEntries(SPR_KEYS.map(key => [key, summarizeSprCell(source.bySpr[key])])),
     foldRate: decisions ? round(source.actions.fold / decisions) : 0,
     callRate: decisions ? round(source.actions.call / decisions) : 0,
     raiseRate: decisions ? round(source.actions.raise / decisions) : 0,
@@ -141,16 +182,22 @@ function summarizeBand(source) {
   };
 }
 
+function delta(high, low) {
+  return {
+    foldRate: round(high.foldRate - low.foldRate),
+    callRate: round(high.callRate - low.callRate),
+    raiseRate: round(high.raiseRate - low.raiseRate),
+    allInRate: round(high.allInRate - low.allInRate),
+    aggressionRate: round(high.aggressionRate - low.aggressionRate),
+  };
+}
+
 const bands = Object.fromEntries(BAND_KEYS.map(key => [key, summarizeBand(aggregate[key])]));
 const low = bands.under3x;
 const high = bands.fivePlus;
 const highSampleSufficient = high.voluntaryActions >= 100;
 const deltas = {
-  foldRate: round(high.foldRate - low.foldRate),
-  callRate: round(high.callRate - low.callRate),
-  raiseRate: round(high.raiseRate - low.raiseRate),
-  allInRate: round(high.allInRate - low.allInRate),
-  aggressionRate: round(high.aggressionRate - low.aggressionRate),
+  ...delta(high, low),
   shallowShare: round(high.shallowShare - low.shallowShare),
 };
 
@@ -158,13 +205,7 @@ const controlledBySpr = Object.fromEntries(CONTROLLED_SPR_KEYS.map(spr => {
   const lowCell = low.bySpr[spr];
   const highCell = high.bySpr[spr];
   const sampleSufficient = lowCell.voluntaryActions >= 100 && highCell.voluntaryActions >= 100;
-  const cellDeltas = {
-    foldRate: round(highCell.foldRate - lowCell.foldRate),
-    callRate: round(highCell.callRate - lowCell.callRate),
-    raiseRate: round(highCell.raiseRate - lowCell.raiseRate),
-    allInRate: round(highCell.allInRate - lowCell.allInRate),
-    aggressionRate: round(highCell.aggressionRate - lowCell.aggressionRate),
-  };
+  const cellDeltas = delta(highCell, lowCell);
   const passive = sampleSufficient
     && cellDeltas.aggressionRate <= -0.05
     && cellDeltas.foldRate >= 0.03;
@@ -177,17 +218,42 @@ const controlledBySpr = Object.fromEntries(CONTROLLED_SPR_KEYS.map(spr => {
   }];
 }));
 
+const shallowPressureControlled = Object.fromEntries(PRESSURE_KEYS.map(pressure => {
+  const lowCell = low.bySpr.shallow.byPressure[pressure];
+  const highCell = high.bySpr.shallow.byPressure[pressure];
+  const minimumHigh = pressure === "free" ? 50 : 50;
+  const minimumLow = pressure === "free" ? 100 : 100;
+  const sampleSufficient = lowCell.voluntaryActions >= minimumLow && highCell.voluntaryActions >= minimumHigh;
+  const cellDeltas = delta(highCell, lowCell);
+  const passive = sampleSufficient
+    && cellDeltas.aggressionRate <= -0.05
+    && cellDeltas.foldRate >= 0.03;
+  return [pressure, {
+    sampleSufficient,
+    low: lowCell,
+    high: highCell,
+    deltas: cellDeltas,
+    passiveSignal: passive,
+  }];
+}));
+
 const sufficientControlledCells = CONTROLLED_SPR_KEYS.filter(key => controlledBySpr[key].sampleSufficient);
 const passiveControlledCells = sufficientControlledCells.filter(key => controlledBySpr[key].passiveSignal);
 const controlledSampleSufficient = sufficientControlledCells.length >= 2;
 const controlledPassivitySignal = controlledSampleSufficient && passiveControlledCells.length >= 2;
+
+const sufficientPressureCells = FACING_PRESSURE_KEYS.filter(key => shallowPressureControlled[key].sampleSufficient);
+const passivePressureCells = sufficientPressureCells.filter(key => shallowPressureControlled[key].passiveSignal);
+const pressureControlledSampleSufficient = sufficientPressureCells.length >= 2;
+const pressureControlledPassivitySignal = pressureControlledSampleSufficient && passivePressureCells.length >= 2;
+
 const rawPassivePressureSignal = highSampleSufficient
   && deltas.aggressionRate <= -0.05
   && deltas.allInRate <= -0.015
   && (deltas.foldRate >= 0.03 || deltas.callRate >= 0.03);
 
 const summary = {
-  version: "1.1.0",
+  version: "1.2.0",
   shards: files.length,
   configuredHands,
   completedHands,
@@ -204,11 +270,16 @@ const summary = {
   controlledBySpr,
   controlledSampleSufficient,
   controlledPassivitySignal,
+  shallowPressureControlled,
+  pressureControlledSampleSufficient,
+  pressureControlledPassivitySignal,
   disposition: !controlledSampleSufficient
     ? "NEED_MORE_SPR_CONTROLLED_SAMPLE"
-    : controlledPassivitySignal
-      ? "SPR_CONTROLLED_PASSIVITY_SIGNAL"
-      : "NO_SPR_CONTROLLED_PASSIVITY_SIGNAL",
+    : !pressureControlledSampleSufficient
+      ? "NEED_MORE_PRESSURE_CONTROLLED_SAMPLE"
+      : pressureControlledPassivitySignal
+        ? "PRESSURE_CONTROLLED_PASSIVITY_SIGNAL"
+        : "NO_PRESSURE_CONTROLLED_PASSIVITY_SIGNAL",
 };
 
 mkdirSync(outputDirectory, { recursive: true });
@@ -220,8 +291,8 @@ const md = [
   `- Shards: ${files.length}`,
   `- Total AI actions: ${totalActions}`,
   `- Hero >=5x voluntary actions: ${high.voluntaryActions}`,
-  `- High-lead sample sufficient: ${highSampleSufficient ? "YES" : "NO"}`,
   `- SPR-controlled sample sufficient: ${controlledSampleSufficient ? "YES" : "NO"}`,
+  `- Pressure-controlled sample sufficient: ${pressureControlledSampleSufficient ? "YES" : "NO"}`,
   `- Disposition: ${summary.disposition}`,
   "",
   "| Band | Voluntary | Fold | Call | Raise | All-in | Aggression | Shallow SPR |",
@@ -231,15 +302,6 @@ const md = [
     return `| ${key} | ${band.voluntaryActions} | ${(band.foldRate * 100).toFixed(2)}% | ${(band.callRate * 100).toFixed(2)}% | ${(band.raiseRate * 100).toFixed(2)}% | ${(band.allInRate * 100).toFixed(2)}% | ${(band.aggressionRate * 100).toFixed(2)}% | ${(band.shallowShare * 100).toFixed(2)}% |`;
   }),
   "",
-  "## Hero >=5x minus Hero <3x (raw)",
-  "",
-  `- Fold rate: ${(deltas.foldRate * 100).toFixed(2)} pp`,
-  `- Call rate: ${(deltas.callRate * 100).toFixed(2)} pp`,
-  `- Raise rate: ${(deltas.raiseRate * 100).toFixed(2)} pp`,
-  `- All-in rate: ${(deltas.allInRate * 100).toFixed(2)} pp`,
-  `- Aggression rate: ${(deltas.aggressionRate * 100).toFixed(2)} pp`,
-  `- Shallow SPR share: ${(deltas.shallowShare * 100).toFixed(2)} pp`,
-  "",
   "## SPR-controlled Hero >=5x minus Hero <3x",
   "",
   "| SPR | Low n | High n | Fold delta | Call delta | Raise delta | All-in delta | Aggression delta | Signal |",
@@ -247,6 +309,15 @@ const md = [
   ...CONTROLLED_SPR_KEYS.map(key => {
     const row = controlledBySpr[key];
     return `| ${key} | ${row.low.voluntaryActions} | ${row.high.voluntaryActions} | ${(row.deltas.foldRate * 100).toFixed(2)} pp | ${(row.deltas.callRate * 100).toFixed(2)} pp | ${(row.deltas.raiseRate * 100).toFixed(2)} pp | ${(row.deltas.allInRate * 100).toFixed(2)} pp | ${(row.deltas.aggressionRate * 100).toFixed(2)} pp | ${row.sampleSufficient ? (row.passiveSignal ? "PASSIVE" : "NO") : "LOW SAMPLE"} |`;
+  }),
+  "",
+  "## Shallow-SPR pressure-controlled Hero >=5x minus Hero <3x",
+  "",
+  "| Pressure | Low n | High n | Low pot odds | High pot odds | Fold delta | Raise delta | All-in delta | Aggression delta | Signal |",
+  "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+  ...PRESSURE_KEYS.map(key => {
+    const row = shallowPressureControlled[key];
+    return `| ${key} | ${row.low.voluntaryActions} | ${row.high.voluntaryActions} | ${(row.low.averagePotOdds * 100).toFixed(2)}% | ${(row.high.averagePotOdds * 100).toFixed(2)}% | ${(row.deltas.foldRate * 100).toFixed(2)} pp | ${(row.deltas.raiseRate * 100).toFixed(2)} pp | ${(row.deltas.allInRate * 100).toFixed(2)} pp | ${(row.deltas.aggressionRate * 100).toFixed(2)} pp | ${row.sampleSufficient ? (row.passiveSignal ? "PASSIVE" : "NO") : "LOW SAMPLE"} |`;
   }),
   "",
 ].join("\n");
