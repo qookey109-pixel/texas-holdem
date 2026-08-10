@@ -14,7 +14,7 @@ on:
       stage:
         description: Evidence stage
         required: true
-        default: screen
+        default: deep
         type: choice
         options:
           - smoke
@@ -26,7 +26,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: poker-economy-ooda-${{ github.ref }}-${{ inputs.stage || 'screen' }}
+  group: poker-economy-ooda-${{ github.ref }}-${{ inputs.stage || 'deep' }}
   cancel-in-progress: false
 
 jobs:
@@ -42,7 +42,7 @@ jobs:
         name: Build full-buyin tail catch-up candidate matrix
         shell: bash
         run: |
-          stage="${{ inputs.stage || 'screen' }}"
+          stage="${{ inputs.stage || 'deep' }}"
           case "$stage" in
             smoke) hands=25; shards=1 ;;
             screen) hands=100; shards=2 ;;
