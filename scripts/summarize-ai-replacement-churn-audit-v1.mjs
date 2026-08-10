@@ -75,13 +75,49 @@ function summarizeCell(cell) {
   };
 }
 
+function compare(replacement, control) {
+  return {
+    replacementSamples: replacement.samples,
+    controlSamples: control.samples,
+    averageRatioDeltaDiff: round(replacement.averageRatioDelta - control.averageRatioDelta),
+    averageHeroBbDeltaDiff: round(replacement.averageHeroBbDelta - control.averageHeroBbDelta, 4),
+    averageOpponentMedianBbDeltaDiff: round(
+      replacement.averageOpponentMedianBbDelta - control.averageOpponentMedianBbDelta,
+      4,
+    ),
+    end3xRateDiff: round(replacement.end3xRate - control.end3xRate),
+    end5xRateDiff: round(replacement.end5xRate - control.end5xRate),
+  };
+}
+
+function objectiveDirection(diff) {
+  const worse = [
+    diff.averageRatioDeltaDiff >= 1,
+    diff.averageHeroBbDeltaDiff >= 10,
+    diff.averageOpponentMedianBbDeltaDiff <= -2,
+    diff.end5xRateDiff >= 0.05,
+  ].filter(Boolean).length;
+  const better = [
+    diff.averageRatioDeltaDiff <= -1,
+    diff.averageHeroBbDeltaDiff <= -10,
+    diff.averageOpponentMedianBbDeltaDiff >= 2,
+    diff.end5xRateDiff <= -0.05,
+  ].filter(Boolean).length;
+  return {
+    worseObjectives: worse,
+    betterObjectives: better,
+    direction: worse > better ? "replacement-worse" : better > worse ? "replacement-better" : "tied",
+  };
+}
+
 const files = walk(inputDirectory)
   .filter(path => /^ai-replacement-churn-audit-shard-\d+\.json$/.test(basename(path)))
   .sort();
 
 if (!files.length) throw new Error(`No replacement-churn audit shard JSON found under ${inputDirectory}`);
 
-const aggregate = Object.fromEntries(KINDS.map(kind => [kind, emptyGroup()]));
+const pooledAggregate = Object.fromEntries(KINDS.map(kind => [kind, emptyGroup()]));
+const shardReviews = [];
 let configuredHands = 0;
 let completedHands = 0;
 let failures = 0;
@@ -111,6 +147,7 @@ for (const path of files) {
   replacementSeats += finite(audit.replacementSeats);
   bustSeats += finite(audit.bustSeats);
 
+  const shardAggregate = Object.fromEntries(KINDS.map(kind => [kind, emptyGroup()]));
   for (const anchor of audit.anchors || []) {
     const kind = KINDS.includes(anchor.kind) ? anchor.kind : null;
     const band = BANDS.includes(anchor.band) ? anchor.band : "unknown";
@@ -119,70 +156,132 @@ for (const path of files) {
     for (const window of WINDOWS) {
       const outcome = anchor.outcomes?.[window];
       if (!outcome) continue;
-      addOutcome(aggregate[kind][band][window], outcome);
+      addOutcome(shardAggregate[kind][band][window], outcome);
+      addOutcome(pooledAggregate[kind][band][window], outcome);
     }
   }
+
+  const cells = Object.fromEntries(BANDS.map(band => [
+    band,
+    Object.fromEntries(WINDOWS.map(window => {
+      const replacement = summarizeCell(shardAggregate.replacement[band][window]);
+      const control = summarizeCell(shardAggregate.control[band][window]);
+      const diff = compare(replacement, control);
+      const comparable = replacement.samples >= 3 && control.samples >= 10;
+      return [window, {
+        replacement,
+        control,
+        comparable,
+        ...diff,
+        ...(comparable ? objectiveDirection(diff) : {
+          worseObjectives: 0,
+          betterObjectives: 0,
+          direction: "insufficient",
+        }),
+      }];
+    })),
+  ]));
+
+  shardReviews.push({
+    shardIndex: finite(report.shardIndex),
+    heroProfile: report.heroProfile || "",
+    replacementEvents: finite(audit.replacementEvents),
+    replacementSeats: finite(audit.replacementSeats),
+    cells,
+  });
 }
 
-const groups = Object.fromEntries(KINDS.map(kind => [
+const pooledGroups = Object.fromEntries(KINDS.map(kind => [
   kind,
   Object.fromEntries(BANDS.map(band => [
     band,
-    Object.fromEntries(WINDOWS.map(window => [window, summarizeCell(aggregate[kind][band][window])])),
+    Object.fromEntries(WINDOWS.map(window => [window, summarizeCell(pooledAggregate[kind][band][window])])),
   ])),
 ]));
 
-function compare(replacement, control) {
-  return {
-    replacementSamples: replacement.samples,
-    controlSamples: control.samples,
-    averageRatioDeltaDiff: round(replacement.averageRatioDelta - control.averageRatioDelta),
-    averageHeroBbDeltaDiff: round(replacement.averageHeroBbDelta - control.averageHeroBbDelta, 4),
-    averageOpponentMedianBbDeltaDiff: round(
-      replacement.averageOpponentMedianBbDelta - control.averageOpponentMedianBbDelta,
-      4,
-    ),
-    end3xRateDiff: round(replacement.end3xRate - control.end3xRate),
-    end5xRateDiff: round(replacement.end5xRate - control.end5xRate),
-  };
-}
-
-const comparisons = Object.fromEntries(BANDS.map(band => [
+const pooledComparisons = Object.fromEntries(BANDS.map(band => [
   band,
   Object.fromEntries(WINDOWS.map(window => [
     window,
-    compare(groups.replacement[band][window], groups.control[band][window]),
+    compare(pooledGroups.replacement[band][window], pooledGroups.control[band][window]),
   ])),
 ]));
 
-const highBands = ["threeTo5x", "fivePlus"];
+const matchedCells = Object.fromEntries(BANDS.map(band => [
+  band,
+  Object.fromEntries(WINDOWS.map(window => {
+    const comparable = shardReviews
+      .map(shard => ({ shardIndex: shard.shardIndex, heroProfile: shard.heroProfile, ...shard.cells[band][window] }))
+      .filter(row => row.comparable);
+    const replacementSamples = comparable.reduce((sum, row) => sum + row.replacementSamples, 0);
+    const controlSamples = comparable.reduce((sum, row) => sum + row.controlSamples, 0);
+    const worseShards = comparable.filter(row => row.direction === "replacement-worse").length;
+    const betterShards = comparable.filter(row => row.direction === "replacement-better").length;
+    const tiedShards = comparable.filter(row => row.direction === "tied").length;
+    return [window, {
+      comparableShards: comparable.length,
+      replacementSamples,
+      controlSamples,
+      worseShards,
+      betterShards,
+      tiedShards,
+      directionConsensus: worseShards > betterShards
+        ? "replacement-worse"
+        : betterShards > worseShards
+          ? "replacement-better"
+          : "mixed-or-tied",
+      shards: comparable,
+    }];
+  })),
+]));
+
 const highCells = [];
-for (const band of highBands) {
+for (const band of ["threeTo5x", "fivePlus"]) {
   for (const window of [25, 50]) {
-    const cell = comparisons[band][window];
-    const minimumReplacement = window === 25 ? 10 : 8;
-    const minimumControl = window === 25 ? 30 : 20;
-    const sampleSufficient = cell.replacementSamples >= minimumReplacement && cell.controlSamples >= minimumControl;
+    const matched = matchedCells[band][window];
+    const sampleSufficient = matched.comparableShards >= 2
+      && matched.replacementSamples >= 10
+      && matched.controlSamples >= 30;
     const runawayAssociation = sampleSufficient
-      && cell.averageRatioDeltaDiff >= 1
-      && cell.end5xRateDiff >= 0.05;
-    highCells.push({ band, window, sampleSufficient, runawayAssociation, ...cell });
+      && matched.worseShards >= 2
+      && matched.worseShards > matched.betterShards;
+    const improvementAssociation = sampleSufficient
+      && matched.betterShards >= 2
+      && matched.betterShards > matched.worseShards;
+    highCells.push({
+      band,
+      window,
+      sampleSufficient,
+      runawayAssociation,
+      improvementAssociation,
+      comparableShards: matched.comparableShards,
+      replacementSamples: matched.replacementSamples,
+      controlSamples: matched.controlSamples,
+      worseShards: matched.worseShards,
+      betterShards: matched.betterShards,
+      tiedShards: matched.tiedShards,
+      directionConsensus: matched.directionConsensus,
+    });
   }
 }
 
 const sufficientHighCells = highCells.filter(cell => cell.sampleSufficient);
 const signalHighCells = sufficientHighCells.filter(cell => cell.runawayAssociation);
+const improvementHighCells = sufficientHighCells.filter(cell => cell.improvementAssociation);
 const sampleSufficient = replacementEvents >= 20 && sufficientHighCells.length >= 2;
 const disposition = !sampleSufficient
-  ? "NEED_MORE_CHURN_SAMPLE"
+  ? "NEED_MORE_MATCHED_CHURN_SAMPLE"
   : signalHighCells.length >= 2
     ? "CHURN_RUNAWAY_ASSOCIATION"
-    : "NO_CLEAR_CHURN_RUNAWAY_ASSOCIATION";
+    : signalHighCells.length || improvementHighCells.length
+      ? "MIXED_CHURN_ASSOCIATION"
+      : "NO_CLEAR_CHURN_RUNAWAY_ASSOCIATION";
 
 const summary = {
-  version: "1.0.0",
+  version: "1.1.0",
   observationOnly: true,
   causalClaim: false,
+  pairedPathRequired: true,
   shards: files.length,
   configuredHands,
   completedHands,
@@ -196,8 +295,10 @@ const summary = {
   replacementSeats,
   bustSeats,
   anchors,
-  groups,
-  comparisons,
+  pooledGroups,
+  pooledComparisons,
+  shardReviews,
+  matchedCells,
   highCells,
   sampleSufficient,
   disposition,
@@ -217,22 +318,25 @@ const md = [
   `- Replacement events / seats: ${replacementEvents} / ${replacementSeats}`,
   `- AI bust seats observed: ${bustSeats}`,
   `- Audit anchors: ${anchors}`,
-  `- Sample sufficient: ${sampleSufficient ? "YES" : "NO"}`,
+  `- Matched-path sample sufficient: ${sampleSufficient ? "YES" : "NO"}`,
   `- Disposition: ${disposition}`,
-  "- Interpretation: temporal association only; this audit does not establish causality and changes no gameplay.",
+  "- Interpretation: temporal association only; pooled averages are descriptive and never override matched-shard direction.",
   "",
-  "| Start band | Window | Replacement n | Control n | Ratio Δ diff | Hero BB Δ diff | Opp median BB Δ diff | End >=5x diff |",
-  "|---|---:|---:|---:|---:|---:|---:|---:|",
-  ...BANDS.flatMap(band => WINDOWS.map(window => {
-    const row = comparisons[band][window];
-    return `| ${band} | ${window} | ${row.replacementSamples} | ${row.controlSamples} | ${row.averageRatioDeltaDiff.toFixed(3)} | ${row.averageHeroBbDeltaDiff.toFixed(2)} | ${row.averageOpponentMedianBbDeltaDiff.toFixed(2)} | ${(row.end5xRateDiff * 100).toFixed(2)} pp |`;
-  })),
+  "## Matched high-lead gate",
   "",
-  "## High-lead gate cells",
+  "| Band | Window | Comparable shards | Repl n | Control n | Worse / Better / Tie | Consensus | Gate |",
+  "|---|---:|---:|---:|---:|---:|---|---|",
+  ...highCells.map(row => `| ${row.band} | ${row.window} | ${row.comparableShards} | ${row.replacementSamples} | ${row.controlSamples} | ${row.worseShards} / ${row.betterShards} / ${row.tiedShards} | ${row.directionConsensus} | ${row.sampleSufficient ? (row.runawayAssociation ? "RUNAWAY" : row.improvementAssociation ? "IMPROVEMENT" : "MIXED") : "LOW SAMPLE"} |`),
   "",
-  "| Band | Window | Replacement n | Control n | Sample | Runaway association |",
-  "|---|---:|---:|---:|---|---|",
-  ...highCells.map(row => `| ${row.band} | ${row.window} | ${row.replacementSamples} | ${row.controlSamples} | ${row.sampleSufficient ? "YES" : "NO"} | ${row.runawayAssociation ? "YES" : "NO"} |`),
+  "## Comparable shard details",
+  "",
+  "| Shard | Hero profile | Band | Window | Repl n | Control n | Ratio Δ diff | Hero BB Δ diff | Opp median BB Δ diff | End >=5x diff | Direction |",
+  "|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---|",
+  ...shardReviews.flatMap(shard => ["threeTo5x", "fivePlus"].flatMap(band => [25, 50].flatMap(window => {
+    const row = shard.cells[band][window];
+    if (!row.comparable) return [];
+    return [`| ${shard.shardIndex} | ${shard.heroProfile} | ${band} | ${window} | ${row.replacementSamples} | ${row.controlSamples} | ${row.averageRatioDeltaDiff.toFixed(3)} | ${row.averageHeroBbDeltaDiff.toFixed(2)} | ${row.averageOpponentMedianBbDeltaDiff.toFixed(2)} | ${(row.end5xRateDiff * 100).toFixed(2)} pp | ${row.direction} |`];
+  }))),
   "",
   `Validation failures: gameplay=${failures}, scheduler=${schedulerErrors}, fairness=${fairnessFailures}, integrity=${integrityFailures}, audit=${auditErrors}.`,
 ].join("\n");
