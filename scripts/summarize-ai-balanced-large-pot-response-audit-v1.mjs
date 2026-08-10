@@ -95,6 +95,25 @@ function summarizeCategory(hands) {
   };
 }
 
+function summarizeLargeOutcome(hands) {
+  const events = hands.filter(hand => hand.showdown && Math.abs(finite(hand.heroDeltaBb)) >= 50);
+  const wins = events.filter(hand => finite(hand.heroDeltaBb) >= 50);
+  const losses = events.filter(hand => finite(hand.heroDeltaBb) <= -50);
+  const grossGainBb = round(wins.reduce((sum, hand) => sum + finite(hand.heroDeltaBb), 0), 4);
+  const grossLossBb = round(-losses.reduce((sum, hand) => sum + finite(hand.heroDeltaBb), 0), 4);
+  return {
+    events: events.length,
+    wins: wins.length,
+    losses: losses.length,
+    winRate: rate(wins.length, events.length),
+    grossGainBb,
+    grossLossBb,
+    netBb: round(grossGainBb - grossLossBb, 4),
+    averageWinBb: wins.length ? round(grossGainBb / wins.length, 4) : 0,
+    averageLossBb: losses.length ? round(grossLossBb / losses.length, 4) : 0,
+  };
+}
+
 function summarizeRun(report) {
   const audit = report.balancedLargePotResponseAudit || {};
   const hands = Array.isArray(audit.hands) ? audit.hands : [];
@@ -106,6 +125,7 @@ function summarizeRun(report) {
     completedHands: finite(report.completedHands),
     largeShowdown: summarizeCategory(largeShowdownWins),
     ordinaryShowdown: summarizeCategory(ordinaryShowdownWins),
+    largeOutcome: summarizeLargeOutcome(hands),
   };
 }
 
@@ -165,9 +185,34 @@ function combine(profile, category) {
   };
 }
 
+function combineLargeOutcome(profile) {
+  const matching = runs.filter(run => run.profile === profile);
+  const totals = matching.reduce((acc, run) => {
+    const value = run.largeOutcome;
+    acc.events += value.events;
+    acc.wins += value.wins;
+    acc.losses += value.losses;
+    acc.grossGainBb += value.grossGainBb;
+    acc.grossLossBb += value.grossLossBb;
+    return acc;
+  }, { events: 0, wins: 0, losses: 0, grossGainBb: 0, grossLossBb: 0 });
+  return {
+    events: totals.events,
+    wins: totals.wins,
+    losses: totals.losses,
+    winRate: rate(totals.wins, totals.events),
+    grossGainBb: round(totals.grossGainBb, 4),
+    grossLossBb: round(totals.grossLossBb, 4),
+    netBb: round(totals.grossGainBb - totals.grossLossBb, 4),
+    averageWinBb: totals.wins ? round(totals.grossGainBb / totals.wins, 4) : 0,
+    averageLossBb: totals.losses ? round(totals.grossLossBb / totals.losses, 4) : 0,
+  };
+}
+
 const profiles = Object.fromEntries(PROFILES.map(profile => [profile, {
   largeShowdown: combine(profile, "largeShowdown"),
   ordinaryShowdown: combine(profile, "ordinaryShowdown"),
+  largeOutcome: combineLargeOutcome(profile),
 }]));
 
 function meanControl(metric) {
@@ -176,6 +221,7 @@ function meanControl(metric) {
 
 const balancedLarge = profiles.balanced.largeShowdown;
 const balancedOrdinary = profiles.balanced.ordinaryShowdown;
+const balancedOutcome = profiles.balanced.largeOutcome;
 const controlContinue = meanControl("aiContinueAfterHeroAggressionRate");
 const controlEscalate = meanControl("aiRaiseOrAllinPresentRate");
 const continueDiffControl = round(balancedLarge.aiContinueAfterHeroAggressionRate - controlContinue);
@@ -220,8 +266,19 @@ if (sampleSufficient) {
   else disposition = "NO_BALANCED_RESPONSE_EXCESS";
 }
 
+let largePotOutcomeDisposition = "NEED_MORE_LARGE_POT_OUTCOME_SAMPLE";
+if (sampleSufficient && balancedOutcome.events >= 20) {
+  if (balancedOutcome.winRate >= 0.60 && balancedOutcome.netBb > 0) {
+    largePotOutcomeDisposition = "BALANCED_LARGE_POT_POSITIVE_EDGE_SIGNAL";
+  } else if (balancedOutcome.winRate >= 0.40 && balancedOutcome.winRate <= 0.60 && balancedOutcome.netBb <= 0) {
+    largePotOutcomeDisposition = "BALANCED_LARGE_POT_VARIANCE_WITHOUT_EDGE";
+  } else {
+    largePotOutcomeDisposition = "MIXED_BALANCED_LARGE_POT_OUTCOME";
+  }
+}
+
 const summary = {
-  version: "1.0.0",
+  version: "1.1.0",
   observationOnly: true,
   causalClaim: false,
   configuredHands,
@@ -234,6 +291,7 @@ const summary = {
   auditErrors,
   sampleSufficient,
   disposition,
+  largePotOutcomeDisposition,
   continueDiffControl,
   continueDiffOrdinary,
   escalateDiffControl,
@@ -252,7 +310,8 @@ const md = [
   `- Hands: ${completedHands}/${configuredHands}`,
   `- Runs: ${runs.length}/6 paired profile runs`,
   `- Sample sufficient: ${sampleSufficient ? "YES" : "NO"}`,
-  `- Disposition: ${disposition}`,
+  `- Response disposition: ${disposition}`,
+  `- Large-pot outcome disposition: ${largePotOutcomeDisposition}`,
   "- Observation only; action sequences use public actions/stacks/pot context and resolved winners, never hidden cards or future board.",
   "",
   "| Profile | 50BB+ showdown wins | Hero aggression seen | AI continue after Hero aggression | AI raise/all-in present | AI all-in present | Last AI continue |",
@@ -260,6 +319,15 @@ const md = [
   ...PROFILES.map(profile => {
     const row = profiles[profile].largeShowdown;
     return `| ${profile} | ${row.hands} | ${(row.heroAggressionObservedRate * 100).toFixed(1)}% | ${(row.aiContinueAfterHeroAggressionRate * 100).toFixed(1)}% | ${(row.aiRaiseOrAllinPresentRate * 100).toFixed(1)}% | ${(row.aiAllinPresentRate * 100).toFixed(1)}% | ${(row.lastAiContinueRate * 100).toFixed(1)}% |`;
+  }),
+  "",
+  "## Two-sided 50BB+ showdown outcomes",
+  "",
+  "| Profile | Events | Wins | Losses | Win rate | Gross gain | Gross loss | Net BB | Avg win | Avg loss |",
+  "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+  ...PROFILES.map(profile => {
+    const row = profiles[profile].largeOutcome;
+    return `| ${profile} | ${row.events} | ${row.wins} | ${row.losses} | ${(row.winRate * 100).toFixed(1)}% | ${row.grossGainBb.toFixed(1)} | ${row.grossLossBb.toFixed(1)} | ${row.netBb.toFixed(1)} | ${row.averageWinBb.toFixed(1)} | ${row.averageLossBb.toFixed(1)} |`;
   }),
   "",
   "## Balanced 50BB+ vs balanced ordinary showdown wins",
