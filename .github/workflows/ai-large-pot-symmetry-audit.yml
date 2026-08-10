@@ -1,0 +1,90 @@
+name: AI Large Pot Symmetry Audit
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/ai-large-pot-symmetry-audit.yml"
+      - "tests/e2e/ai-large-pot-symmetry-audit-v1.spec.js"
+      - "tests/support/ai-large-pot-symmetry-audit-v1.js"
+      - "scripts/summarize-ai-large-pot-symmetry-audit-v1.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-large-pot-symmetry-audit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install locked test dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run 250-hand large-pot symmetry audit shard
+        env:
+          AI_LARGE_POT_SYMMETRY_AUDIT: "1"
+          AI_LARGE_POT_SYMMETRY_HANDS: "250"
+          AI_LARGE_POT_SYMMETRY_SHARD: ${{ matrix.shard }}
+          AI_LARGE_POT_SYMMETRY_SHARD_COUNT: "4"
+          AI_LARGE_POT_SYMMETRY_SEED_BASE: "26890246"
+          AI_LARGE_POT_SYMMETRY_OUTPUT_DIR: ai-large-pot-symmetry-results
+        run: >-
+          npx playwright test
+          tests/e2e/ai-large-pot-symmetry-audit-v1.spec.js
+          --project=chromium
+          --retries=0
+
+      - name: Upload large-pot symmetry shard
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ai-large-pot-symmetry-audit-${{ matrix.shard }}
+          path: ai-large-pot-symmetry-results/
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    needs: audit
+    if: ${{ always() && needs.audit.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Download large-pot symmetry shards
+        uses: actions/download-artifact@v8
+        with:
+          pattern: ai-large-pot-symmetry-audit-*
+          path: ai-large-pot-symmetry-results
+          merge-multiple: false
+
+      - name: Summarize Hero vs AI large-pot capture
+        run: node scripts/summarize-ai-large-pot-symmetry-audit-v1.mjs ai-large-pot-symmetry-results ai-large-pot-symmetry-summary
+
+      - name: Upload large-pot symmetry summary
+        uses: actions/upload-artifact@v7
+        with:
+          name: ai-large-pot-symmetry-audit-summary
+          path: ai-large-pot-symmetry-summary/
+          if-no-files-found: error
+          retention-days: 30
