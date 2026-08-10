@@ -1,0 +1,77 @@
+name: Poker Economy Sustained Runaway
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/poker-economy-sustained-runaway.yml"
+      - "tests/e2e/poker-economy-sustained-runaway-v1.spec.js"
+      - "tests/support/poker-economy-sustained-runaway-v1.js"
+      - "scripts/evaluate-poker-economy-sustained-runaway-v1.mjs"
+      - "tests/support/ai-long-run-telemetry-v2-9.part-*"
+      - "tests/support/ai-long-run-telemetry-integrity-v2-9-4.js"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: poker-economy-sustained-runaway-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        policy: ["80-75", "sustain5-median100"]
+        profile: ["tight", "balanced", "calling"]
+        pair: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install locked test dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run 250-hand paired sustained-runaway benchmark
+        env:
+          POKER_ECONOMY_SUSTAINED_RUNAWAY: "1"
+          POKER_ECONOMY_SUSTAINED_RUNAWAY_POLICY: ${{ matrix.policy }}
+          POKER_ECONOMY_SUSTAINED_RUNAWAY_PROFILE: ${{ matrix.profile }}
+          POKER_ECONOMY_SUSTAINED_RUNAWAY_PAIR: ${{ matrix.pair }}
+          POKER_ECONOMY_SUSTAINED_RUNAWAY_HANDS: "250"
+          POKER_ECONOMY_SUSTAINED_RUNAWAY_SEED_BASE: "26893246"
+          POKER_ECONOMY_SUSTAINED_RUNAWAY_OUTPUT_DIR: poker-economy-sustained-runaway-results
+        run: npx playwright test tests/e2e/poker-economy-sustained-runaway-v1.spec.js --project=chromium --retries=0
+      - if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: poker-economy-sustained-${{ matrix.policy }}-${{ matrix.profile }}-pair-${{ matrix.pair }}
+          path: poker-economy-sustained-runaway-results/
+          if-no-files-found: error
+          retention-days: 14
+
+  summarize:
+    needs: [evaluate]
+    if: ${{ always() && needs.evaluate.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: poker-economy-sustained-*
+          path: poker-economy-sustained-runaway-results
+          merge-multiple: false
+      - name: Summarize paired sustained-runaway evidence
+        run: node scripts/evaluate-poker-economy-sustained-runaway-v1.mjs poker-economy-sustained-runaway-results poker-economy-sustained-runaway-summary
+      - uses: actions/upload-artifact@v7
+        with:
+          name: poker-economy-sustained-runaway-summary
+          path: poker-economy-sustained-runaway-summary/
+          if-no-files-found: error
+          retention-days: 30
