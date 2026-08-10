@@ -184,6 +184,15 @@ test("mobile landscape keeps the complete decision surface visible and tappable"
 
   const dialog = page.getByRole("dialog", { name: "解鎖更高級別牌桌" });
   await expect(dialog).toBeVisible();
+  await expect(page.getByRole("heading", { name: "解鎖更高級別牌桌" })).toBeVisible();
+  await expect(dialog).toContainText("10/20");
+  await expect(dialog).toContainText("20/40");
+  await expect(dialog.locator("[data-ls-total]")).toBeVisible();
+  await expect(dialog.locator("[data-ls-entry]")).toBeVisible();
+  await expect(dialog.locator("[data-ls-bankroll]")).toBeVisible();
+  await expect(dialog.locator("[data-ls-ai]")).toBeVisible();
+  expect(await dialog.evaluate(node => node.scrollTop)).toBe(0);
+
   const box = await dialog.boundingBox();
   expect(box).not.toBeNull();
   expect(box.x).toBeGreaterThanOrEqual(0);
