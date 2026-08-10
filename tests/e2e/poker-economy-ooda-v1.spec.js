@@ -82,7 +82,7 @@ test.describe("Poker Economy OODA Long-Run Runner V1", () => {
 
     const adapterSource = await readFile(ECONOMY_ADAPTER, "utf8");
     await page.addScriptTag({ content: adapterSource });
-    await expect.poll(() => page.evaluate(() => window.PokerEconomyOodaV1?.version || ""), { timeout: 10_000 }).toBe("1.2.0");
+    await expect.poll(() => page.evaluate(() => window.PokerEconomyOodaV1?.version || ""), { timeout: 10_000 }).toBe("1.3.0");
     const installedPolicy = await page.evaluate(policy => window.PokerEconomyOodaV1.install(policy), POLICY);
     expect(installedPolicy).toMatchObject({
       installed: true,
@@ -124,8 +124,8 @@ test.describe("Poker Economy OODA Long-Run Runner V1", () => {
       fairness: { publicInformationOnly: true },
       telemetryIntegrity: { integrityPassed: true, errors: [] },
       economyOoda: {
-        version: "1.2.0",
-        schemaVersion: 2,
+        version: "1.3.0",
+        schemaVersion: 3,
         experimentOnly: true,
         productionBehaviorChanged: false,
         productionConfigUnchanged: true,
