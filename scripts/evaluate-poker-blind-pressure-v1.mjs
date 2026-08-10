@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "n
 import { basename, join, resolve } from "node:path";
 
 const BASELINE = "baseline";
-const DEFAULT_CANDIDATES = ["baseline", "linear50", "linear100"];
+const DEFAULT_CANDIDATES = ["baseline", "gentle50", "gentle100"];
 const CANDIDATES = (process.env.POKER_BLIND_PRESSURE_CANDIDATES || DEFAULT_CANDIDATES.join(","))
   .split(",").map(value => value.trim()).filter(Boolean);
 const inputDirectory = resolve(process.argv[2] || "blind-pressure-results");
@@ -97,7 +97,6 @@ function observe(id) {
 }
 
 const observations = Object.fromEntries(CANDIDATES.map(id => [id, observe(id)]));
-const baseline = observations[BASELINE];
 const lowerBetter = ["post120HeroBbP90", "post120HeroBbP95", "post120RatioP90", "post120Dominance3x", "post120Dominance5x", "post120Dominance10x", "last50AverageRatio", "finalRatio"];
 const higherBetter = ["post120OpponentThreatP10"];
 
@@ -137,6 +136,7 @@ function pairedReview(id) {
   });
   const challengerBetterSeeds = pairs.filter(pair => pair.winner === "challenger").length;
   const baselineBetterSeeds = pairs.filter(pair => pair.winner === "baseline").length;
+  const bustDeltas = pairs.map(pair => pair.heroBustedRateDelta);
   return {
     challengerId: id,
     pairedSeeds: pairs.length,
@@ -144,7 +144,8 @@ function pairedReview(id) {
     baselineBetterSeeds,
     tiedSeeds: pairs.length - challengerBetterSeeds - baselineBetterSeeds,
     directionConsensus: challengerBetterSeeds > baselineBetterSeeds ? "challenger" : baselineBetterSeeds > challengerBetterSeeds ? "baseline" : "tied",
-    medianHeroBustDelta: round(median(pairs.map(pair => pair.heroBustedRateDelta))),
+    medianHeroBustDelta: round(median(bustDeltas)),
+    maximumHeroBustDelta: bustDeltas.length ? round(Math.max(...bustDeltas)) : 0,
     medianObjectiveDelta: Object.fromEntries([...lowerBetter, ...higherBetter].map(key => [key, round(median(pairs.map(pair => pair.deltas[key])))])),
     pairs,
   };
@@ -157,11 +158,11 @@ for (const observation of Object.values(observations)) {
   if (observation.failures || observation.fairnessFailures || observation.integrityFailures || observation.productionMutationFailures) validationErrors.push(`${observation.id}: safety/integrity failure`);
 }
 for (const [id, review] of Object.entries(pairedSeedReview)) {
-  if (review.medianHeroBustDelta > 0.10) validationErrors.push(`${id}: median post-120 hero bust rate increased by more than 10pp`);
+  if (review.maximumHeroBustDelta > 0.10) validationErrors.push(`${id}: at least one paired seed increased post-120 hero bust rate by more than 10pp (${round(review.maximumHeroBustDelta * 100, 2)}pp max)`);
 }
 const summary = {
   schemaVersion: 1,
-  version: "1.0.0",
+  version: "1.1.0-gentle-bounded",
   candidates: CANDIDATES,
   validationPassed: validationErrors.length === 0,
   validationErrors,
@@ -195,8 +196,10 @@ for (const [id, review] of Object.entries(pairedSeedReview)) {
     `- challenger / baseline / tie: ${review.challengerBetterSeeds} / ${review.baselineBetterSeeds} / ${review.tiedSeeds}`,
     `- direction: ${review.directionConsensus}`,
     `- median Hero bust delta: ${(review.medianHeroBustDelta * 100).toFixed(2)} pp`,
+    `- maximum single-seed Hero bust delta: ${(review.maximumHeroBustDelta * 100).toFixed(2)} pp`,
     "",
   );
 }
+if (validationErrors.length) lines.push("## Safety gate failures", "", ...validationErrors.map(error => `- ${error}`), "");
 writeFileSync(join(outputDirectory, "poker-blind-pressure-v1.md"), `${lines.join("\n")}\n`);
 if (!summary.validationPassed) process.exitCode = 1;
