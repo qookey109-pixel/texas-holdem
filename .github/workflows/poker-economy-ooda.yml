@@ -39,7 +39,7 @@ jobs:
       shard_count: ${{ steps.plan.outputs.shard_count }}
     steps:
       - id: plan
-        name: Build tail catch-up candidate matrix
+        name: Build full-buyin tail catch-up candidate matrix
         shell: bash
         run: |
           stage="${{ inputs.stage || 'smoke' }}"
@@ -51,7 +51,7 @@ jobs:
             *) echo "Unknown stage: $stage" >&2; exit 1 ;;
           esac
           matrix=$(node -e '
-            const policies = ["80-75", "tail3-70", "tail5-75"];
+            const policies = ["80-75", "tail5-fullbuyin", "tail5-budgeted"];
             const shards = Number(process.argv[1]);
             const include = [];
             for (const policy of policies) for (let shard = 0; shard < shards; shard += 1) include.push({ policy, shard });
@@ -191,6 +191,8 @@ jobs:
           merge-multiple: false
 
       - name: Evaluate tail catch-up OODA evidence
+        env:
+          POKER_ECONOMY_OODA_CANDIDATES: "80-75,tail5-fullbuyin,tail5-budgeted"
         run: node scripts/evaluate-poker-economy-tail-catchup-v1.mjs economy-ooda-results economy-ooda-summary
 
       - name: Upload OODA summary
