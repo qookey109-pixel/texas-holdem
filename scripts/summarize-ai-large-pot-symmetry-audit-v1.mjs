@@ -4,15 +4,12 @@ import { basename, join, resolve } from "node:path";
 const inputDirectory = resolve(process.argv[2] || "ai-large-pot-symmetry-results");
 const outputDirectory = resolve(process.argv[3] || "ai-large-pot-symmetry-summary");
 
-function finite(value) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
-}
-
-function round(value, digits = 6) {
+const finite = value => Number.isFinite(Number(value)) ? Number(value) : 0;
+const round = (value, digits = 6) => {
   const factor = 10 ** digits;
   return Math.round(finite(value) * factor) / factor;
-}
+};
+const sum = values => values.reduce((total, value) => total + finite(value), 0);
 
 function walk(directory) {
   const files = [];
@@ -25,51 +22,40 @@ function walk(directory) {
   return files;
 }
 
-function sum(values) {
-  return values.reduce((total, value) => total + finite(value), 0);
-}
-
 function summarizeSide(events, seatHands) {
   const positive = events.filter(event => finite(event.deltaBb) > 0);
-  const grossGainBb = sum(positive.map(event => event.deltaBb));
-  const gain20Bb = sum(positive.filter(event => finite(event.deltaBb) >= 20).map(event => event.deltaBb));
-  const gain50Bb = sum(positive.filter(event => finite(event.deltaBb) >= 50).map(event => event.deltaBb));
-  const showdownGainBb = sum(positive.filter(event => event.showdown).map(event => event.deltaBb));
-  const bustGainBb = sum(positive.filter(event => finite(event.aiBustCount) > 0).map(event => event.deltaBb));
-  const large20Events = positive.filter(event => finite(event.deltaBb) >= 20).length;
-  const large50Events = positive.filter(event => finite(event.deltaBb) >= 50).length;
+  const gross = sum(positive.map(event => event.deltaBb));
+  const gain = predicate => sum(positive.filter(predicate).map(event => event.deltaBb));
+  const count = predicate => positive.filter(predicate).length;
   return {
     seatHands,
     winningEvents: positive.length,
-    grossGainBb: round(grossGainBb, 4),
-    grossGainPer100SeatHands: seatHands ? round(grossGainBb / seatHands * 100, 4) : 0,
-    win20Events: large20Events,
-    win20RatePer100SeatHands: seatHands ? round(large20Events / seatHands * 100, 4) : 0,
-    win50Events: large50Events,
-    win50RatePer100SeatHands: seatHands ? round(large50Events / seatHands * 100, 4) : 0,
-    win20GainShare: grossGainBb ? round(gain20Bb / grossGainBb) : 0,
-    win50GainShare: grossGainBb ? round(gain50Bb / grossGainBb) : 0,
-    showdownGainShare: grossGainBb ? round(showdownGainBb / grossGainBb) : 0,
-    bustLinkedGainShare: grossGainBb ? round(bustGainBb / grossGainBb) : 0,
+    grossGainBb: round(gross, 4),
+    grossGainPer100SeatHands: seatHands ? round(gross / seatHands * 100, 4) : 0,
+    win20Events: count(event => finite(event.deltaBb) >= 20),
+    win20RatePer100SeatHands: seatHands ? round(count(event => finite(event.deltaBb) >= 20) / seatHands * 100, 4) : 0,
+    win50Events: count(event => finite(event.deltaBb) >= 50),
+    win50RatePer100SeatHands: seatHands ? round(count(event => finite(event.deltaBb) >= 50) / seatHands * 100, 4) : 0,
+    win20GainShare: gross ? round(gain(event => finite(event.deltaBb) >= 20) / gross) : 0,
+    win50GainShare: gross ? round(gain(event => finite(event.deltaBb) >= 50) / gross) : 0,
+    showdownGainShare: gross ? round(gain(event => event.showdown) / gross) : 0,
+    bustLinkedGainShare: gross ? round(gain(event => finite(event.aiBustCount) > 0) / gross) : 0,
     maximumGainBb: positive.length ? round(Math.max(...positive.map(event => finite(event.deltaBb))), 4) : 0,
   };
 }
 
-function ratio(numerator, denominator) {
+function safeRatio(numerator, denominator) {
   if (denominator <= 0) return numerator > 0 ? null : 1;
   return round(numerator / denominator);
 }
 
 function summarizeShard(report) {
-  const audit = report.largePotSymmetryAudit || {};
   const heroEvents = [];
   const aiEvents = [];
   let heroSeatHands = 0;
   let aiSeatHands = 0;
-  let conservationFailures = 0;
 
-  for (const hand of audit.hands || []) {
-    if (Math.abs(finite(hand.deltaSumBb)) > 0.05) conservationFailures += 1;
+  for (const hand of report.largePotSymmetryAudit?.hands || []) {
     for (const delta of hand.playerDeltas || []) {
       const event = {
         ...delta,
@@ -89,10 +75,10 @@ function summarizeShard(report) {
 
   const hero = summarizeSide(heroEvents, heroSeatHands);
   const ai = summarizeSide(aiEvents, aiSeatHands);
-  const win50RateRatio = ratio(hero.win50RatePer100SeatHands, ai.win50RatePer100SeatHands);
-  const win20RateRatio = ratio(hero.win20RatePer100SeatHands, ai.win20RatePer100SeatHands);
-  const win50ShareDiff = round(hero.win50GainShare - ai.win50GainShare);
+  const win20RateRatio = safeRatio(hero.win20RatePer100SeatHands, ai.win20RatePer100SeatHands);
+  const win50RateRatio = safeRatio(hero.win50RatePer100SeatHands, ai.win50RatePer100SeatHands);
   const win20ShareDiff = round(hero.win20GainShare - ai.win20GainShare);
+  const win50ShareDiff = round(hero.win50GainShare - ai.win50GainShare);
   const showdownShareDiff = round(hero.showdownGainShare - ai.showdownGainShare);
   const sampleSufficient = heroSeatHands >= 200 && aiSeatHands >= 1_000 && hero.winningEvents >= 20 && ai.winningEvents >= 100;
   const heroExcess = sampleSufficient
@@ -115,7 +101,6 @@ function summarizeShard(report) {
     win20ShareDiff,
     win50ShareDiff,
     showdownShareDiff,
-    conservationFailures,
     sampleSufficient,
     heroExcess,
     structuralSymmetry,
@@ -145,15 +130,14 @@ for (const path of files) {
   schedulerErrors += report.schedulerErrors?.length || 0;
   if (!report.fairness?.publicInformationOnly) fairnessFailures += 1;
   if (!report.telemetryIntegrity?.integrityPassed) integrityFailures += 1;
-  if (report.deterministicFingerprint) fingerprints.add(report.deterministicFingerprint);
   auditErrors += report.largePotSymmetryAudit?.errors?.length || 0;
+  if (report.deterministicFingerprint) fingerprints.add(report.deterministicFingerprint);
   shardSummaries.push(summarizeShard(report));
 }
 
 const sufficient = shardSummaries.filter(row => row.sampleSufficient);
 const excess = sufficient.filter(row => row.heroExcess);
 const symmetric = sufficient.filter(row => row.structuralSymmetry);
-const conservationFailures = sum(shardSummaries.map(row => row.conservationFailures));
 const sampleSufficient = completedHands === configuredHands && configuredHands >= 1_000 && sufficient.length >= 3;
 let disposition = "NEED_MORE_SYMMETRY_SAMPLE";
 if (sampleSufficient) {
@@ -163,7 +147,7 @@ if (sampleSufficient) {
 }
 
 const summary = {
-  version: "1.0.0",
+  version: "1.0.1",
   observationOnly: true,
   causalClaim: false,
   configuredHands,
@@ -174,7 +158,6 @@ const summary = {
   fairnessFailures,
   integrityFailures,
   auditErrors,
-  conservationFailures,
   fingerprints: fingerprints.size,
   sampleSufficient,
   disposition,
@@ -194,9 +177,9 @@ const md = [
   `- Sample sufficient: ${sampleSufficient ? "YES" : "NO"}`,
   `- Disposition: ${disposition}`,
   `- Hero-excess shards: ${excess.length}; structurally-symmetric shards: ${symmetric.length}`,
-  "- Interpretation: observation only. Large-pot capture is normalized by seat-hands so one Hero seat can be compared with the pooled AI seats.",
+  "- Interpretation: observation only. Rates are normalized by seat-hands. Chip conservation is validated by the existing long-run telemetry integrity checks; this summary does not duplicate that check from post-blind stack snapshots.",
   "",
-  "| Shard | Profile | Hero 50BB rate | AI 50BB rate | Rate ratio | Hero 50BB gain share | AI share | Share diff | Hero showdown share | AI showdown share | Signal |",
+  "| Shard | Profile | Hero 50BB rate | AI 50BB rate | Rate ratio | Hero 50BB share | AI share | Diff | Hero showdown | AI showdown | Signal |",
   "|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
   ...shardSummaries.map(row => {
     const signal = row.heroExcess ? "HERO EXCESS" : row.structuralSymmetry ? "SYMMETRIC" : "MIXED";
@@ -205,11 +188,11 @@ const md = [
   "",
   "## 20BB+ capture",
   "",
-  "| Shard | Hero 20BB rate | AI 20BB rate | Rate ratio | Hero gain share | AI gain share | Diff |",
+  "| Shard | Hero rate | AI rate | Rate ratio | Hero gain share | AI gain share | Diff |",
   "|---:|---:|---:|---:|---:|---:|---:|",
   ...shardSummaries.map(row => `| ${row.shardIndex} | ${row.hero.win20RatePer100SeatHands.toFixed(2)} | ${row.ai.win20RatePer100SeatHands.toFixed(2)} | ${row.win20RateRatio === null ? "INF" : row.win20RateRatio.toFixed(2)}x | ${(row.hero.win20GainShare * 100).toFixed(1)}% | ${(row.ai.win20GainShare * 100).toFixed(1)}% | ${(row.win20ShareDiff * 100).toFixed(1)} pp |`),
   "",
-  `Validation failures: gameplay=${failures}, scheduler=${schedulerErrors}, fairness=${fairnessFailures}, integrity=${integrityFailures}, audit=${auditErrors}, chip-conservation=${conservationFailures}.`,
+  `Validation failures: gameplay=${failures}, scheduler=${schedulerErrors}, fairness=${fairnessFailures}, integrity=${integrityFailures}, audit=${auditErrors}.`,
 ].join("\n");
 writeFileSync(join(outputDirectory, "ai-large-pot-symmetry-audit-summary.md"), `${md}\n`);
 console.log(md);
