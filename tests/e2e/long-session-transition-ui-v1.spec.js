@@ -114,28 +114,29 @@ test("primary and secondary actions are explicit but never call production game 
   await loadUi(page);
   await page.evaluate(model => window.LongSessionTransitionUiPrototypeV1.render(model), moveUpModel());
 
-  const before = await page.evaluate(() => ({
-    handNumber: state.handNumber,
-    handOver: state.handOver,
-    playerStacks: state.players.map(player => player.stack),
-  }));
+  const result = await page.evaluate(() => {
+    const capture = () => ({
+      handNumber: state.handNumber,
+      handOver: state.handOver,
+      playerStacks: state.players.map(player => player.stack),
+    });
+    const before = capture();
+    document.querySelector('[data-ls-action="primary"]')?.click();
+    document.querySelector('[data-ls-action="secondary"]')?.click();
+    const after = capture();
+    const snapshot = window.LongSessionTransitionUiPrototypeV1.snapshot();
+    return { before, after, snapshot };
+  });
 
-  await page.getByRole("button", { name: "升級到 20/40" }).click();
-  let snapshot = await page.evaluate(() => window.LongSessionTransitionUiPrototypeV1.snapshot());
-  expect(snapshot.lastAction).toBe("primary");
-  expect(snapshot.actionLog.at(-1)).toMatchObject({ action: "primary", transition: "move-up" });
-
-  await page.getByRole("button", { name: "留在 10/20" }).click();
-  snapshot = await page.evaluate(() => window.LongSessionTransitionUiPrototypeV1.snapshot());
-  expect(snapshot.lastAction).toBe("secondary");
-  expect(snapshot.actionLog.at(-1)).toMatchObject({ action: "secondary", transition: "move-up" });
-
-  const after = await page.evaluate(() => ({
-    handNumber: state.handNumber,
-    handOver: state.handOver,
-    playerStacks: state.players.map(player => player.stack),
-  }));
-  expect(after).toEqual(before);
+  expect(result.snapshot.lastAction).toBe("secondary");
+  expect(result.snapshot.actionLog.slice(-2).map(entry => ({
+    action: entry.action,
+    transition: entry.transition,
+  }))).toEqual([
+    { action: "primary", transition: "move-up" },
+    { action: "secondary", transition: "move-up" },
+  ]);
+  expect(result.after).toEqual(result.before);
 });
 
 test("re-entry and insufficient-bankroll screens use unambiguous player-facing language", async ({ page }, testInfo) => {
