@@ -12,11 +12,13 @@
       id: "80-75",
       sustainedResponse: false,
       responseTableMedianRatio: 0.80,
+      responseExtraBbCap: 0,
     }),
     "sustain5-median100": Object.freeze({
       id: "sustain5-median100",
       sustainedResponse: true,
       responseTableMedianRatio: 1.00,
+      responseExtraBbCap: 8,
     }),
   });
 
@@ -110,9 +112,15 @@
     let stack = baselineStack;
     let responseTarget = baselineStack;
     if (eligible) {
+      // The first candidate retained the production 75% buy-in cap inside the
+      // response target. On real runaway paths that made the challenger inert:
+      // the cap was already binding before a 100%-median target could add chips.
+      // Keep the production config itself untouched, but permit this experiment
+      // to lift only this future replacement by at most 8BB, never above the
+      // current table median and never above the production 60BB hard cap.
       const rawTarget = Math.min(
         tableMedian * finite(activePolicy.responseTableMedianRatio, 1),
-        fullBuyIn * productionBuyInCap,
+        baselineStack + bigBlind * Math.max(0, finite(activePolicy.responseExtraBbCap, 0)),
         bigBlind * productionMaxBb,
       );
       const softFloor = Math.min(tableMedian, bigBlind * productionSoftFloorBb);
@@ -137,6 +145,8 @@
       sustainedEligible: eligible,
       sustainedApplied: extraBb > 0,
       responseTableMedianRatio: finite(activePolicy.responseTableMedianRatio, 0.80),
+      responseExtraBbCap: finite(activePolicy.responseExtraBbCap, 0),
+      productionBuyInRatioCap: productionBuyInCap,
       baselineStack,
       baselineEntryBb: baselineStack / bigBlind,
       responseTarget,
@@ -298,6 +308,7 @@
         id: activePolicy.id,
         sustainedResponse: activePolicy.sustainedResponse,
         responseTableMedianRatio: activePolicy.responseTableMedianRatio,
+        responseExtraBbCap: activePolicy.responseExtraBbCap,
         triggerWindowHands: TRIGGER_WINDOW_HANDS,
         triggerFiveXHands: TRIGGER_FIVE_X_HANDS,
         triggerRatio: TRIGGER_RATIO,
