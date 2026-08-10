@@ -21,7 +21,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: poker-economy-tail-floor-${{ github.ref }}-${{ inputs.stage || 'screen' }}
+  group: poker-economy-tail-floor-${{ github.ref }}-${{ inputs.stage || 'deep' }}
   cancel-in-progress: false
 
 jobs:
@@ -36,7 +36,7 @@ jobs:
       - id: plan
         shell: bash
         run: |
-          stage="${{ inputs.stage || 'screen' }}"
+          stage="${{ inputs.stage || 'deep' }}"
           case "$stage" in
             screen) hands=100; shards=2 ;;
             deep) hands=250; shards=4 ;;
@@ -44,7 +44,7 @@ jobs:
             *) echo "Unknown stage: $stage" >&2; exit 1 ;;
           esac
           matrix=$(node -e '
-            const policies = ["80-75", "tail5-floor20", "tail5-floor20-budgeted"];
+            const policies = ["80-75", "tail5-floor20"];
             const shards = Number(process.argv[1]);
             const include = [];
             for (const policy of policies) for (let shard = 0; shard < shards; shard += 1) include.push({ policy, shard });
