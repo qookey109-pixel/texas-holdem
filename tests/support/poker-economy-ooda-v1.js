@@ -2,7 +2,7 @@
   "use strict";
 
   const VERSION = "1.3.0";
-  const POLICY_VERSION = "1.2.0";
+  const POLICY_VERSION = "1.3.0-response90";
   const POLICIES = Object.freeze({
     "80-75": Object.freeze({
       id: "80-75",
@@ -10,6 +10,7 @@
       buyInRatioCap: 0.75,
       maxBigBlinds: 60,
       tailLeadThreshold: null,
+      tailTableMedianRatio: 0.80,
       tailBuyInRatioCap: 0.75,
       tailMaxBigBlinds: 60,
       tailCooldownHands: 0,
@@ -20,6 +21,7 @@
       buyInRatioCap: 0.75,
       maxBigBlinds: 60,
       tailLeadThreshold: 5,
+      tailTableMedianRatio: 0.90,
       tailBuyInRatioCap: 1.00,
       tailMaxBigBlinds: 60,
       tailCooldownHands: 0,
@@ -30,6 +32,7 @@
       buyInRatioCap: 0.75,
       maxBigBlinds: 60,
       tailLeadThreshold: 5,
+      tailTableMedianRatio: 0.90,
       tailBuyInRatioCap: 1.00,
       tailMaxBigBlinds: 60,
       tailCooldownHands: 50,
@@ -140,6 +143,9 @@
       || telemetry.lastTailAppliedHandIndex === null
       || currentHandIndex - telemetry.lastTailAppliedHandIndex >= cooldownHands;
     const tailEligible = leadEligible && cooldownReady;
+    const tableMedianRatio = tailEligible
+      ? finite(activePolicy.tailTableMedianRatio, activePolicy.tableMedianRatio)
+      : finite(activePolicy.tableMedianRatio, 0.80);
     const buyInRatioCap = tailEligible
       ? finite(activePolicy.tailBuyInRatioCap, activePolicy.buyInRatioCap)
       : finite(activePolicy.buyInRatioCap, 0.75);
@@ -147,7 +153,7 @@
       ? Math.max(productionMaxBb, finite(activePolicy.tailMaxBigBlinds, productionMaxBb))
       : productionMaxBb;
     const rawTarget = Math.min(
-      tableMedian * finite(activePolicy.tableMedianRatio, 0.80),
+      tableMedian * tableMedianRatio,
       fullBuyIn * buyInRatioCap,
       bigBlind * maxBigBlinds,
     );
@@ -164,7 +170,7 @@
       strategy: `ooda-${activePolicy.id}`,
       experimentOnly: true,
       policyVersion: POLICY_VERSION,
-      tableMedianRatio: activePolicy.tableMedianRatio,
+      tableMedianRatio,
       buyInRatioCap,
       maxBigBlinds,
       tailLeadThreshold: Number.isFinite(threshold) ? threshold : null,
@@ -223,6 +229,7 @@
         entryBb: round(entryBb, 4),
         baselineEntryBb: round(plan?.baselineEntryBb, 4),
         tableMedianBb: round(tableMedianBb, 4),
+        tableMedianRatio: round(plan?.tableMedianRatio, 4),
         heroLeadRatio: round(plan?.heroLeadRatio, 6),
         leadEligible: Boolean(plan?.leadEligible),
         cooldownReady: Boolean(plan?.cooldownReady),
@@ -354,6 +361,7 @@
         productionMaxBigBlinds: finite(productionConfig?.maxBigBlinds, 60),
         maxBigBlinds: experimentMaxBb,
         tailLeadThreshold: activePolicy.tailLeadThreshold,
+        tailTableMedianRatio: activePolicy.tailTableMedianRatio,
         tailBuyInRatioCap: activePolicy.tailBuyInRatioCap,
         tailMaxBigBlinds: activePolicy.tailMaxBigBlinds,
         tailCooldownHands: activePolicy.tailCooldownHands,
