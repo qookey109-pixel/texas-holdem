@@ -14,6 +14,7 @@ const LAB_PARTS = [1, 2, 3, 4].map(index => resolve(`tests/support/ai-long-run-t
 const INTEGRITY_SCRIPT = resolve("tests/support/ai-long-run-telemetry-integrity-v2-9-4.js");
 const ADAPTER = resolve("tests/support/poker-economy-tail-floor-v1.js");
 const TIMEOUT_MS = Math.min(55 * 60_000, Math.max(120_000, HANDS * 2_500));
+const AI_STARTUP_SETTLE_MS = 1_150;
 
 function injectTelemetryHooks(source) {
   const replacements = [
@@ -42,13 +43,28 @@ test.describe("Poker Economy Tail Floor Benchmark V1", () => {
     await expect.poll(() => page.evaluate(() => window.AiOpeningBalanceV295?.version || ""), { timeout: 15_000 }).toBe("2.9.5");
     await expect.poll(() => page.evaluate(() => window.EconomyFoldDefenseV1?.version || ""), { timeout: 15_000 }).toBe("1.1.1");
 
+    // V2.9.2 / V2.9.4 / V2.9.5 schedule native startup callbacks at
+    // 680 / 760 / 900ms. Let those production callbacks finish before the
+    // long-run lab replaces timers with its virtual scheduler. Calling the
+    // wrapper refresh methods early can leave those original callbacks alive,
+    // allowing botAction to be re-wrapped at a non-deterministic simulated hand.
+    await page.waitForTimeout(AI_STARTUP_SETTLE_MS);
+    await expect.poll(() => page.evaluate(() => ({
+      v292: document.documentElement.dataset.aiTierStrategyV292 || "",
+      v294: document.documentElement.dataset.aiOpeningBalanceV294 || "",
+      v295: document.documentElement.dataset.aiOpeningBalanceV295 || "",
+      dispatcher: document.documentElement.dataset.aiActionDispatcherV1 || "",
+    })), { timeout: 15_000 }).toEqual({
+      v292: "ready",
+      v294: "ready",
+      v295: "ready",
+      dispatcher: "ready",
+    });
+
     const integritySource = await readFile(INTEGRITY_SCRIPT, "utf8");
     await page.addScriptTag({ content: integritySource });
     await page.evaluate(() => {
       window.EconomyFoldDefenseV1?.refresh?.();
-      window.AiTierStrategyV292?.refresh?.();
-      window.AiOpeningBalanceV294?.refresh?.();
-      window.AiOpeningBalanceV295?.refresh?.();
       window.AiTierStrategyV292?.resetRuntimeEvidence?.();
       window.AiOpeningBalanceV295?.resetRuntimeEvidence?.();
       window.AiLongRunTelemetryIntegrityV294?.reset?.();
