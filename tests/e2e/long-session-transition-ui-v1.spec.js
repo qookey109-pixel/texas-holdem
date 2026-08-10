@@ -182,7 +182,7 @@ test("mobile landscape keeps the complete decision surface visible and tappable"
   await loadUi(page);
   await page.evaluate(model => window.LongSessionTransitionUiPrototypeV1.render(model), moveUpModel());
 
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByRole("dialog", { name: "解鎖更高級別牌桌" });
   await expect(dialog).toBeVisible();
   const box = await dialog.boundingBox();
   expect(box).not.toBeNull();
