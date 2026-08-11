@@ -10,6 +10,7 @@
     "gameModeLabel",
     "tournamentModeButton",
     "geminiBossButton",
+    "longSessionModeButton",
     "tournamentSaveSource",
     "tournamentSaveMeta",
     "tournamentSaveStatus",
@@ -125,5 +126,18 @@
   script.src = "js/ai-wtsd-discipline-v2-9-5-r1.js?v=wtsd-recovery-r1";
   script.async = false;
   script.dataset.aiWtsdDisciplineV295R1 = "true";
+  document.body.appendChild(script);
+})();
+
+// Long Session is an explicit opt-in mode. The module itself waits until the
+// Tournament and replacement-economy wrappers are fully installed, then wraps
+// only public between-hand boundaries. It always boots disabled.
+(() => {
+  "use strict";
+  if (document.querySelector("script[data-long-session-mode-v1]")) return;
+  const script = document.createElement("script");
+  script.src = "js/long-session-mode-v1.js?v=long-session-opt-in-v1";
+  script.async = false;
+  script.dataset.longSessionModeV1 = "true";
   document.body.appendChild(script);
 })();
