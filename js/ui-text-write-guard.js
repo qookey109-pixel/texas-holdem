@@ -117,6 +117,58 @@
   };
 })();
 
+// Give the docked layout editor its own direct finish control so the player can
+// leave edit mode without reopening Settings or hunting for the top-bar toggle.
+(() => {
+  "use strict";
+
+  if (window.__layoutEditorDirectCloseV1) return;
+  window.__layoutEditorDirectCloseV1 = true;
+
+  function installDirectClose() {
+    const panel = document.querySelector("#layoutEditorPanel");
+    const head = panel?.querySelector(".layout-panel-head");
+    if (!panel || !head) return false;
+    if (head.querySelector("#layoutEditorCloseButton")) return true;
+
+    const dockLabel = head.querySelector(":scope > span");
+    if (dockLabel) dockLabel.hidden = true;
+
+    head.style.setProperty("position", "relative");
+    head.style.setProperty("padding-right", "44px", "important");
+
+    const button = document.createElement("button");
+    button.id = "layoutEditorCloseButton";
+    button.type = "button";
+    button.className = "icon-button layout-editor-close-button";
+    button.textContent = "×";
+    button.title = "完成編輯";
+    button.setAttribute("aria-label", "完成版面編輯");
+    button.style.position = "absolute";
+    button.style.top = "8px";
+    button.style.right = "8px";
+    button.style.zIndex = "2";
+
+    button.addEventListener("click", () => {
+      const layoutToggle = document.querySelector("#layoutButton");
+      if (layoutToggle?.getAttribute("aria-pressed") === "true") {
+        layoutToggle.click();
+      }
+    });
+
+    head.appendChild(button);
+    return true;
+  }
+
+  if (!installDirectClose()) {
+    const observer = new MutationObserver(() => {
+      if (!installDirectClose()) return;
+      observer.disconnect();
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+  }
+})();
+
 // Load the public-information-only late-street discipline recovery after the
 // existing V2.9.5 strategy chain becomes available.
 (() => {
