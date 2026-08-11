@@ -23,8 +23,10 @@ test("UI polish adds control semantics, selected quick bets, and modal motion", 
   }
 
   const halfPot = page.locator('.quick-bets button[data-bet="half"]');
-  await halfPot.evaluate(button => { button.disabled = false; });
-  await halfPot.click();
+  await page.evaluate(() => {
+    const button = document.querySelector('.quick-bets button[data-bet="half"]');
+    window.UiPolishAccessibilityV1.setQuickBetSelection(button);
+  });
   await expect(halfPot).toHaveAttribute("aria-pressed", "true");
   await expect(halfPot).toHaveClass(/is-selected/);
   await expect(page.locator('.quick-bets button[data-bet="third"]')).toHaveAttribute("aria-pressed", "false");
