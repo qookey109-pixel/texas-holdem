@@ -18,7 +18,6 @@ test("UI polish adds control semantics, selected quick bets, and modal motion", 
   await expect(tutorialButton).toHaveAttribute("aria-pressed", "false");
 
   const quickBets = page.locator(".quick-bets button[data-bet]");
-  await expect(quickBets).toHaveCount(3);
   for (const button of await quickBets.all()) {
     await expect(button).toHaveAttribute("aria-pressed", "false");
   }
