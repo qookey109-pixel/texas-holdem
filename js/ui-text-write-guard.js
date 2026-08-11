@@ -129,6 +129,18 @@
   document.body.appendChild(script);
 })();
 
+// Add low-risk UI motion, reduced-motion support, and control semantics without
+// touching poker, AI, economy, or audio behavior.
+(() => {
+  "use strict";
+  if (document.querySelector("script[data-ui-polish-accessibility-v1]")) return;
+  const script = document.createElement("script");
+  script.src = "js/ui-polish-accessibility-v1.js?v=ui-polish-a11y-v1";
+  script.async = false;
+  script.dataset.uiPolishAccessibilityV1 = "true";
+  document.body.appendChild(script);
+})();
+
 // Load the public-information-only late-street discipline recovery after the
 // existing V2.9.5 strategy chain becomes available.
 (() => {
