@@ -117,6 +117,18 @@
   };
 })();
 
+// Keep the layout editor compact: save stays visible while secondary tools live
+// behind a small disclosure control. This changes presentation only.
+(() => {
+  "use strict";
+  if (document.querySelector("script[data-layout-editor-compact-tools-v1]")) return;
+  const script = document.createElement("script");
+  script.src = "js/layout-editor-compact-tools-v1.js?v=compact-tools-v1";
+  script.async = false;
+  script.dataset.layoutEditorCompactToolsV1 = "true";
+  document.body.appendChild(script);
+})();
+
 // Load the public-information-only late-street discipline recovery after the
 // existing V2.9.5 strategy chain becomes available.
 (() => {
