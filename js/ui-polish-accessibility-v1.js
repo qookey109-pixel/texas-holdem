@@ -7,6 +7,8 @@
   const VERSION = "1.0.0";
   const CLOSE_MS = 150;
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let quickBetStateInstalled = false;
+  let overlayCloseInstalled = false;
 
   function installStyles() {
     if (document.getElementById("uiPolishAccessibilityStylesV1")) return;
@@ -111,13 +113,15 @@
   }
 
   function installQuickBetState() {
+    if (quickBetStateInstalled) return;
     const group = document.querySelector(".quick-bets");
     const slider = document.querySelector("#raiseAmount");
     if (!group) return;
 
+    quickBetStateInstalled = true;
     setQuickBetSelection();
     group.addEventListener("click", event => {
-      const button = event.target.closest("button[data-bet]");
+      const button = event.target instanceof Element ? event.target.closest("button[data-bet]") : null;
       if (!button || button.disabled) return;
       setQuickBetSelection(button);
     });
@@ -158,24 +162,59 @@
     }, CLOSE_MS);
   }
 
-  function installOverlayClosePolish() {
-    if (typeof window.closeTutorial === "function" && !window.closeTutorial.__uiPolishV1) {
-      const originalCloseTutorial = window.closeTutorial;
-      const wrappedCloseTutorial = function(...args) {
-        animateClose(document.querySelector("#tutorialOverlay"), () => originalCloseTutorial.apply(this, args));
-      };
-      wrappedCloseTutorial.__uiPolishV1 = true;
-      window.closeTutorial = wrappedCloseTutorial;
-    }
+  function consumeCloseEvent(event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
 
-    if (typeof window.closeSessionSummaryAndRestart === "function" && !window.closeSessionSummaryAndRestart.__uiPolishV1) {
-      const originalCloseSummary = window.closeSessionSummaryAndRestart;
-      const wrappedCloseSummary = function(...args) {
-        animateClose(document.querySelector("#sessionSummaryOverlay"), () => originalCloseSummary.apply(this, args));
-      };
-      wrappedCloseSummary.__uiPolishV1 = true;
-      window.closeSessionSummaryAndRestart = wrappedCloseSummary;
-    }
+  function installOverlayClosePolish() {
+    if (overlayCloseInstalled) return;
+    if (typeof window.closeTutorial !== "function" || typeof window.closeSessionSummaryAndRestart !== "function") return;
+
+    overlayCloseInstalled = true;
+    const closeTutorialNow = window.closeTutorial;
+    const closeSummaryNow = window.closeSessionSummaryAndRestart;
+
+    document.addEventListener("click", event => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target) return;
+
+      const tutorialOverlay = document.querySelector("#tutorialOverlay");
+      if (tutorialOverlay && !tutorialOverlay.hidden) {
+        const tutorialClose = target.closest("#tutorialCloseButton");
+        if (tutorialClose || target === tutorialOverlay) {
+          consumeCloseEvent(event);
+          animateClose(tutorialOverlay, () => closeTutorialNow());
+          return;
+        }
+      }
+
+      const summaryOverlay = document.querySelector("#sessionSummaryOverlay");
+      if (summaryOverlay && !summaryOverlay.hidden) {
+        const summaryClose = target.closest("#sessionSummaryClose,[data-session-restart]");
+        if (summaryClose || target === summaryOverlay) {
+          consumeCloseEvent(event);
+          animateClose(summaryOverlay, () => closeSummaryNow());
+        }
+      }
+    }, true);
+
+    document.addEventListener("keydown", event => {
+      if (event.key !== "Escape") return;
+
+      const tutorialOverlay = document.querySelector("#tutorialOverlay");
+      if (tutorialOverlay && !tutorialOverlay.hidden) {
+        consumeCloseEvent(event);
+        animateClose(tutorialOverlay, () => closeTutorialNow());
+        return;
+      }
+
+      const summaryOverlay = document.querySelector("#sessionSummaryOverlay");
+      if (summaryOverlay && !summaryOverlay.hidden) {
+        consumeCloseEvent(event);
+        animateClose(summaryOverlay, () => closeSummaryNow());
+      }
+    }, true);
   }
 
   function install() {
