@@ -142,6 +142,18 @@
   document.body.appendChild(script);
 })();
 
+// Keep the Long Session implementation available internally while hiding its
+// desktop and mobile player-facing entry points until the mode is revisited.
+(() => {
+  "use strict";
+  if (document.querySelector("script[data-long-session-entry-visibility-v1]")) return;
+  const script = document.createElement("script");
+  script.src = "js/long-session-entry-visibility-v1.js?v=hidden-entry-v1";
+  script.async = false;
+  script.dataset.longSessionEntryVisibilityV1 = "true";
+  document.body.appendChild(script);
+})();
+
 // Preserve compatibility contracts owned by wrappers that Long Session sits on
 // top of. Long Session delegates to the production G1 blind wrapper while OFF,
 // so the outer function must continue exposing that capability marker. When
