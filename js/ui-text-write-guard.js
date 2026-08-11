@@ -154,22 +154,10 @@
   window.__longSessionCompatibilityBridgeV1 = true;
 
   const LONG_SESSION_GEMINI_TITLE = "Long Session 使用固定普通 AI 牌桌；請先結束 Long Session";
-  const MOBILE_TOUCH_STYLE_ID = "longSessionMobileTouchTargetStyleV1";
   const RETRY_MS = 25;
   const RETRY_LIMIT = 400;
   let retryCount = 0;
   let bodyObserver = null;
-
-  function ensureLongSessionMobileTouchTarget() {
-    if (document.getElementById(MOBILE_TOUCH_STYLE_ID)) return;
-    const style = document.createElement("style");
-    style.id = MOBILE_TOUCH_STYLE_ID;
-    // The mobile shell applies a tiny transformed scale on compact landscape
-    // viewports. A 45px CSS floor keeps the rendered Long Session tap target
-    // safely at or above the 44px acceptance threshold in Chromium and WebKit.
-    style.textContent = "[data-long-session-mobile-toggle]{min-height:45px;}";
-    document.head.appendChild(style);
-  }
 
   function longSessionOwnsGeminiControl() {
     const snapshot = window.LongSessionModeV1?.snapshot?.();
@@ -215,13 +203,11 @@
       return false;
     }
 
-    ensureLongSessionMobileTouchTarget();
     preserveWrapperMetadata();
     restoreGeminiControlOwnership();
 
     if (!bodyObserver) {
       bodyObserver = new MutationObserver(() => {
-        ensureLongSessionMobileTouchTarget();
         preserveWrapperMetadata();
         restoreGeminiControlOwnership();
       });
@@ -233,7 +219,6 @@
         "#longSessionModeButton,[data-long-session-mobile-toggle],[data-long-session-action]",
       )) return;
       window.setTimeout(() => {
-        ensureLongSessionMobileTouchTarget();
         preserveWrapperMetadata();
         restoreGeminiControlOwnership();
       }, 0);
