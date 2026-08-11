@@ -7,6 +7,10 @@ async function loadAt(page, width, height) {
     () => page.evaluate(() => window.LongSessionModeV1?.isInstalled?.() === true),
     { timeout: 12_000 },
   ).toBe(true);
+  await expect.poll(
+    () => page.evaluate(() => window.LongSessionEntryVisibilityV1?.version || ""),
+    { timeout: 5_000 },
+  ).toBe("1.0.0");
   await expect(page.locator("html")).toHaveAttribute("data-layout-ready", "true");
 }
 
@@ -86,7 +90,7 @@ async function assertDecisionFits(page) {
   expect(secondaryBox.height).toBeGreaterThanOrEqual(44);
 }
 
-test("desktop UI can enter Long Session, move up, and return to Normal", async ({ page }, testInfo) => {
+test("desktop hides Long Session entry while the retained internal flow still works", async ({ page }, testInfo) => {
   await loadAt(page, 1536, 900);
   await freezeAtCompletedHand(page);
 
@@ -96,10 +100,11 @@ test("desktop UI can enter Long Session, move up, and return to Normal", async (
   await expect(settingsPanel).toBeVisible();
 
   const longButton = settingsPanel.locator("#longSessionModeButton");
-  await expect(longButton).toBeVisible();
-  await expectInsideViewport(page, longButton);
-  await longButton.click();
+  await expect(longButton).toBeHidden();
+  await expect(longButton).toHaveAttribute("aria-hidden", "true");
+  await expect(longButton).toHaveAttribute("tabindex", "-1");
 
+  await page.evaluate(() => window.LongSessionModeV1.enableNow({ restart: false }));
   await expect.poll(() => page.evaluate(() => window.LongSessionModeV1.isActive())).toBe(true);
   await expect(page.locator("#longSessionStatusBadge")).toBeVisible();
   await expect(page.locator("#longSessionStatusBadge")).toContainText("10/20");
@@ -107,7 +112,7 @@ test("desktop UI can enter Long Session, move up, and return to Normal", async (
 
   await forceMoveUpDecision(page);
   await assertDecisionFits(page);
-  await testInfo.attach("desktop-long-session-move-up", {
+  await testInfo.attach("desktop-long-session-hidden-entry-move-up", {
     body: await page.screenshot(),
     contentType: "image/png",
   });
@@ -117,9 +122,7 @@ test("desktop UI can enter Long Session, move up, and return to Normal", async (
   await expect(page.locator("#longSessionStatusBadge")).toContainText("20/40");
 
   await freezeAtCompletedHand(page);
-  await settingsButton.click();
-  await expect(settingsPanel).toBeVisible();
-  await settingsPanel.locator("#longSessionModeButton").click();
+  await page.evaluate(() => window.LongSessionModeV1.disableNow({ restart: true }));
   await expect.poll(() => page.evaluate(() => window.LongSessionModeV1.isActive())).toBe(false);
   await expect(page.locator("#longSessionStatusBadge")).toBeHidden();
   await expect.poll(() => page.evaluate(() => ({ ...state.blindLevel }))).toMatchObject({
@@ -129,7 +132,7 @@ test("desktop UI can enter Long Session, move up, and return to Normal", async (
   });
 });
 
-test("mobile landscape UI keeps Long Session controls and move-up decision tappable", async ({ page }, testInfo) => {
+test("mobile landscape hides Long Session entry while retained decisions stay usable internally", async ({ page }, testInfo) => {
   await loadAt(page, 844, 390);
   await expect(page.locator("body")).toHaveClass(/is-mobile-v1-landscape/);
   await expect(page.locator(".app-shell")).toBeVisible();
@@ -139,18 +142,18 @@ test("mobile landscape UI keeps Long Session controls and move-up decision tappa
   await ensureMobileSettingsDrawerOpen(page, settingsTab);
 
   const mobileToggle = page.locator(".mobile-v1-settings-grid [data-long-session-mobile-toggle]");
-  await expect(mobileToggle).toBeVisible();
-  const toggleBox = await expectInsideViewport(page, mobileToggle);
-  expect(toggleBox.height).toBeGreaterThanOrEqual(44);
-  await mobileToggle.click();
+  await expect(mobileToggle).toBeHidden();
+  await expect(mobileToggle).toHaveAttribute("aria-hidden", "true");
+  await expect(mobileToggle).toHaveAttribute("tabindex", "-1");
 
+  await page.evaluate(() => window.LongSessionModeV1.enableNow({ restart: false }));
   await expect.poll(() => page.evaluate(() => window.LongSessionModeV1.isActive())).toBe(true);
   await expect(page.locator("body")).toHaveClass(/is-mobile-v1-landscape/);
   await expect(page.locator(".app-shell")).toBeVisible();
 
   await forceMoveUpDecision(page);
   await assertDecisionFits(page);
-  await testInfo.attach("mobile-landscape-long-session-move-up", {
+  await testInfo.attach("mobile-landscape-long-session-hidden-entry-move-up", {
     body: await page.screenshot(),
     contentType: "image/png",
   });
@@ -160,8 +163,7 @@ test("mobile landscape UI keeps Long Session controls and move-up decision tappa
   await expect(page.locator("#longSessionStatusBadge")).toContainText("20/40");
 
   await freezeAtCompletedHand(page);
-  await ensureMobileSettingsDrawerOpen(page, settingsTab);
-  await page.locator(".mobile-v1-settings-grid [data-long-session-mobile-toggle]").click();
+  await page.evaluate(() => window.LongSessionModeV1.disableNow({ restart: true }));
   await expect.poll(() => page.evaluate(() => window.LongSessionModeV1.isActive())).toBe(false);
   await expect(page.locator("#longSessionStatusBadge")).toBeHidden();
 });
