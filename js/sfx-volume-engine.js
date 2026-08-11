@@ -10,6 +10,7 @@
   let output = null;
   let noiseBuffer = null;
   let volume = readVolume();
+  let muted = false;
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -34,13 +35,17 @@
     }
   }
 
+  function targetOutputGain() {
+    return muted ? 0.0001 : Math.max(0.0001, volume);
+  }
+
   function getContext() {
     if (!ctx) {
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       if (!AudioContextClass) throw new Error("Web Audio API is not supported.");
       ctx = new AudioContextClass();
       output = ctx.createGain();
-      output.gain.value = Math.max(0.0001, volume);
+      output.gain.value = targetOutputGain();
       output.connect(ctx.destination);
     }
     if (ctx.state === "suspended") ctx.resume().catch(() => {});
@@ -52,7 +57,7 @@
     const now = ctx.currentTime;
     output.gain.cancelScheduledValues(now);
     output.gain.setValueAtTime(Math.max(0.0001, output.gain.value), now);
-    output.gain.exponentialRampToValueAtTime(Math.max(0.0001, volume), now + duration);
+    output.gain.exponentialRampToValueAtTime(targetOutputGain(), now + duration);
   }
 
   function track(source, nodes = []) {
@@ -174,6 +179,14 @@
     });
   }
 
+  function cleanupSfx() {
+    activeSources.forEach(source => {
+      try { source.stop(); } catch (_) {}
+      try { source.disconnect(); } catch (_) {}
+    });
+    activeSources.clear();
+  }
+
   Object.assign(Audio, {
     deal() { cardSlide(0, 1); },
     streetDeal() { [0, 0.09, 0.18].forEach((delay, index) => cardSlide(delay, 0.95 - index * 0.05)); },
@@ -207,12 +220,24 @@
       return volume;
     },
     getSfxVolume() { return volume; },
-    cleanupSfx() {
-      activeSources.forEach(source => {
-        try { source.stop(); } catch (_) {}
-        try { source.disconnect(); } catch (_) {}
-      });
-      activeSources.clear();
+    setMuted(value) {
+      muted = Boolean(value);
+      rampOutput();
+      return muted;
     },
+    cleanupSfx,
+    cleanup: cleanupSfx,
   });
+
+  window.SfxVolumeEngineV1 = {
+    version: "1.1.0",
+    status() {
+      return {
+        muted,
+        volume,
+        activeSourceCount: activeSources.size,
+        contextReady: Boolean(ctx),
+      };
+    },
+  };
 })();
