@@ -60,6 +60,7 @@ jobs:
           tests/e2e/auth-entry-loader.spec.js
           tests/e2e/auth-entry-v2.spec.js
           tests/e2e/auth-entry-video-playback.spec.js
+          tests/e2e/audio-mute-architecture-v1.spec.js
           tests/e2e/ai-opening-balance-v2-9-4.spec.js
           tests/e2e/ai-opening-balance-v2-9-5.spec.js
           tests/e2e/ai-provider-client.spec.js
