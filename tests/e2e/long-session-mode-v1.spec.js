@@ -21,12 +21,17 @@ test("Long Session boots OFF and preserves production Normal economy", async ({ 
     }),
     normalConfig: { ...window.ReplacementStackBalance.normalConfig },
     stateMode: state.gameMode || "normal",
+    blindMetadata: {
+      tournamentEconomyG1: blindLevelForHand.__tournamentEconomyG1 === true,
+      longSessionModeV1: blindLevelForHand.__longSessionModeV1 === true,
+    },
   }));
 
   expect(result.active).toBe(false);
   expect(result.snapshot.session).toBeNull();
   expect(result.buttonPressed).toBe("false");
   expect(result.stateMode).toBe("normal");
+  expect(result.blindMetadata).toEqual({ tournamentEconomyG1: true, longSessionModeV1: true });
   expect(result.levels).toEqual([
     [10, 20, 2000, false],
     [20, 40, 4500, false],
@@ -201,5 +206,27 @@ test("disabling Long Session restores Normal blind schedule without touching its
     buyInRatioCap: 0.75,
     softFloorBigBlinds: 12,
     maxBigBlinds: 60,
+  });
+});
+
+test("disabling Long Session releases Gemini control-state ownership", async ({ page }) => {
+  await loadLongSession(page);
+
+  await page.evaluate(() => window.LongSessionModeV1.enableNow({ restart: true }));
+  await expect.poll(() => page.evaluate(() => ({
+    disabled: document.querySelector("#geminiBossButton")?.disabled,
+    title: document.querySelector("#geminiBossButton")?.title,
+  }))).toEqual({
+    disabled: true,
+    title: "Long Session 使用固定普通 AI 牌桌；請先結束 Long Session",
+  });
+
+  await page.evaluate(() => window.LongSessionModeV1.disableNow({ restart: true }));
+  await expect.poll(() => page.evaluate(() => ({
+    disabled: document.querySelector("#geminiBossButton")?.disabled,
+    title: document.querySelector("#geminiBossButton")?.title,
+  }))).toEqual({
+    disabled: false,
+    title: "",
   });
 });
