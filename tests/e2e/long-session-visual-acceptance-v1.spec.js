@@ -35,6 +35,14 @@ async function waitForMobileDrawerSettled(page) {
   ).toBe(true);
 }
 
+async function ensureMobileSettingsDrawerOpen(page, settingsTab) {
+  const body = page.locator("body");
+  const alreadyOpen = await body.evaluate(element => element.classList.contains("mobile-v1-drawer-open"));
+  if (!alreadyOpen) await settingsTab.click();
+  await expect(body).toHaveClass(/mobile-v1-drawer-open/);
+  await waitForMobileDrawerSettled(page);
+}
+
 async function freezeAtCompletedHand(page) {
   await page.evaluate(() => {
     window.AiTimingController?.clear?.();
@@ -128,9 +136,7 @@ test("mobile landscape UI keeps Long Session controls and move-up decision tappa
   await freezeAtCompletedHand(page);
 
   const settingsTab = page.locator('[data-mobile-panel="settings"]');
-  await settingsTab.click();
-  await expect(page.locator("body")).toHaveClass(/mobile-v1-drawer-open/);
-  await waitForMobileDrawerSettled(page);
+  await ensureMobileSettingsDrawerOpen(page, settingsTab);
 
   const mobileToggle = page.locator(".mobile-v1-settings-grid [data-long-session-mobile-toggle]");
   await expect(mobileToggle).toBeVisible();
@@ -154,9 +160,7 @@ test("mobile landscape UI keeps Long Session controls and move-up decision tappa
   await expect(page.locator("#longSessionStatusBadge")).toContainText("20/40");
 
   await freezeAtCompletedHand(page);
-  await settingsTab.click();
-  await expect(page.locator("body")).toHaveClass(/mobile-v1-drawer-open/);
-  await waitForMobileDrawerSettled(page);
+  await ensureMobileSettingsDrawerOpen(page, settingsTab);
   await page.locator(".mobile-v1-settings-grid [data-long-session-mobile-toggle]").click();
   await expect.poll(() => page.evaluate(() => window.LongSessionModeV1.isActive())).toBe(false);
   await expect(page.locator("#longSessionStatusBadge")).toBeHidden();
