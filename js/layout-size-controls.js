@@ -264,6 +264,30 @@
         overscroll-behavior: contain;
         scrollbar-gutter: stable;
       }
+      html body .side-rail .layout-panel-head {
+        position: relative !important;
+        padding-right: 38px !important;
+      }
+      html body .side-rail .layout-panel-head > span {
+        display: none !important;
+      }
+      html body .side-rail .layout-editor-close {
+        position: absolute !important;
+        top: 8px;
+        right: 8px;
+        width: 28px;
+        height: 28px;
+        min-width: 28px;
+        min-height: 28px;
+        padding: 0;
+        display: grid;
+        place-items: center;
+        border-radius: 8px;
+        font-size: 1.15rem;
+        line-height: 1;
+        cursor: pointer;
+        z-index: 2;
+      }
       .layout-size-controls {
         display: grid;
         gap: 7px;
@@ -326,6 +350,30 @@
       </label>`;
   }
 
+  function installCloseControl() {
+    const panel = document.querySelector("#layoutEditorPanel");
+    const head = panel?.querySelector(".layout-panel-head");
+    if (!panel || !head || head.querySelector("#layoutEditorCloseButton")) return;
+
+    const button = document.createElement("button");
+    button.id = "layoutEditorCloseButton";
+    button.className = "layout-editor-close";
+    button.type = "button";
+    button.textContent = "×";
+    button.setAttribute("aria-label", "完成版面編輯");
+    button.title = "完成編輯";
+    button.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof setLayoutEditing === "function") {
+        setLayoutEditing(false);
+      } else {
+        panel.hidden = true;
+      }
+    });
+    head.appendChild(button);
+  }
+
   function installControls() {
     const panel = document.querySelector("#layoutEditorPanel");
     if (!panel || panel.querySelector("#layoutSizeControls")) return;
@@ -373,6 +421,7 @@
     installStyles();
     applySizes();
     installControls();
+    installCloseControl();
     observeSideRailEditorState();
   }
 
