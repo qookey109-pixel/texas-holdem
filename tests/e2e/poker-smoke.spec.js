@@ -122,6 +122,8 @@ test("核心牌局與主要面板可正常操作", async ({ page }) => {
   await expect.poll(() => page.evaluate(() => LayoutCornerResize.getPotScale())).toBeGreaterThan(startPotScale);
   await expect.poll(() => page.locator("[data-layout-size='potScale']").inputValue()).not.toBe("70");
 
+  await page.locator("#layoutEditorMoreToolsToggle").click();
+  await expect(page.locator("#resetLayoutButton")).toBeVisible();
   await page.locator("#resetLayoutButton").click();
   await expect.poll(() => page.evaluate(() => LayoutCornerResize.getPotScale())).toBe(70);
   await expect.poll(() => page.locator("[data-layout-size='potScale']").inputValue()).toBe("70");
