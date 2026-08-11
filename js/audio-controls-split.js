@@ -5,12 +5,8 @@
   if (typeof Audio !== "object" || !Audio) return;
 
   const BGM_DEFAULT_MIGRATION_KEY = "texasHoldemBgmDefault60V1";
-  const originalCleanup = typeof Audio.cleanup === "function" ? Audio.cleanup.bind(Audio) : null;
   const portraitMedia = window.matchMedia("(max-width: 900px) and (orientation: portrait)");
   let resumeBgmAfterPortrait = false;
-
-  Audio.setMuted = value => Boolean(value);
-  Audio.cleanup = () => {};
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -328,8 +324,7 @@
   else portraitMedia.addListener(handlePortraitChange);
 
   window.addEventListener("pagehide", () => {
-    try { Audio.cleanupSfx?.(); } catch (_) {}
-    try { originalCleanup?.(); } catch (_) {}
+    try { Audio.cleanup?.(); } catch (_) {}
   }, { once: true });
 
   document.readyState === "loading"
