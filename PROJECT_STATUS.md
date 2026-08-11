@@ -1,13 +1,13 @@
 # Texas Hold'em — Current Project Status
 
-> 更新：2026-08-09（Asia/Taipei）
+> 更新：2026-08-11（Asia/Taipei）
 > 正式 Repository：`qookey109-pixel/texas-holdem`
 > 正式發布：`main` / repository root / GitHub Pages
 
 ## 目前基準
 
-- 本輪 Production Smoke 增強前正式基準：`b080e30e6e632648c64919453add41f1567bb85e`（PR #161）。
-- **每次開始工作仍須重新讀取** `main` 最新 SHA、目前 open PR 與 CI；上面的 SHA 只記錄本輪檢查起點，不可永久當成最新基準。
+- 目前正式 `main`：`5507f28ee6139bf9946f340bc47aab5aaede809c`（PR #196）。
+- 2026-08-11 本次狀態更新時沒有 open PR；每次開始工作仍須重新讀取最新 `main`、open PR 與 CI，不可把這個 SHA 永久當成最新基準。
 - 核心牌局、下注、攤牌、教學、設定、版面、登入入口、挑戰賽與後端整合均維持在既有架構內。
 - 公平 Boss 保護維持啟用；Oracle / Chronos 不應取得未公開底牌、未發公共牌或未來牌序。
 - Gemini 仍走後端整合，不把服務端金鑰放進前端。
@@ -61,21 +61,35 @@ PR #158 已把後進角色補位提高，避免新角色一進桌就被迫短碼
 
 這套 G1 與一般模式 economy 分開，不應互相覆蓋。
 
+## 近期 UI / Reliability 收尾
+
+2026-08-11 已完成下列低風險收尾，均未改動 AI V2.9.5 或籌碼經濟：
+
+- PR #191：版面編輯器加入右上角 `×` 直接完成編輯。
+- PR #192：玩家 UI 暫時隱藏 Long Session 入口，但保留底層模式與 API。
+- PR #193：版面編輯器次要工具收進「更多工具」，保留既有能力。
+- PR #194：快捷下注 selected / `aria-pressed`、reduced-motion 與 UI 動畫 / accessibility polish。
+- PR #195：加固分離式 Audio mute fallback；`audio-recovery.js` 載入失敗時 replacement SFX 仍能正確靜音與 cleanup。
+- PR #196：只調整 Playwright regression，消除 quick-bet accessibility 測試受真實牌局重繪影響的 flaky；沒有產品行為變更。
+
+上述節點完成後，不應再為相同問題重做新實作；後續若有回歸，先以 CI log / artifact / diff 證據定位根因。
+
 ## 測試基準
 
-本輪 Production Smoke 增強前的 `main`（`b080e30e6e632648c64919453add41f1567bb85e`）已確認：
+目前正式 `main`（`5507f28ee6139bf9946f340bc47aab5aaede809c`）已確認：
 
 - Static site check：PASS
-- Browser E2E / Chromium：PASS
-- Browser E2E / WebKit：PASS
+- Browser E2E / Chromium full：PASS
+- Browser E2E / WebKit full：PASS
 - Production smoke：PASS
 - GitHub Pages deployment：PASS
+- Production smoke 的 local production contracts、Pages propagation 與 non-destructive live smoke：PASS
 - PR #158 對 G1 80BB floor 有專用 regression test
 - Poker state stress：正式排程為**每週日 03:30（台灣時間）**，不是每日長跑
 
 `validate-manifest-runtime.mjs` 由 `npm run validate` 自動比對正式 AI loader 與 manifest；Production Smoke 則進一步驗證本機契約與正式 Pages 上的 loader / manifest 確實同時包含 V2.7 core、V2.9.5 runtime 與最後 dispatcher。
 
-任何本輪變更仍須重新通過 Static + Browser E2E；合併後還必須確認 Production Smoke 與 Pages deployment 為綠色，才算正式驗收完成。
+任何後續變更仍須重新通過 Static + Browser E2E；合併後還必須確認 Production Smoke 與 Pages deployment 為綠色，才算正式驗收完成。
 
 ## 文件規則
 
