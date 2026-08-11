@@ -1,0 +1,68 @@
+name: Long Session Mode V1
+
+on:
+  pull_request:
+    paths:
+      - "js/long-session-mode-v1.js"
+      - "js/ui-text-write-guard.js"
+      - "tests/e2e/long-session-mode-v1.spec.js"
+      - "tests/e2e/long-session-visual-acceptance-v1.spec.js"
+      - ".github/workflows/long-session-mode-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: long-session-v1-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: long-session (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser:
+          - chromium
+          - webkit
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install locked test dependencies
+        run: npm ci
+
+      - name: Syntax check Long Session runtime
+        run: node --check js/long-session-mode-v1.js
+
+      - name: Install ${{ matrix.browser }}
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Run Long Session production E2E
+        run: >-
+          npx playwright test
+          tests/e2e/long-session-mode-v1.spec.js
+          tests/e2e/long-session-visual-acceptance-v1.spec.js
+          --project=${{ matrix.browser }}
+          --retries=0
+
+      - name: Upload Long Session acceptance evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: long-session-v1-${{ matrix.browser }}-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
