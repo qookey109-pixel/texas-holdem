@@ -10,13 +10,9 @@ on:
   workflow_dispatch:
     inputs:
       hands:
-        description: "Completed-hand opportunities"
+        description: "Completed-hand opportunities per seed"
         required: false
-        default: "12"
-      seed:
-        description: "Deterministic seed"
-        required: false
-        default: "1279545165"
+        default: "30"
 
 permissions:
   contents: read
@@ -30,8 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      LONG_SESSION_PACING_HANDS: ${{ inputs.hands || '12' }}
-      LONG_SESSION_PACING_SEED: ${{ inputs.seed || '1279545165' }}
+      LONG_SESSION_PACING_HANDS: ${{ inputs.hands || '30' }}
 
     steps:
       - name: Check out repository
@@ -49,43 +44,51 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Run fixed-seed full-hand telemetry
-        run: >-
-          npx playwright test
-          tests/e2e/long-session-full-hand-pacing-telemetry-v1.spec.js
-          --project=chromium
-          --retries=0
+      - name: Run fixed-seed full-hand telemetry matrix
+        shell: bash
+        run: |
+          for SEED in 1279545165 1279545166 1279545167 1279545168; do
+            echo "=== Long Session pacing seed ${SEED} ==="
+            LONG_SESSION_PACING_SEED="$SEED" \
+              npx playwright test \
+              tests/e2e/long-session-full-hand-pacing-telemetry-v1.spec.js \
+              --project=chromium \
+              --retries=0 \
+              --output="test-results/seed-${SEED}"
+          done
 
-      - name: Print pacing evidence summary
+      - name: Print pacing evidence summaries
         if: ${{ success() }}
         shell: bash
         run: |
-          REPORT="$(find test-results -name 'long-session-full-hand-pacing-telemetry-v1.json' -print -quit)"
-          test -n "$REPORT"
-          node - "$REPORT" <<'NODE'
+          mapfile -t REPORTS < <(find test-results -name 'long-session-full-hand-pacing-telemetry-v1.json' | sort)
+          test "${#REPORTS[@]}" -eq 4
+          node - "${REPORTS[@]}" <<'NODE'
           const fs = require('node:fs');
-          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-          const summary = {
-            schemaVersion: report.schemaVersion,
-            evidenceKind: report.evidenceKind,
-            interpretation: report.interpretation,
-            notNormalBugEvidence: report.notNormalBugEvidence,
-            seed: report.seed,
-            fingerprint: report.deterministicFingerprint,
-            configuredHands: report.configuredHands,
-            handsCompleted: report.handsCompleted,
-            sessionEnded: report.sessionEnded,
-            heroBb100: report.pacing?.heroBb100,
-            bustFrequency: report.pacing?.bustFrequency,
-            reentryFrequency: report.pacing?.reentryFrequency,
-            activeStackRisk: report.pacing?.activeStackRisk,
-            progression: report.pacing?.progression,
-            actionCounts: report.actionCounts,
-            fairness: report.fairness,
-            failures: report.failures,
-            schedulerErrors: report.schedulerErrors,
-          };
-          console.log(`LONG_SESSION_PACING_REPORT ${JSON.stringify(summary)}`);
+          const reports = process.argv.slice(2).map(path => JSON.parse(fs.readFileSync(path, 'utf8')));
+          for (const report of reports.sort((a, b) => a.seed - b.seed)) {
+            const summary = {
+              schemaVersion: report.schemaVersion,
+              evidenceKind: report.evidenceKind,
+              interpretation: report.interpretation,
+              notNormalBugEvidence: report.notNormalBugEvidence,
+              seed: report.seed,
+              fingerprint: report.deterministicFingerprint,
+              configuredHands: report.configuredHands,
+              handsCompleted: report.handsCompleted,
+              sessionEnded: report.sessionEnded,
+              heroBb100: report.pacing?.heroBb100,
+              bustFrequency: report.pacing?.bustFrequency,
+              reentryFrequency: report.pacing?.reentryFrequency,
+              activeStackRisk: report.pacing?.activeStackRisk,
+              progression: report.pacing?.progression,
+              actionCounts: report.actionCounts,
+              fairness: report.fairness,
+              failures: report.failures,
+              schedulerErrors: report.schedulerErrors,
+            };
+            console.log(`LONG_SESSION_PACING_REPORT ${JSON.stringify(summary)}`);
+          }
           NODE
 
       - name: Upload pacing evidence
