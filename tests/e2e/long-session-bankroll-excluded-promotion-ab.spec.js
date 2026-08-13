@@ -23,6 +23,7 @@ test.describe("Long Session bankroll-excluded promotion A/B", () => {
         cwd: process.cwd(),
         env: {
           ...process.env,
+          CI: "",
           LONG_SESSION_BALANCED_HANDS: "60",
           VARIANT_LABEL: arm.label,
           PROMOTION_RULE: arm.rule,
