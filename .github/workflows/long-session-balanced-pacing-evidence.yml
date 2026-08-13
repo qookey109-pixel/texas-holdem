@@ -1,0 +1,151 @@
+name: Long Session balanced pacing evidence
+
+on:
+  pull_request:
+    paths:
+      - "tests/e2e/long-session-balanced-pacing-evidence-v1.spec.js"
+      - "tests/support/long-session-pacing-metrics-v1.js"
+      - "js/long-session-mode-v1.js"
+      - ".github/workflows/long-session-balanced-pacing-evidence.yml"
+  workflow_dispatch:
+    inputs:
+      hands:
+        description: "Completed-hand opportunities per seed"
+        required: false
+        default: "60"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: long-session-balanced-pacing-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      LONG_SESSION_BALANCED_HANDS: ${{ inputs.hands || '60' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install locked test dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Prove same-seed reproducibility
+        shell: bash
+        run: |
+          for LABEL in a b; do
+            echo "=== Reproducibility seed 1279545165 / ${LABEL} ==="
+            LONG_SESSION_BALANCED_SEED="1279545165" \
+              npx playwright test \
+              tests/e2e/long-session-balanced-pacing-evidence-v1.spec.js \
+              --project=chromium \
+              --retries=0 \
+              --output="repro-results/${LABEL}"
+          done
+          mapfile -t REPORTS < <(find repro-results -name 'long-session-balanced-pacing-evidence-v1.json' | sort)
+          test "${#REPORTS[@]}" -eq 2
+          node - "${REPORTS[@]}" <<'NODE'
+          const fs = require('node:fs');
+          const [leftPath, rightPath] = process.argv.slice(2);
+          const left = JSON.parse(fs.readFileSync(leftPath, 'utf8'));
+          const right = JSON.parse(fs.readFileSync(rightPath, 'utf8'));
+          const sameFingerprint = left.deterministicFingerprint === right.deterministicFingerprint;
+          const samePacing = JSON.stringify(left.pacingHands) === JSON.stringify(right.pacingHands);
+          const sameActions = JSON.stringify(left.actionCounts) === JSON.stringify(right.actionCounts);
+          console.log(`LONG_SESSION_BALANCED_REPRO ${JSON.stringify({
+            seed: left.seed,
+            leftFingerprint: left.deterministicFingerprint,
+            rightFingerprint: right.deterministicFingerprint,
+            sameFingerprint,
+            samePacing,
+            sameActions,
+          })}`);
+          if (!sameFingerprint || !samePacing || !sameActions) process.exit(1);
+          NODE
+
+      - name: Run balanced fixed-seed full-hand evidence matrix
+        shell: bash
+        run: |
+          for SEED in 1279545165 1279545166 1279545167 1279545168 1279545169 1279545170 1279545171 1279545172; do
+            echo "=== Long Session balanced pacing seed ${SEED} ==="
+            LONG_SESSION_BALANCED_SEED="$SEED" \
+              npx playwright test \
+              tests/e2e/long-session-balanced-pacing-evidence-v1.spec.js \
+              --project=chromium \
+              --retries=0 \
+              --output="test-results/balanced-seed-${SEED}"
+          done
+
+      - name: Print balanced pacing evidence summaries
+        if: ${{ success() }}
+        shell: bash
+        run: |
+          mapfile -t REPORTS < <(find test-results -name 'long-session-balanced-pacing-evidence-v1.json' | sort)
+          test "${#REPORTS[@]}" -eq 8
+          node - "${REPORTS[@]}" <<'NODE'
+          const fs = require('node:fs');
+          const reports = process.argv.slice(2).map(path => JSON.parse(fs.readFileSync(path, 'utf8'))).sort((a, b) => a.seed - b.seed);
+          for (const report of reports) {
+            const summary = {
+              schemaVersion: report.schemaVersion,
+              evidenceKind: report.evidenceKind,
+              interpretation: report.interpretation,
+              notNormalBugEvidence: report.notNormalBugEvidence,
+              heroPolicy: report.heroPolicy,
+              seed: report.seed,
+              fingerprint: report.deterministicFingerprint,
+              configuredHands: report.configuredHands,
+              handsCompleted: report.handsCompleted,
+              sessionEnded: report.sessionEnded,
+              heroBb100: report.pacing?.heroBb100,
+              bustFrequency: report.pacing?.bustFrequency,
+              reentryFrequency: report.pacing?.reentryFrequency,
+              activeStackRisk: report.pacing?.activeStackRisk,
+              progression: report.pacing?.progression,
+              actionCounts: report.actionCounts,
+              fairness: report.fairness,
+              failures: report.failures,
+              schedulerErrors: report.schedulerErrors,
+            };
+            console.log(`LONG_SESSION_BALANCED_PACING_REPORT ${JSON.stringify(summary)}`);
+          }
+          const aggregate = {
+            seeds: reports.length,
+            configuredHandsPerSeed: reports[0]?.configuredHands || 0,
+            totalHandsCompleted: reports.reduce((sum, report) => sum + (report.handsCompleted || 0), 0),
+            meanHandsCompleted: Number((reports.reduce((sum, report) => sum + (report.handsCompleted || 0), 0) / reports.length).toFixed(3)),
+            sessionEndedSeeds: reports.filter(report => report.sessionEnded).length,
+            movedUpSeeds: reports.filter(report => (report.pacing?.progression?.moveUps || 0) > 0).length,
+            reachedT3Seeds: reports.filter(report => (report.pacing?.progression?.highestTableIndex || 0) >= 2).length,
+            reachedFinalTableSeeds: reports.filter(report => report.pacing?.progression?.reachedFinalTable).length,
+            reentrySeeds: reports.filter(report => (report.pacing?.reentryFrequency || 0) > 0).length,
+            failures: reports.reduce((sum, report) => sum + (report.failures?.length || 0), 0),
+            schedulerErrors: reports.reduce((sum, report) => sum + (report.schedulerErrors?.length || 0), 0),
+          };
+          console.log(`LONG_SESSION_BALANCED_PACING_AGGREGATE ${JSON.stringify(aggregate)}`);
+          NODE
+
+      - name: Upload balanced pacing evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: long-session-balanced-pacing-${{ github.run_id }}
+          path: |
+            repro-results/**/long-session-balanced-pacing-evidence-v1.json
+            test-results/**/long-session-balanced-pacing-evidence-v1.json
+          if-no-files-found: error
+          retention-days: 14
