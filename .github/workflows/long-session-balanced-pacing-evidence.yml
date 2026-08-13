@@ -44,6 +44,39 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Prove same-seed reproducibility
+        shell: bash
+        run: |
+          for LABEL in a b; do
+            echo "=== Reproducibility seed 1279545165 / ${LABEL} ==="
+            LONG_SESSION_BALANCED_SEED="1279545165" \
+              npx playwright test \
+              tests/e2e/long-session-balanced-pacing-evidence-v1.spec.js \
+              --project=chromium \
+              --retries=0 \
+              --output="repro-results/${LABEL}"
+          done
+          mapfile -t REPORTS < <(find repro-results -name 'long-session-balanced-pacing-evidence-v1.json' | sort)
+          test "${#REPORTS[@]}" -eq 2
+          node - "${REPORTS[@]}" <<'NODE'
+          const fs = require('node:fs');
+          const [leftPath, rightPath] = process.argv.slice(2);
+          const left = JSON.parse(fs.readFileSync(leftPath, 'utf8'));
+          const right = JSON.parse(fs.readFileSync(rightPath, 'utf8'));
+          const sameFingerprint = left.deterministicFingerprint === right.deterministicFingerprint;
+          const samePacing = JSON.stringify(left.pacingHands) === JSON.stringify(right.pacingHands);
+          const sameActions = JSON.stringify(left.actionCounts) === JSON.stringify(right.actionCounts);
+          console.log(`LONG_SESSION_BALANCED_REPRO ${JSON.stringify({
+            seed: left.seed,
+            leftFingerprint: left.deterministicFingerprint,
+            rightFingerprint: right.deterministicFingerprint,
+            sameFingerprint,
+            samePacing,
+            sameActions,
+          })}`);
+          if (!sameFingerprint || !samePacing || !sameActions) process.exit(1);
+          NODE
+
       - name: Run balanced fixed-seed full-hand evidence matrix
         shell: bash
         run: |
@@ -111,6 +144,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: long-session-balanced-pacing-${{ github.run_id }}
-          path: test-results/**/long-session-balanced-pacing-evidence-v1.json
+          path: |
+            repro-results/**/long-session-balanced-pacing-evidence-v1.json
+            test-results/**/long-session-balanced-pacing-evidence-v1.json
           if-no-files-found: error
           retention-days: 14
