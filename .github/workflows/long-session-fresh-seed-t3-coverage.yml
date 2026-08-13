@@ -1,0 +1,418 @@
+name: Long Session fresh-seed T3 coverage
+
+on:
+  pull_request:
+    paths:
+      - "tests/e2e/long-session-balanced-pacing-evidence-v1.spec.js"
+      - "tests/support/long-session-pacing-metrics-v1.js"
+      - "js/long-session-mode-v1.js"
+      - ".github/workflows/long-session-fresh-seed-t3-coverage.yml"
+  workflow_dispatch:
+    inputs:
+      hands:
+        description: "Completed-hand opportunities per seed/variant"
+        required: false
+        default: "60"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: long-session-fresh-seed-t3-coverage-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence:
+    name: fresh coverage (${{ matrix.label }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: x1_00
+            multiplier: "1.00"
+          - label: x1_50
+            multiplier: "1.50"
+          - label: x1_75
+            multiplier: "1.75"
+    env:
+      LONG_SESSION_BALANCED_HANDS: ${{ inputs.hands || '60' }}
+      PROMOTION_MULTIPLIER: ${{ matrix.multiplier }}
+      VARIANT_LABEL: ${{ matrix.label }}
+      FRESH_SEEDS: "1279545173 1279545174 1279545175 1279545176 1279545177 1279545178 1279545179 1279545180 1279545181 1279545182 1279545183 1279545184 1279545185 1279545186 1279545187 1279545188"
+      PRIOR_SEEDS: "1279545165 1279545166 1279545167 1279545168 1279545169 1279545170 1279545171 1279545172"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install locked test dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify preregistered fresh seed set
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fresh = process.env.FRESH_SEEDS.trim().split(/\s+/).map(Number);
+          const prior = new Set(process.env.PRIOR_SEEDS.trim().split(/\s+/).map(Number));
+
+          if (fresh.length !== 16 || new Set(fresh).size !== 16) {
+            throw new Error(`expected 16 unique fresh seeds, got ${JSON.stringify(fresh)}`);
+          }
+          if (fresh[0] !== 1279545173 || fresh[15] !== 1279545188) {
+            throw new Error(`unexpected fresh seed endpoints: ${fresh[0]}..${fresh[15]}`);
+          }
+          for (let index = 1; index < fresh.length; index += 1) {
+            if (fresh[index] !== fresh[index - 1] + 1) {
+              throw new Error(`fresh seeds must be contiguous: ${fresh[index - 1]} -> ${fresh[index]}`);
+            }
+          }
+          const overlap = fresh.filter(seed => prior.has(seed));
+          if (overlap.length) {
+            throw new Error(`fresh seed set overlaps accepted prior evidence: ${overlap.join(',')}`);
+          }
+
+          console.log(`LONG_SESSION_FRESH_SEED_PREREG ${JSON.stringify({
+            count: fresh.length,
+            first: fresh[0],
+            last: fresh[fresh.length - 1],
+            priorCount: prior.size,
+            overlap,
+          })}`);
+          NODE
+
+      - name: Apply ephemeral reserve and promotion threshold
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const file = 'js/long-session-mode-v1.js';
+          const multiplier = Number(process.env.PROMOTION_MULTIPLIER);
+          const allowed = new Set([1, 1.5, 1.75]);
+          if (!allowed.has(multiplier)) {
+            throw new Error(`invalid promotion multiplier ${process.env.PROMOTION_MULTIPLIER}`);
+          }
+
+          let source = fs.readFileSync(file, 'utf8');
+
+          const reserveNeedle = 'session = createSession({ tableIndex: 0, bankroll: 0, tableStack: TABLES[0].entry });';
+          const reserveReplacement = 'session = createSession({ tableIndex: 0, bankroll: 2000, tableStack: TABLES[0].entry });';
+          const reserveMatches = source.split(reserveNeedle).length - 1;
+          if (reserveMatches !== 1) {
+            throw new Error(`expected exactly one Long Session bankroll baseline, found ${reserveMatches}`);
+          }
+          source = source.replace(reserveNeedle, reserveReplacement);
+
+          const thresholdNeedle = 'if (observedTotalWealth >= candidate.entry) {';
+          const thresholdMatches = source.split(thresholdNeedle).length - 1;
+          if (thresholdMatches !== 1) {
+            throw new Error(`expected exactly one Long Session promotion threshold, found ${thresholdMatches}`);
+          }
+          if (multiplier !== 1) {
+            source = source.replace(
+              thresholdNeedle,
+              `if (observedTotalWealth >= candidate.entry * ${multiplier}) {`,
+            );
+          }
+
+          fs.writeFileSync(file, source);
+          console.log(`LONG_SESSION_FRESH_T3_EPHEMERAL variant=${process.env.VARIANT_LABEL} bankroll=2000 multiplier=${multiplier}`);
+          NODE
+          git diff --check
+          git diff -- js/long-session-mode-v1.js
+
+      - name: Prove same-seed reproducibility on first fresh seed
+        shell: bash
+        run: |
+          REPRO_SEED="${FRESH_SEEDS%% *}"
+          for LABEL in a b; do
+            echo "=== ${VARIANT_LABEL} fresh repro / ${LABEL} / seed=${REPRO_SEED} ==="
+            LONG_SESSION_BALANCED_SEED="$REPRO_SEED" \
+              npx playwright test \
+              tests/e2e/long-session-balanced-pacing-evidence-v1.spec.js \
+              --project=chromium \
+              --retries=0 \
+              --output="repro-results/${VARIANT_LABEL}-${LABEL}"
+          done
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+
+          const walk = dir => fs.readdirSync(dir, { withFileTypes: true })
+            .flatMap(entry => entry.isDirectory()
+              ? walk(path.join(dir, entry.name))
+              : [path.join(dir, entry.name)]);
+
+          const read = label => {
+            const root = `repro-results/${process.env.VARIANT_LABEL}-${label}`;
+            const file = walk(root).find(file => file.endsWith('long-session-balanced-pacing-evidence-v1.json'));
+            if (!file) throw new Error(`missing repro report ${label}`);
+            return JSON.parse(fs.readFileSync(file, 'utf8'));
+          };
+
+          const left = read('a');
+          const right = read('b');
+          const result = {
+            variant: process.env.VARIANT_LABEL,
+            multiplier: Number(process.env.PROMOTION_MULTIPLIER),
+            seed: left.seed,
+            sameFingerprint: left.deterministicFingerprint === right.deterministicFingerprint,
+            samePacing: JSON.stringify(left.pacingHands) === JSON.stringify(right.pacingHands),
+            sameActions: JSON.stringify(left.actionCounts) === JSON.stringify(right.actionCounts),
+            leftFingerprint: left.deterministicFingerprint,
+            rightFingerprint: right.deterministicFingerprint,
+            initialBankroll: left.pacingHands?.[0]?.bankrollBefore,
+          };
+
+          console.log(`LONG_SESSION_FRESH_T3_REPRO ${JSON.stringify(result)}`);
+          if (
+            !result.sameFingerprint ||
+            !result.samePacing ||
+            !result.sameActions ||
+            result.initialBankroll !== 2000 ||
+            result.seed !== 1279545173
+          ) {
+            process.exit(1);
+          }
+          NODE
+
+      - name: Run 16 fresh seeds on live runtime path
+        shell: bash
+        run: |
+          for SEED in $FRESH_SEEDS; do
+            echo "=== ${VARIANT_LABEL} fresh seed=${SEED} multiplier=${PROMOTION_MULTIPLIER} ==="
+            LONG_SESSION_BALANCED_SEED="$SEED" \
+              npx playwright test \
+              tests/e2e/long-session-balanced-pacing-evidence-v1.spec.js \
+              --project=chromium \
+              --retries=0 \
+              --output="fresh-results/${VARIANT_LABEL}/seed-${SEED}"
+          done
+
+      - name: Summarize fresh coverage and verify invariants
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const multiplier = Number(process.env.PROMOTION_MULTIPLIER);
+          const label = process.env.VARIANT_LABEL;
+          const expectedSeeds = process.env.FRESH_SEEDS.trim().split(/\s+/).map(Number);
+          const handCeiling = Number(process.env.LONG_SESSION_BALANCED_HANDS);
+
+          const walk = dir => fs.readdirSync(dir, { withFileTypes: true })
+            .flatMap(entry => entry.isDirectory()
+              ? walk(path.join(dir, entry.name))
+              : [path.join(dir, entry.name)]);
+
+          const reports = walk(`fresh-results/${label}`)
+            .filter(file => file.endsWith('long-session-balanced-pacing-evidence-v1.json'))
+            .map(file => JSON.parse(fs.readFileSync(file, 'utf8')))
+            .sort((a, b) => a.seed - b.seed);
+
+          const actualSeeds = reports.map(report => report.seed);
+          if (reports.length !== 16 || JSON.stringify(actualSeeds) !== JSON.stringify(expectedSeeds)) {
+            throw new Error(`fresh seed coverage mismatch: ${JSON.stringify({ expectedSeeds, actualSeeds })}`);
+          }
+
+          const promotionViolations = [];
+          for (const report of reports) {
+            for (const hand of report.handReports || []) {
+              if (hand.transition !== 'move-up') continue;
+              const target = report.tables?.[hand.targetTableIndex];
+              const threshold = (target?.entry || 0) * multiplier;
+              if (!target || hand.expectedObservedWealth < threshold) {
+                promotionViolations.push({
+                  seed: report.seed,
+                  handNumber: hand.handNumber,
+                  targetTableIndex: hand.targetTableIndex,
+                  expectedObservedWealth: hand.expectedObservedWealth,
+                  threshold,
+                });
+              }
+            }
+          }
+
+          const t3Reports = reports.filter(report => (report.pacing?.progression?.highestTableIndex || 0) >= 2);
+          const aggregate = {
+            label,
+            multiplier,
+            evidenceKind: 'fresh-disjoint-fixed-seed-live-runtime-t3-coverage',
+            freshSeedFirst: expectedSeeds[0],
+            freshSeedLast: expectedSeeds[expectedSeeds.length - 1],
+            seeds: reports.length,
+            primaryEndpoint: 'reachedT3Seeds',
+            reachedT3Seeds: t3Reports.length,
+            t3ReachRate: Number((t3Reports.length / reports.length).toFixed(6)),
+            t3Seeds: t3Reports.map(report => report.seed),
+            maxHighestTableIndex: Math.max(...reports.map(report => report.pacing?.progression?.highestTableIndex || 0)),
+            totalHandsCompleted: reports.reduce((sum, report) => sum + report.handsCompleted, 0),
+            meanHandsCompleted: Number((reports.reduce((sum, report) => sum + report.handsCompleted, 0) / reports.length).toFixed(3)),
+            hitHandCeilingSeeds: reports.filter(report => report.handsCompleted >= handCeiling && !report.sessionEnded).length,
+            sessionEndedSeeds: reports.filter(report => report.sessionEnded).length,
+            movedUpSeeds: reports.filter(report => (report.pacing?.progression?.moveUps || 0) > 0).length,
+            reachedFinalTableSeeds: reports.filter(report => report.pacing?.progression?.reachedFinalTable).length,
+            reentrySeeds: reports.filter(report => (report.pacing?.reentryFrequency || 0) > 0).length,
+            meanExposure: Number((reports.reduce((sum, report) => sum + (report.pacing?.activeStackRisk?.meanExposedWealthRatio || 0), 0) / reports.length).toFixed(6)),
+            failures: reports.reduce((sum, report) => sum + report.failures.length, 0),
+            schedulerErrors: reports.reduce((sum, report) => sum + report.schedulerErrors.length, 0),
+            allInitialBankroll2000: reports.every(report => report.pacingHands?.[0]?.bankrollBefore === 2000),
+            promotionViolations: promotionViolations.length,
+          };
+
+          for (const report of reports) {
+            console.log(`LONG_SESSION_FRESH_T3_REPORT ${JSON.stringify({
+              label,
+              multiplier,
+              seed: report.seed,
+              fingerprint: report.deterministicFingerprint,
+              handsCompleted: report.handsCompleted,
+              sessionEnded: report.sessionEnded,
+              heroBb100: report.pacing?.heroBb100,
+              reentryFrequency: report.pacing?.reentryFrequency,
+              activeStackRisk: report.pacing?.activeStackRisk,
+              progression: report.pacing?.progression,
+              failures: report.failures,
+              schedulerErrors: report.schedulerErrors,
+            })}`);
+          }
+
+          console.log(`LONG_SESSION_FRESH_T3_VARIANT ${JSON.stringify(aggregate)}`);
+
+          if (
+            aggregate.failures ||
+            aggregate.schedulerErrors ||
+            !aggregate.allInitialBankroll2000 ||
+            aggregate.promotionViolations
+          ) {
+            throw new Error(`fresh coverage integrity failed: ${JSON.stringify(aggregate)}`);
+          }
+
+          fs.writeFileSync(`fresh-t3-summary-${label}.json`, JSON.stringify(aggregate, null, 2));
+          NODE
+
+      - name: Upload fresh coverage evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: long-session-fresh-t3-${{ matrix.label }}-${{ github.run_id }}
+          path: |
+            repro-results/**/long-session-balanced-pacing-evidence-v1.json
+            fresh-results/${{ matrix.label }}/**/long-session-balanced-pacing-evidence-v1.json
+            fresh-t3-summary-${{ matrix.label }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  aggregate:
+    name: aggregate fresh T3 coverage
+    needs: evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Download fresh coverage evidence
+        uses: actions/download-artifact@v7
+        with:
+          pattern: long-session-fresh-t3-*
+          path: fresh-artifacts
+          merge-multiple: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Evaluate primary T3 endpoint
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+
+          const walk = dir => fs.readdirSync(dir, { withFileTypes: true })
+            .flatMap(entry => entry.isDirectory()
+              ? walk(path.join(dir, entry.name))
+              : [path.join(dir, entry.name)]);
+
+          const summaries = walk('fresh-artifacts')
+            .filter(file => /fresh-t3-summary-x1_(00|50|75)\.json$/.test(file))
+            .map(file => JSON.parse(fs.readFileSync(file, 'utf8')))
+            .sort((a, b) => a.multiplier - b.multiplier);
+
+          if (summaries.length !== 3) {
+            throw new Error(`expected three fresh T3 summaries, got ${summaries.length}`);
+          }
+
+          const expectedMultipliers = [1, 1.5, 1.75];
+          if (JSON.stringify(summaries.map(row => row.multiplier)) !== JSON.stringify(expectedMultipliers)) {
+            throw new Error(`unexpected multiplier set: ${JSON.stringify(summaries.map(row => row.multiplier))}`);
+          }
+
+          const maxT3 = Math.max(...summaries.map(row => row.reachedT3Seeds));
+          const primaryLeaders = summaries
+            .filter(row => row.reachedT3Seeds === maxT3)
+            .map(row => row.multiplier);
+
+          const priorAccepted = {
+            seeds: '1279545165-1279545172',
+            countPerMultiplier: 8,
+            reachedT3Seeds: {
+              '1': 0,
+              '1.5': 0,
+              '1.75': 0,
+            },
+            source: 'accepted-pr-205-evidence',
+          };
+
+          const combined24 = summaries.map(row => ({
+            multiplier: row.multiplier,
+            seedCount: 24,
+            reachedT3Seeds: row.reachedT3Seeds,
+            t3ReachRate: Number((row.reachedT3Seeds / 24).toFixed(6)),
+          }));
+
+          const anyFreshT3 = maxT3 > 0;
+          const result = {
+            evidenceKind: 'fresh-disjoint-fixed-seed-live-runtime-t3-coverage',
+            reserve: 2000,
+            freshSeeds: '1279545173-1279545188',
+            freshSeedCountPerMultiplier: 16,
+            comparedMultipliers: expectedMultipliers,
+            primaryEndpoint: 'reachedT3Seeds',
+            rows: summaries,
+            maxFreshT3Seeds: maxT3,
+            primaryLeaders,
+            anyFreshT3,
+            priorAccepted,
+            combined24,
+            interpretation: anyFreshT3
+              ? 'fresh-coverage-observed-t3; use T3 reach first and pacing metrics only as secondary evidence'
+              : 'fresh-coverage-still-no-t3; scalar multiplier evidence is deeper-progression limited across 24 fixed seeds per threshold',
+            scalarProductionWinnerAuthorized: false,
+            productionDecisionAuthorized: false,
+            manualPlayFeelStillRequired: true,
+            notNormalBugEvidence: true,
+          };
+
+          console.log(`LONG_SESSION_FRESH_T3_AGGREGATE ${JSON.stringify(result)}`);
+          fs.writeFileSync('long-session-fresh-t3-coverage-summary.json', JSON.stringify(result, null, 2));
+          NODE
+
+      - name: Upload aggregate fresh coverage evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: long-session-fresh-t3-coverage-${{ github.run_id }}
+          path: long-session-fresh-t3-coverage-summary.json
+          if-no-files-found: error
+          retention-days: 14
