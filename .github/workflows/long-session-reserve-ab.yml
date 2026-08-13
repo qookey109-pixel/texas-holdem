@@ -1,0 +1,174 @@
+name: Long Session reserve A/B evidence
+
+on:
+  pull_request:
+    paths:
+      - "tests/e2e/long-session-reserve-ab-v1.spec.js"
+      - "tests/support/long-session-pacing-metrics-v1.js"
+      - "js/long-session-mode-v1.js"
+      - ".github/workflows/long-session-reserve-ab.yml"
+  workflow_dispatch:
+    inputs:
+      hands:
+        description: "Completed-hand opportunities per seed/variant"
+        required: false
+        default: "60"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: long-session-reserve-ab-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      LONG_SESSION_RESERVE_HANDS: ${{ inputs.hands || '60' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install locked test dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Prove paired runner reproducibility
+        shell: bash
+        run: |
+          for BANKROLL in 0 2000; do
+            for LABEL in a b; do
+              echo "=== reserve repro bankroll=${BANKROLL} / ${LABEL} ==="
+              LONG_SESSION_RESERVE_SEED="1279545165" \
+              LONG_SESSION_INITIAL_BANKROLL="$BANKROLL" \
+                npx playwright test \
+                tests/e2e/long-session-reserve-ab-v1.spec.js \
+                --project=chromium \
+                --retries=0 \
+                --output="repro-results/bank-${BANKROLL}-${LABEL}"
+            done
+          done
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          for (const bankroll of [0, 2000]) {
+            const read = label => {
+              const root = `repro-results/bank-${bankroll}-${label}`;
+              const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]);
+              const file = walk(root).find(file => file.endsWith('long-session-reserve-ab-v1.json'));
+              if (!file) throw new Error(`missing repro report ${bankroll}/${label}`);
+              return JSON.parse(fs.readFileSync(file, 'utf8'));
+            };
+            const left = read('a');
+            const right = read('b');
+            const result = {
+              bankroll,
+              sameFingerprint: left.deterministicFingerprint === right.deterministicFingerprint,
+              samePacing: JSON.stringify(left.pacingHands) === JSON.stringify(right.pacingHands),
+              sameActions: JSON.stringify(left.actionCounts) === JSON.stringify(right.actionCounts),
+              leftFingerprint: left.deterministicFingerprint,
+              rightFingerprint: right.deterministicFingerprint,
+            };
+            console.log(`LONG_SESSION_RESERVE_REPRO ${JSON.stringify(result)}`);
+            if (!result.sameFingerprint || !result.samePacing || !result.sameActions) process.exit(1);
+          }
+          NODE
+
+      - name: Run paired reserve matrix
+        shell: bash
+        run: |
+          for SEED in 1279545165 1279545166 1279545167 1279545168 1279545169 1279545170 1279545171 1279545172; do
+            for BANKROLL in 0 2000; do
+              echo "=== reserve A/B seed=${SEED} bankroll=${BANKROLL} ==="
+              LONG_SESSION_RESERVE_SEED="$SEED" \
+              LONG_SESSION_INITIAL_BANKROLL="$BANKROLL" \
+                npx playwright test \
+                tests/e2e/long-session-reserve-ab-v1.spec.js \
+                --project=chromium \
+                --retries=0 \
+                --output="test-results/seed-${SEED}-bank-${BANKROLL}"
+            done
+          done
+
+      - name: Print paired reserve evidence
+        if: ${{ success() }}
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]);
+          const reports = walk('test-results')
+            .filter(file => file.endsWith('long-session-reserve-ab-v1.json'))
+            .map(file => JSON.parse(fs.readFileSync(file, 'utf8')))
+            .sort((a, b) => a.seed - b.seed || a.initialBankroll - b.initialBankroll);
+          if (reports.length !== 16) throw new Error(`expected 16 reports, got ${reports.length}`);
+
+          const aggregate = group => ({
+            seeds: group.length,
+            totalHandsCompleted: group.reduce((sum, report) => sum + report.handsCompleted, 0),
+            meanHandsCompleted: Number((group.reduce((sum, report) => sum + report.handsCompleted, 0) / group.length).toFixed(3)),
+            sessionEndedSeeds: group.filter(report => report.sessionEnded).length,
+            movedUpSeeds: group.filter(report => (report.pacing?.progression?.moveUps || 0) > 0).length,
+            reachedT3Seeds: group.filter(report => (report.pacing?.progression?.highestTableIndex || 0) >= 2).length,
+            reachedFinalTableSeeds: group.filter(report => report.pacing?.progression?.reachedFinalTable).length,
+            reentrySeeds: group.filter(report => (report.pacing?.reentryFrequency || 0) > 0).length,
+            meanExposure: Number((group.reduce((sum, report) => sum + (report.pacing?.activeStackRisk?.meanExposedWealthRatio || 0), 0) / group.length).toFixed(6)),
+            failures: group.reduce((sum, report) => sum + report.failures.length, 0),
+            schedulerErrors: group.reduce((sum, report) => sum + report.schedulerErrors.length, 0),
+          });
+
+          for (const report of reports) {
+            console.log(`LONG_SESSION_RESERVE_REPORT ${JSON.stringify({
+              seed: report.seed,
+              initialBankroll: report.initialBankroll,
+              initialTotalWealth: report.initialTotalWealth,
+              fingerprint: report.deterministicFingerprint,
+              handsCompleted: report.handsCompleted,
+              sessionEnded: report.sessionEnded,
+              heroBb100: report.pacing?.heroBb100,
+              bustFrequency: report.pacing?.bustFrequency,
+              reentryFrequency: report.pacing?.reentryFrequency,
+              activeStackRisk: report.pacing?.activeStackRisk,
+              progression: report.pacing?.progression,
+              failures: report.failures,
+              schedulerErrors: report.schedulerErrors,
+            })}`);
+          }
+
+          const baseline = aggregate(reports.filter(report => report.initialBankroll === 0));
+          const reserve = aggregate(reports.filter(report => report.initialBankroll === 2000));
+          const paired = {
+            baseline,
+            reserve,
+            deltaMeanHands: Number((reserve.meanHandsCompleted - baseline.meanHandsCompleted).toFixed(3)),
+            deltaSessionEndedSeeds: reserve.sessionEndedSeeds - baseline.sessionEndedSeeds,
+            deltaMovedUpSeeds: reserve.movedUpSeeds - baseline.movedUpSeeds,
+            deltaReachedT3Seeds: reserve.reachedT3Seeds - baseline.reachedT3Seeds,
+            deltaReentrySeeds: reserve.reentrySeeds - baseline.reentrySeeds,
+            deltaMeanExposure: Number((reserve.meanExposure - baseline.meanExposure).toFixed(6)),
+          };
+          console.log(`LONG_SESSION_RESERVE_AB_AGGREGATE ${JSON.stringify(paired)}`);
+          NODE
+
+      - name: Upload reserve A/B evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: long-session-reserve-ab-${{ github.run_id }}
+          path: |
+            repro-results/**/long-session-reserve-ab-v1.json
+            test-results/**/long-session-reserve-ab-v1.json
+          if-no-files-found: error
+          retention-days: 14
