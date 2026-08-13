@@ -1,0 +1,270 @@
+name: Long Session reserve A/B evidence
+
+on:
+  pull_request:
+    paths:
+      - "tests/e2e/long-session-balanced-pacing-evidence-v1.spec.js"
+      - "tests/support/long-session-pacing-metrics-v1.js"
+      - "js/long-session-mode-v1.js"
+      - ".github/workflows/long-session-reserve-ab.yml"
+  workflow_dispatch:
+    inputs:
+      hands:
+        description: "Completed-hand opportunities per seed/variant"
+        required: false
+        default: "60"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: long-session-reserve-ab-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      LONG_SESSION_BALANCED_HANDS: ${{ inputs.hands || '60' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install locked test dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Prove production baseline reproducibility
+        shell: bash
+        run: |
+          for LABEL in a b; do
+            echo "=== production baseline repro / ${LABEL} ==="
+            LONG_SESSION_BALANCED_SEED="1279545165" \
+              npx playwright test \
+              tests/e2e/long-session-balanced-pacing-evidence-v1.spec.js \
+              --project=chromium \
+              --retries=0 \
+              --output="repro-results/baseline-${LABEL}"
+          done
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const read = label => {
+            const root = `repro-results/baseline-${label}`;
+            const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]);
+            const file = walk(root).find(file => file.endsWith('long-session-balanced-pacing-evidence-v1.json'));
+            if (!file) throw new Error(`missing production baseline repro ${label}`);
+            return JSON.parse(fs.readFileSync(file, 'utf8'));
+          };
+          const left = read('a');
+          const right = read('b');
+          const result = {
+            sameFingerprint: left.deterministicFingerprint === right.deterministicFingerprint,
+            samePacing: JSON.stringify(left.pacingHands) === JSON.stringify(right.pacingHands),
+            sameActions: JSON.stringify(left.actionCounts) === JSON.stringify(right.actionCounts),
+            leftFingerprint: left.deterministicFingerprint,
+            rightFingerprint: right.deterministicFingerprint,
+          };
+          console.log(`LONG_SESSION_RESERVE_BASELINE_REPRO ${JSON.stringify(result)}`);
+          if (!result.sameFingerprint || !result.samePacing || !result.sameActions) process.exit(1);
+          NODE
+
+      - name: Run production baseline matrix
+        shell: bash
+        run: |
+          for SEED in 1279545165 1279545166 1279545167 1279545168 1279545169 1279545170 1279545171 1279545172; do
+            echo "=== production baseline seed=${SEED} bankroll=0 ==="
+            LONG_SESSION_BALANCED_SEED="$SEED" \
+              npx playwright test \
+              tests/e2e/long-session-balanced-pacing-evidence-v1.spec.js \
+              --project=chromium \
+              --retries=0 \
+              --output="ab-results/baseline/seed-${SEED}"
+          done
+
+      - name: Apply ephemeral one-buy-in reserve treatment
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const file = 'js/long-session-mode-v1.js';
+          const source = fs.readFileSync(file, 'utf8');
+          const needle = 'session = createSession({ tableIndex: 0, bankroll: 0, tableStack: TABLES[0].entry });';
+          const replacement = 'session = createSession({ tableIndex: 0, bankroll: 2000, tableStack: TABLES[0].entry });';
+          const matches = source.split(needle).length - 1;
+          if (matches !== 1) throw new Error(`expected exactly one Long Session bankroll baseline, found ${matches}`);
+          fs.writeFileSync(file, source.replace(needle, replacement));
+          console.log('LONG_SESSION_RESERVE_EPHEMERAL_PATCH bankroll=2000 tableStack=2000');
+          NODE
+          git diff --check
+          git diff -- js/long-session-mode-v1.js
+
+      - name: Prove treatment reproducibility
+        shell: bash
+        run: |
+          for LABEL in a b; do
+            echo "=== treatment repro / ${LABEL} ==="
+            LONG_SESSION_BALANCED_SEED="1279545165" \
+              npx playwright test \
+              tests/e2e/long-session-balanced-pacing-evidence-v1.spec.js \
+              --project=chromium \
+              --retries=0 \
+              --output="repro-results/reserve-${LABEL}"
+          done
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const read = label => {
+            const root = `repro-results/reserve-${label}`;
+            const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]);
+            const file = walk(root).find(file => file.endsWith('long-session-balanced-pacing-evidence-v1.json'));
+            if (!file) throw new Error(`missing treatment repro ${label}`);
+            return JSON.parse(fs.readFileSync(file, 'utf8'));
+          };
+          const left = read('a');
+          const right = read('b');
+          const result = {
+            sameFingerprint: left.deterministicFingerprint === right.deterministicFingerprint,
+            samePacing: JSON.stringify(left.pacingHands) === JSON.stringify(right.pacingHands),
+            sameActions: JSON.stringify(left.actionCounts) === JSON.stringify(right.actionCounts),
+            leftFingerprint: left.deterministicFingerprint,
+            rightFingerprint: right.deterministicFingerprint,
+            initialBankroll: left.pacingHands?.[0]?.bankrollBefore,
+          };
+          console.log(`LONG_SESSION_RESERVE_TREATMENT_REPRO ${JSON.stringify(result)}`);
+          if (!result.sameFingerprint || !result.samePacing || !result.sameActions || result.initialBankroll !== 2000) process.exit(1);
+          NODE
+
+      - name: Run treatment matrix
+        shell: bash
+        run: |
+          for SEED in 1279545165 1279545166 1279545167 1279545168 1279545169 1279545170 1279545171 1279545172; do
+            echo "=== treatment seed=${SEED} bankroll=2000 ==="
+            LONG_SESSION_BALANCED_SEED="$SEED" \
+              npx playwright test \
+              tests/e2e/long-session-balanced-pacing-evidence-v1.spec.js \
+              --project=chromium \
+              --retries=0 \
+              --output="ab-results/reserve/seed-${SEED}"
+          done
+
+      - name: Prove baseline parity and print paired evidence
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]);
+          const readGroup = variant => walk(`ab-results/${variant}`)
+            .filter(file => file.endsWith('long-session-balanced-pacing-evidence-v1.json'))
+            .map(file => JSON.parse(fs.readFileSync(file, 'utf8')))
+            .sort((a, b) => a.seed - b.seed);
+          const baseline = readGroup('baseline');
+          const reserve = readGroup('reserve');
+          if (baseline.length !== 8 || reserve.length !== 8) throw new Error(`expected 8+8 reports, got ${baseline.length}+${reserve.length}`);
+
+          const accepted = new Map([
+            [1279545165, { fingerprint: '14442c2a55e25808', hands: 7, moveUps: 1 }],
+            [1279545166, { fingerprint: 'f4e07224e31ab2e9', hands: 9, moveUps: 0 }],
+            [1279545167, { fingerprint: '5ddec57106a52df1', hands: 14, moveUps: 0 }],
+            [1279545168, { fingerprint: '684f1525dba64e8f', hands: 1, moveUps: 0 }],
+            [1279545169, { fingerprint: 'd4b4b79095e4877a', hands: 10, moveUps: 0 }],
+            [1279545170, { fingerprint: 'b507ddff629e4ddc', hands: 9, moveUps: 1 }],
+            [1279545171, { fingerprint: 'eef080ebc87ab9c9', hands: 6, moveUps: 1 }],
+            [1279545172, { fingerprint: 'a19372c3285365d4', hands: 9, moveUps: 1 }],
+          ]);
+          const parityErrors = [];
+          for (const report of baseline) {
+            const expected = accepted.get(report.seed);
+            const actual = {
+              fingerprint: report.deterministicFingerprint,
+              hands: report.handsCompleted,
+              moveUps: report.pacing?.progression?.moveUps || 0,
+              reachedT3: (report.pacing?.progression?.highestTableIndex || 0) >= 2,
+              reentries: report.pacing?.reentryFrequency || 0,
+              ended: report.sessionEnded,
+              initialBankroll: report.pacingHands?.[0]?.bankrollBefore,
+            };
+            console.log(`LONG_SESSION_RESERVE_BASELINE_PARITY ${JSON.stringify({ seed: report.seed, expected, actual })}`);
+            if (!expected
+              || actual.fingerprint !== expected.fingerprint
+              || actual.hands !== expected.hands
+              || actual.moveUps !== expected.moveUps
+              || actual.reachedT3
+              || actual.reentries !== 0
+              || !actual.ended
+              || actual.initialBankroll !== 0) {
+              parityErrors.push({ seed: report.seed, expected, actual });
+            }
+          }
+          if (parityErrors.length) throw new Error(`production baseline parity failed: ${JSON.stringify(parityErrors)}`);
+
+          const aggregate = group => ({
+            seeds: group.length,
+            totalHandsCompleted: group.reduce((sum, report) => sum + report.handsCompleted, 0),
+            meanHandsCompleted: Number((group.reduce((sum, report) => sum + report.handsCompleted, 0) / group.length).toFixed(3)),
+            sessionEndedSeeds: group.filter(report => report.sessionEnded).length,
+            movedUpSeeds: group.filter(report => (report.pacing?.progression?.moveUps || 0) > 0).length,
+            reachedT3Seeds: group.filter(report => (report.pacing?.progression?.highestTableIndex || 0) >= 2).length,
+            reachedFinalTableSeeds: group.filter(report => report.pacing?.progression?.reachedFinalTable).length,
+            reentrySeeds: group.filter(report => (report.pacing?.reentryFrequency || 0) > 0).length,
+            meanExposure: Number((group.reduce((sum, report) => sum + (report.pacing?.activeStackRisk?.meanExposedWealthRatio || 0), 0) / group.length).toFixed(6)),
+            failures: group.reduce((sum, report) => sum + report.failures.length, 0),
+            schedulerErrors: group.reduce((sum, report) => sum + report.schedulerErrors.length, 0),
+          });
+
+          for (const [variant, reports] of [['baseline', baseline], ['reserve', reserve]]) {
+            for (const report of reports) {
+              console.log(`LONG_SESSION_RESERVE_REPORT ${JSON.stringify({
+                variant,
+                seed: report.seed,
+                initialBankroll: report.pacingHands?.[0]?.bankrollBefore,
+                fingerprint: report.deterministicFingerprint,
+                handsCompleted: report.handsCompleted,
+                sessionEnded: report.sessionEnded,
+                heroBb100: report.pacing?.heroBb100,
+                bustFrequency: report.pacing?.bustFrequency,
+                reentryFrequency: report.pacing?.reentryFrequency,
+                activeStackRisk: report.pacing?.activeStackRisk,
+                progression: report.pacing?.progression,
+                failures: report.failures,
+                schedulerErrors: report.schedulerErrors,
+              })}`);
+            }
+          }
+
+          const baselineAggregate = aggregate(baseline);
+          const reserveAggregate = aggregate(reserve);
+          const paired = {
+            baseline: baselineAggregate,
+            reserve: reserveAggregate,
+            deltaMeanHands: Number((reserveAggregate.meanHandsCompleted - baselineAggregate.meanHandsCompleted).toFixed(3)),
+            deltaSessionEndedSeeds: reserveAggregate.sessionEndedSeeds - baselineAggregate.sessionEndedSeeds,
+            deltaMovedUpSeeds: reserveAggregate.movedUpSeeds - baselineAggregate.movedUpSeeds,
+            deltaReachedT3Seeds: reserveAggregate.reachedT3Seeds - baselineAggregate.reachedT3Seeds,
+            deltaReentrySeeds: reserveAggregate.reentrySeeds - baselineAggregate.reentrySeeds,
+            deltaMeanExposure: Number((reserveAggregate.meanExposure - baselineAggregate.meanExposure).toFixed(6)),
+          };
+          console.log(`LONG_SESSION_RESERVE_AB_AGGREGATE ${JSON.stringify(paired)}`);
+          NODE
+
+      - name: Upload reserve A/B evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: long-session-reserve-ab-${{ github.run_id }}
+          path: |
+            repro-results/**/long-session-balanced-pacing-evidence-v1.json
+            ab-results/**/long-session-balanced-pacing-evidence-v1.json
+          if-no-files-found: error
+          retention-days: 14
