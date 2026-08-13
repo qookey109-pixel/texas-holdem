@@ -32,6 +32,68 @@ test.describe("Long Session balanced Hero pacing evidence", () => {
       { timeout: 12_000 },
     ).toBe(true);
 
+    // Mirror the official V2.9 long-run telemetry readiness boundary before
+    // seeding RNG or starting the first Long Session hand. These modules load
+    // asynchronously in the production page and can otherwise change the
+    // number/order of AI Math.random() calls for an identical seed.
+    await expect.poll(
+      () => page.evaluate(() => window.AiTierStrategyV28?.version || ""),
+      { timeout: 15_000 },
+    ).toBe("2.8.0");
+    await expect.poll(
+      () => page.evaluate(() => document.documentElement.dataset.aiTierStrategyV28 || ""),
+      { timeout: 15_000 },
+    ).toBe("ready");
+    await expect.poll(
+      () => page.evaluate(() => window.AiTierStrategyV292?.version || ""),
+      { timeout: 15_000 },
+    ).toBe("2.9.2");
+    await expect.poll(
+      () => page.evaluate(() => document.documentElement.dataset.aiTierStrategyV292 || ""),
+      { timeout: 15_000 },
+    ).toBe("ready");
+    await expect.poll(
+      () => page.evaluate(() => window.AiOpeningBalanceV294?.version || ""),
+      { timeout: 15_000 },
+    ).toBe("2.9.4");
+    await expect.poll(
+      () => page.evaluate(() => document.documentElement.dataset.aiOpeningBalanceV294 || ""),
+      { timeout: 15_000 },
+    ).toBe("ready");
+    await expect.poll(
+      () => page.evaluate(() => window.AiOpeningBalanceV295?.version || ""),
+      { timeout: 15_000 },
+    ).toBe("2.9.5");
+    await expect.poll(
+      () => page.evaluate(() => document.documentElement.dataset.aiOpeningBalanceV295 || ""),
+      { timeout: 15_000 },
+    ).toBe("ready");
+    await expect.poll(
+      () => page.evaluate(() => window.EconomyFoldDefenseV1?.version || ""),
+      { timeout: 15_000 },
+    ).toBe("1.1.1");
+    await expect.poll(
+      () => page.evaluate(() => window.AiBoardTextureEngineV1?.version || ""),
+      { timeout: 15_000 },
+    ).toBe("1.0.1");
+    await expect.poll(
+      () => page.evaluate(() => window.AiPostflopTexturePolicyV1?.version || ""),
+      { timeout: 15_000 },
+    ).toBe("1.0.0");
+
+    await page.evaluate(() => {
+      window.EconomyFoldDefenseV1?.refresh?.();
+      window.AiTierStrategyV292?.refresh?.();
+      window.AiOpeningBalanceV294?.refresh?.();
+      window.AiOpeningBalanceV295?.refresh?.();
+      window.AiTierStrategyV292?.resetRuntimeEvidence?.();
+      window.AiOpeningBalanceV295?.resetRuntimeEvidence?.();
+    });
+    await expect.poll(
+      () => page.evaluate(() => document.documentElement.dataset.aiOpeningBalanceV295 || ""),
+      { timeout: 15_000 },
+    ).toBe("ready");
+
     const raw = await page.evaluate(({ handCount, maxEventsPerHand, initialSeed }) => {
       const clamp = (value, minimum = 0, maximum = 1) => Math.min(maximum, Math.max(minimum, Number(value) || 0));
       const failures = [];
