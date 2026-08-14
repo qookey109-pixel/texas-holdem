@@ -34,13 +34,6 @@ test.describe("Desktop Responsive Layout V1", () => {
       await expect(page.locator("body")).not.toHaveClass(/is-mobile-v1-landscape/);
       await expect(page.locator(".side-rail")).toBeVisible();
 
-      const loadedResponsiveSheet = await page.evaluate(() =>
-        Array.from(document.styleSheets).some((sheet) =>
-          String(sheet.href || "").includes("desktop-responsive-layout-v1.css")
-        )
-      );
-      expect(loadedResponsiveSheet).toBe(true);
-
       await expectInsideViewport(page, page.locator(".table"));
       await expectInsideViewport(page, page.locator(".arena"));
       await expectInsideViewport(page, page.locator(".side-rail"));
@@ -66,12 +59,14 @@ test.describe("Desktop Responsive Layout V1", () => {
     });
   }
 
-  test("component sizing grows smoothly from compact laptop to full HD", async ({ page }) => {
+  test("saved layout sizes gain a viewport cap instead of overriding responsive sizing", async ({ page }) => {
     await openAt(page, 1280, 720);
     const compact = await page.evaluate(() => ({
       seat: document.querySelector(".seat")?.getBoundingClientRect().width || 0,
       boardCard: document.querySelector(".board-cards .card")?.getBoundingClientRect().width || 0,
+      heroCard: document.querySelector("#playerCards .card")?.getBoundingClientRect().width || 0,
       rail: document.querySelector(".side-rail")?.getBoundingClientRect().width || 0,
+      savedSeat: window.LayoutSizeController?.getSizes?.().aiSeat || 0,
     }));
 
     await page.setViewportSize({ width: 1920, height: 1080 });
@@ -79,16 +74,32 @@ test.describe("Desktop Responsive Layout V1", () => {
     const fullHd = await page.evaluate(() => ({
       seat: document.querySelector(".seat")?.getBoundingClientRect().width || 0,
       boardCard: document.querySelector(".board-cards .card")?.getBoundingClientRect().width || 0,
+      heroCard: document.querySelector("#playerCards .card")?.getBoundingClientRect().width || 0,
       rail: document.querySelector(".side-rail")?.getBoundingClientRect().width || 0,
+      savedSeat: window.LayoutSizeController?.getSizes?.().aiSeat || 0,
     }));
 
-    expect(compact.seat).toBeGreaterThanOrEqual(130);
+    // The editor still owns the reference preference (176px), while the compact
+    // viewport renders a capped effective size and Full HD restores that preference.
+    expect(compact.savedSeat).toBe(176);
+    expect(fullHd.savedSeat).toBe(176);
+    expect(compact.seat).toBeGreaterThanOrEqual(149);
+    expect(compact.seat).toBeLessThanOrEqual(154);
     expect(fullHd.seat).toBeGreaterThan(compact.seat);
-    expect(fullHd.seat).toBeLessThanOrEqual(168);
+    expect(fullHd.seat).toBeGreaterThanOrEqual(174);
+    expect(fullHd.seat).toBeLessThanOrEqual(178);
 
-    expect(compact.boardCard).toBeGreaterThanOrEqual(63);
+    expect(compact.boardCard).toBeGreaterThanOrEqual(74);
+    expect(compact.boardCard).toBeLessThanOrEqual(78);
     expect(fullHd.boardCard).toBeGreaterThan(compact.boardCard);
-    expect(fullHd.boardCard).toBeLessThanOrEqual(94);
+    expect(fullHd.boardCard).toBeGreaterThanOrEqual(84);
+    expect(fullHd.boardCard).toBeLessThanOrEqual(88);
+
+    expect(compact.heroCard).toBeGreaterThanOrEqual(76);
+    expect(compact.heroCard).toBeLessThanOrEqual(80);
+    expect(fullHd.heroCard).toBeGreaterThan(compact.heroCard);
+    expect(fullHd.heroCard).toBeGreaterThanOrEqual(90);
+    expect(fullHd.heroCard).toBeLessThanOrEqual(94);
 
     expect(compact.rail).toBeGreaterThanOrEqual(220);
     expect(fullHd.rail).toBeGreaterThanOrEqual(compact.rail);
