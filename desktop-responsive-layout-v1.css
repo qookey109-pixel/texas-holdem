@@ -70,10 +70,7 @@
     max-width: clamp(150px, min(var(--layout-ai-seat-width, 176px), 18vw, 21vh), 210px) !important;
   }
 
-  html body .arena .seat {
-    gap: clamp(3px, 0.55vh, 5px);
-  }
-
+  /* Do not override .seat.has-street-bet gap from topbar-seat-polish.js. */
   html body .arena .seat-header {
     grid-template-columns: minmax(0, 1fr) clamp(48px, 5vw, 58px) !important;
     grid-template-rows: repeat(3, clamp(16px, 2vh, 20px)) !important;
@@ -216,10 +213,7 @@
     max-width: clamp(138px, min(var(--layout-ai-seat-width, 176px), 18vw, 23vh), 210px) !important;
   }
 
-  html body .arena .seat {
-    gap: 3px;
-  }
-
+  /* Preserve the zero-gap attached-bet treatment from topbar-seat-polish.js. */
   html body .arena .seat-header {
     grid-template-columns: minmax(0, 1fr) 48px !important;
     grid-template-rows: repeat(3, 16px) !important;
