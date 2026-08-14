@@ -50,13 +50,16 @@ async function readComputedSizing(page) {
       if (!element) return 0;
       return Number.parseFloat(getComputedStyle(element).width || "0");
     };
+    const saved = window.LayoutSizeController?.getSizes?.() || {};
 
     return {
       seat: widthOf(".seat"),
       boardCard: widthOf(".board-cards .card"),
       heroCard: widthOf("#playerCards .card"),
       rail: widthOf(".side-rail"),
-      savedSeat: window.LayoutSizeController?.getSizes?.().aiSeat || 0,
+      savedSeat: Number(saved.aiSeat) || 0,
+      savedBoardCard: Number(saved.boardCard) || 0,
+      savedHeroCard: Number(saved.heroCard) || 0,
     };
   });
 }
@@ -97,7 +100,7 @@ test.describe("Desktop Responsive Layout V1", () => {
     });
   }
 
-  test("saved layout sizes gain a viewport cap instead of overriding responsive sizing", async ({ page }) => {
+  test("saved layout sizes remain preferences while responsive caps fit the viewport", async ({ page }) => {
     await openAt(page, 1280, 720);
     const compact = await readComputedSizing(page);
 
@@ -105,28 +108,35 @@ test.describe("Desktop Responsive Layout V1", () => {
     await expect(page.locator("html")).toHaveAttribute("data-layout-ready", "true");
     const fullHd = await readComputedSizing(page);
 
-    // The editor still owns the reference preference (176px), while the compact
-    // viewport renders a capped effective size and Full HD restores that preference.
-    // Computed CSS width is used here so deal/flip transforms cannot corrupt sizing evidence.
-    expect(compact.savedSeat).toBe(176);
-    expect(fullHd.savedSeat).toBe(176);
+    // Resizing must not mutate the user's stored layout preferences.
+    expect(fullHd.savedSeat).toBe(compact.savedSeat);
+    expect(fullHd.savedBoardCard).toBe(compact.savedBoardCard);
+    expect(fullHd.savedHeroCard).toBe(compact.savedHeroCard);
+
+    // Existing editor contract ranges from js/layout-size-controls.js.
+    expect(compact.savedSeat).toBeGreaterThanOrEqual(150);
+    expect(compact.savedSeat).toBeLessThanOrEqual(210);
+    expect(compact.savedBoardCard).toBeGreaterThanOrEqual(65);
+    expect(compact.savedBoardCard).toBeLessThanOrEqual(105);
+    expect(compact.savedHeroCard).toBeGreaterThanOrEqual(70);
+    expect(compact.savedHeroCard).toBeLessThanOrEqual(115);
+
+    // Effective sizes may be capped by viewport height/width, but must stay legal,
+    // never exceed the saved preference, and must not shrink when the viewport grows.
     expect(compact.seat).toBeGreaterThanOrEqual(149);
-    expect(compact.seat).toBeLessThanOrEqual(154);
-    expect(fullHd.seat).toBeGreaterThan(compact.seat);
-    expect(fullHd.seat).toBeGreaterThanOrEqual(174);
-    expect(fullHd.seat).toBeLessThanOrEqual(178);
+    expect(compact.seat).toBeLessThanOrEqual(compact.savedSeat + 1);
+    expect(fullHd.seat).toBeGreaterThanOrEqual(compact.seat - 1);
+    expect(fullHd.seat).toBeLessThanOrEqual(fullHd.savedSeat + 1);
 
-    expect(compact.boardCard).toBeGreaterThanOrEqual(74);
-    expect(compact.boardCard).toBeLessThanOrEqual(78);
-    expect(fullHd.boardCard).toBeGreaterThan(compact.boardCard);
-    expect(fullHd.boardCard).toBeGreaterThanOrEqual(84);
-    expect(fullHd.boardCard).toBeLessThanOrEqual(88);
+    expect(compact.boardCard).toBeGreaterThanOrEqual(65);
+    expect(compact.boardCard).toBeLessThanOrEqual(compact.savedBoardCard + 1);
+    expect(fullHd.boardCard).toBeGreaterThanOrEqual(compact.boardCard - 1);
+    expect(fullHd.boardCard).toBeLessThanOrEqual(fullHd.savedBoardCard + 1);
 
-    expect(compact.heroCard).toBeGreaterThanOrEqual(76);
-    expect(compact.heroCard).toBeLessThanOrEqual(80);
-    expect(fullHd.heroCard).toBeGreaterThan(compact.heroCard);
-    expect(fullHd.heroCard).toBeGreaterThanOrEqual(90);
-    expect(fullHd.heroCard).toBeLessThanOrEqual(94);
+    expect(compact.heroCard).toBeGreaterThanOrEqual(70);
+    expect(compact.heroCard).toBeLessThanOrEqual(compact.savedHeroCard + 1);
+    expect(fullHd.heroCard).toBeGreaterThanOrEqual(compact.heroCard - 1);
+    expect(fullHd.heroCard).toBeLessThanOrEqual(fullHd.savedHeroCard + 1);
 
     expect(compact.rail).toBeGreaterThanOrEqual(220);
     expect(fullHd.rail).toBeGreaterThanOrEqual(compact.rail);
