@@ -2,6 +2,10 @@
  * Scope: desktop/tablet landscape only. Mobile V1 remains authoritative <= 1180x650.
  * Goal: keep the official percentage-based layout while making component sizing react
  * smoothly to viewport height/width. No gameplay, AI, economy, G1, Gemini or Long Session logic.
+ *
+ * The existing layout-size editor injects !important rules at runtime. Responsive sizing
+ * therefore uses the same saved CSS variables with a viewport-height cap instead of
+ * replacing the user's stored size preference.
  */
 
 @media (min-width: 901px) and (min-height: 651px) {
@@ -58,42 +62,53 @@
       clamp(112px, 15.8vh, 154px);
   }
 
-  .seat {
-    width: clamp(138px, 16vh, 166px);
+  /* Respect saved layout-size preferences, but cap their rendered size by viewport height. */
+  html body .arena .seat,
+  html body .arena .seat-header {
+    width: clamp(150px, min(var(--layout-ai-seat-width, 176px), 18vw, 21vh), 210px) !important;
+    inline-size: clamp(150px, min(var(--layout-ai-seat-width, 176px), 18vw, 21vh), 210px) !important;
+    max-width: clamp(150px, min(var(--layout-ai-seat-width, 176px), 18vw, 21vh), 210px) !important;
+  }
+
+  html body .arena .seat {
     gap: clamp(3px, 0.55vh, 5px);
   }
 
-  .seat-header {
-    width: 100%;
-    inline-size: 100%;
-    max-width: none;
-    min-height: clamp(46px, 6.4vh, 58px);
-    padding-top: clamp(6px, 0.8vh, 9px);
-    padding-bottom: clamp(5px, 0.7vh, 8px);
+  html body .arena .seat-header {
+    grid-template-columns: minmax(0, 1fr) clamp(48px, 5vw, 58px) !important;
+    grid-template-rows: repeat(3, clamp(16px, 2vh, 20px)) !important;
+    min-height: clamp(62px, 8.2vh, 74px) !important;
+    padding: clamp(5px, 0.7vh, 7px) clamp(6px, 0.55vw, 8px) !important;
   }
 
-  .seat h2 {
-    font-size: clamp(0.72rem, 1.45vh, 0.92rem);
+  html body .arena .player-emoji {
+    width: clamp(24px, 3.3vh, 29px) !important;
+    height: clamp(24px, 3.3vh, 29px) !important;
+    font-size: clamp(0.94rem, 2vh, 1.14rem) !important;
+  }
+
+  html body .arena .seat h2 {
+    font-size: clamp(0.82rem, 1.45vh, 0.94rem) !important;
   }
 
   .seat-meta {
     font-size: clamp(0.6rem, 1.12vh, 0.72rem);
   }
 
-  .seat-meta strong {
-    font-size: clamp(0.78rem, 1.55vh, 0.98rem);
+  html body .arena .seat-meta strong {
+    font-size: clamp(0.88rem, 1.6vh, 1.02rem) !important;
   }
 
-  .seat-card-zone .card {
-    width: clamp(30px, 4.5vh, 42px);
+  html body .arena .seat .card {
+    width: clamp(32px, min(var(--layout-ai-card-width, 44px), 5vw, 5.8vh), 58px) !important;
   }
 
   .board-cards {
     gap: clamp(5px, 0.7vw, 10px);
   }
 
-  .board-cards .card {
-    width: clamp(68px, 8.5vh, 92px);
+  html body .arena .board-cards .card {
+    width: clamp(65px, min(var(--layout-board-card-width, 86px), 7.2vw, 10.5vh), 105px) !important;
   }
 
   .player-cards {
@@ -101,8 +116,8 @@
     gap: clamp(4px, 0.55vw, 8px);
   }
 
-  .player-cards .card {
-    width: clamp(54px, 6.6vh, 72px);
+  html body .arena #playerCards .card {
+    width: clamp(70px, min(var(--layout-hero-card-width, 92px), 10vw, 10.8vh), 115px) !important;
   }
 
   .player-panel {
@@ -134,6 +149,10 @@
   .coach-panel {
     min-width: 0;
   }
+
+  html body .arena .ai-profile-panel {
+    width: clamp(230px, min(var(--layout-ai-profile-width, 272px), 31vw, 33vh), 330px) !important;
+  }
 }
 
 /* Compact desktop/laptop: preserve the full desktop table, but reclaim horizontal space. */
@@ -152,14 +171,6 @@
   .top-bar-actions .tutorial-button,
   .top-bar-actions .auto-button {
     min-width: 82px;
-  }
-
-  .seat {
-    width: clamp(132px, 15.5vh, 152px);
-  }
-
-  .board-cards .card {
-    width: clamp(64px, 8.2vh, 82px);
   }
 }
 
@@ -198,29 +209,34 @@
     inset: 74px 64px 96px;
   }
 
-  .seat {
-    width: clamp(118px, 20vh, 136px);
+  html body .arena .seat,
+  html body .arena .seat-header {
+    width: clamp(138px, min(var(--layout-ai-seat-width, 176px), 18vw, 23vh), 210px) !important;
+    inline-size: clamp(138px, min(var(--layout-ai-seat-width, 176px), 18vw, 23vh), 210px) !important;
+    max-width: clamp(138px, min(var(--layout-ai-seat-width, 176px), 18vw, 23vh), 210px) !important;
+  }
+
+  html body .arena .seat {
     gap: 3px;
   }
 
-  .seat-header {
-    width: 100%;
-    inline-size: 100%;
-    max-width: none;
-    min-height: 40px;
-    padding-block: 5px;
+  html body .arena .seat-header {
+    grid-template-columns: minmax(0, 1fr) 48px !important;
+    grid-template-rows: repeat(3, 16px) !important;
+    min-height: 60px !important;
+    padding: 4px 6px !important;
   }
 
-  .seat-card-zone .card {
-    width: clamp(26px, 5.2vh, 32px);
+  html body .arena .seat .card {
+    width: clamp(28px, min(var(--layout-ai-card-width, 44px), 5vw, 5.4vh), 58px) !important;
   }
 
-  .board-cards .card {
-    width: clamp(52px, 10vh, 64px);
+  html body .arena .board-cards .card {
+    width: clamp(56px, min(var(--layout-board-card-width, 86px), 7.2vw, 10vh), 105px) !important;
   }
 
-  .player-cards .card {
-    width: clamp(46px, 9vh, 58px);
+  html body .arena #playerCards .card {
+    width: clamp(64px, min(var(--layout-hero-card-width, 92px), 10vw, 10.5vh), 115px) !important;
   }
 
   .player-panel {
