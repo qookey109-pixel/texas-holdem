@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 
 const RUNNER = "scripts/long-session-bankroll-excluded-promotion-ab.mjs";
 const RUNTIME = "js/long-session-mode-v1.js";
+const RUN_ARCHIVED_EVIDENCE = process.env.LONG_SESSION_RUN_ARCHIVED_EVIDENCE === "1";
 const ARMS = [
   { label: "total_wealth_control", rule: "total-wealth" },
   { label: "bankroll_excluded", rule: "table-stack-only" },
@@ -14,6 +15,7 @@ test.describe("Long Session bankroll-excluded promotion A/B", () => {
   test.setTimeout(20 * 60 * 1000);
 
   test("compares reserve-preserving promotion on 16 fresh seeds", async ({}, testInfo) => {
+    test.skip(!RUN_ARCHIVED_EVIDENCE, "Archived one-off Long Session evidence; opt in with LONG_SESSION_RUN_ARCHIVED_EVIDENCE=1.");
     test.skip(testInfo.project.name !== "chromium", "Dedicated deterministic evidence runs once in Chromium only.");
 
     const summaries = [];
