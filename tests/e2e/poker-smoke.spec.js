@@ -58,7 +58,7 @@ test("核心牌局與主要面板可正常操作", async ({ page }) => {
   await expect(page.locator("#handNumber")).toHaveText("第 1 局");
   await expect(page.locator("#playerCards .card")).toHaveCount(2);
   await expect(page.locator("#opponents .seat")).toHaveCount(6);
-  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.version)).toBe("3.0.0");
+  await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.version)).toBe("3.1.0");
   await expect.poll(() => page.evaluate(() => OfficialLayoutPreset.sizes)).toEqual({
     heroCard: 70,
     boardCard: 68,
@@ -97,6 +97,7 @@ test("核心牌局與主要面板可正常操作", async ({ page }) => {
   await expect(page.locator("#layoutSizeControls")).toBeVisible();
   await expect(page.locator("[data-layout-size]")).toHaveCount(6);
   await expect(page.locator("#resetLayoutButton")).toHaveText("⭐ 官方預設");
+  await expect(page.locator("#autoLayoutButton")).toHaveCount(0);
   await expect(page.locator("[data-layout-size='heroCard']")).toHaveValue("70");
   await expect(page.locator("[data-layout-size='boardCard']")).toHaveValue("68");
   await expect(page.locator("[data-layout-size='aiCard']")).toHaveValue("44");
