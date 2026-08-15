@@ -18,13 +18,12 @@ async function openLayoutEditor(page) {
   return editor;
 }
 
-test("版面編輯器直接顯示常用與調整工具，不需要更多工具", async ({ page }) => {
+test("版面編輯器直接顯示常用工具，官方版面只保留一個操作", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
   await expect(page.locator("#arena")).toBeVisible();
 
   const editor = await openLayoutEditor(page);
   const saveButton = editor.locator("#saveLayoutButton");
-  const autoButton = editor.locator("#autoLayoutButton");
   const resetButton = editor.locator("#resetLayoutButton");
   const lockButton = editor.locator("#lockLayoutButton");
   const nudge = editor.locator(".layout-nudge");
@@ -32,25 +31,24 @@ test("版面編輯器直接顯示常用與調整工具，不需要更多工具",
   await expect.poll(
     () => page.evaluate(() => window.LayoutEditorCompactToolsV1?.version || ""),
     { timeout: 5_000 },
-  ).toBe("2.0.0");
+  ).toBe("2.1.0");
   await expect.poll(
     () => page.evaluate(() => window.LayoutEditorCompactToolsV1?.mode || ""),
     { timeout: 5_000 },
-  ).toBe("direct-actions");
+  ).toBe("direct-actions-single-official");
 
   await expect(saveButton).toBeVisible();
-  await expect(autoButton).toBeVisible();
   await expect(resetButton).toBeVisible();
   await expect(lockButton).toBeVisible();
   await expect(nudge).toBeVisible();
   await expect(editor.locator("#layoutEditorMoreTools")).toHaveCount(0);
   await expect(editor.locator("#layoutEditorMoreToolsToggle")).toHaveCount(0);
-  await expect(autoButton).toContainText("套用官方版面");
+  await expect(editor.locator("#autoLayoutButton")).toHaveCount(0);
   await expect(resetButton).toContainText("官方預設");
 
   const geometry = await editor.evaluate(element => {
     const editorRect = element.getBoundingClientRect();
-    const ids = ["saveLayoutButton", "autoLayoutButton", "resetLayoutButton", "lockLayoutButton"];
+    const ids = ["saveLayoutButton", "resetLayoutButton", "lockLayoutButton"];
     return ids.map(id => {
       const rect = element.querySelector(`#${id}`).getBoundingClientRect();
       return {
@@ -135,9 +133,10 @@ test("官方模式自動進官方版面；只有按儲存版面後才保留自�
   await expect.poll(() => page.evaluate(() => state.layout.items.actions.top)).toBe(76.5);
 
   const editorAfterReload = await openLayoutEditor(page);
-  const autoButton = editorAfterReload.locator("#autoLayoutButton");
-  await expect(autoButton).toBeVisible();
-  await autoButton.click();
+  const resetButton = editorAfterReload.locator("#resetLayoutButton");
+  await expect(resetButton).toBeVisible();
+  await expect(editorAfterReload.locator("#autoLayoutButton")).toHaveCount(0);
+  await resetButton.click();
 
   await expect.poll(() => page.evaluate(() => state.layout.items.actions)).toEqual({ left: 81.6, top: 89.13 });
   await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemLayoutPreferenceV1"))).toBe("official");
