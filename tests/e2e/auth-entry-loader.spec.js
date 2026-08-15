@@ -46,7 +46,7 @@ test("返回登入驗證期間顯示專用牌桌動畫，完成後立即收起",
   await expect.poll(
     () => page.evaluate(() => window.AuthEntryV2?.version || ""),
     { timeout: 5_000 },
-  ).toBe("2.1.3-safari-runtime");
+  ).toBe("2.2.0-opening-polish-v1");
 
   const entryOverlay = page.locator("#authEntryV2Overlay");
   const accountOverlay = page.locator("#authAccountOverlay");
