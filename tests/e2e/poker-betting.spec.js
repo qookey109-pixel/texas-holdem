@@ -55,7 +55,7 @@ test("玩家加注會扣除籌碼並寫入牌局紀錄", async ({ page }) => {
     startingStack: 2000,
     firstBuyIn: 2000,
     highestOpeningStack: 2000,
-    betInfoVersion: "3.1.0",
+    betInfoVersion: "4.0.0",
   });
 
   const raiseButton = await waitForHumanAction(page, "#raiseButton");
@@ -65,7 +65,7 @@ test("玩家加注會扣除籌碼並寫入牌局紀錄", async ({ page }) => {
   await expect(page.locator("#betInfoSummary")).toHaveCount(0);
   await expect(page.locator("#callButton")).toHaveText(/^(過牌|跟注 [\d,]+)$/);
   await expect(raiseButton).toHaveText(/^加注至 [\d,]+$/);
-  await expect(page.locator("#allInButton")).toHaveText(/^All-in [\d,]+$/);
+  await expect(page.locator("#allInButton")).toHaveText(/^All-in · [\d,]+$/);
   await expect(page.locator(".raise-caption")).toHaveText("加注至");
   await expect(page.locator(".quick-bets button")).toHaveCount(4);
 
@@ -81,10 +81,9 @@ test("玩家加注會扣除籌碼並寫入牌局紀錄", async ({ page }) => {
     const quickBets = document.querySelector(".quick-bets")?.getBoundingClientRect();
     const mainButton = document.querySelector("#raiseButton")?.getBoundingClientRect();
     return {
-      minimumTo: snapshot.minimumTo,
+      minimumBy: snapshot.minimumBy,
+      minimumTarget: Number(state.currentBet || 0) + snapshot.minimumBy,
       effectiveTarget: snapshot.effectiveTarget,
-      remaining: snapshot.remaining,
-      potAfter: snapshot.potAfter,
       raiseLabel: document.querySelector("#raiseButton")?.textContent,
       raiseValueLabel: document.querySelector("#raiseAmountValue")?.textContent,
       summaryExists: Boolean(document.querySelector("#betInfoSummary")),
@@ -98,24 +97,23 @@ test("玩家加注會扣除籌碼並寫入牌局紀錄", async ({ page }) => {
   expect(guidance.raiseLabel).toBe(`加注至 ${formatAmount(guidance.effectiveTarget)}`);
   expect(guidance.raiseValueLabel).toBe(formatAmount(guidance.effectiveTarget));
   expect(guidance.summaryExists).toBe(false);
-  expect(guidance.remaining).toBeGreaterThanOrEqual(0);
-  expect(guidance.potAfter).toBeGreaterThan(0);
-  expect(guidance.effectiveTarget).toBeGreaterThanOrEqual(guidance.minimumTo);
+  expect(guidance.minimumBy).toBeGreaterThan(0);
+  expect(guidance.effectiveTarget).toBeGreaterThanOrEqual(guidance.minimumTarget);
   expect(guidance.mainButtonHeight).toBeGreaterThanOrEqual(40);
   expect(guidance.raiseControlWidth).toBeGreaterThanOrEqual(guidance.controlsWidth * 0.95);
   expect(guidance.quickBetsWidth).toBeGreaterThanOrEqual(guidance.controlsWidth * 0.95);
 
-  const twoThirdsButton = page.locator('.quick-bets button[data-bet="twoThirds"]');
-  await expect(twoThirdsButton.locator(".quick-bet-label")).toHaveText("2/3");
-  await expect(twoThirdsButton.locator(".quick-bet-amount")).toHaveText(/^至 [\d,]+$/);
-  await twoThirdsButton.click();
-  await expect(twoThirdsButton).toHaveClass(/is-selected/);
-  await expect(twoThirdsButton).toHaveAttribute("aria-pressed", "true");
+  const threeQuarterButton = page.locator('.quick-bets button[data-bet="threeQuarter"]');
+  await expect(threeQuarterButton.locator(".quick-bet-label")).toHaveText("75%");
+  await expect(threeQuarterButton.locator(".quick-bet-amount")).toHaveText(/^至 [\d,]+$/);
+  await threeQuarterButton.click();
+  await expect(threeQuarterButton).toHaveClass(/is-selected/);
+  await expect(threeQuarterButton).toHaveAttribute("aria-pressed", "true");
 
-  const twoThirdsTarget = Number(await twoThirdsButton.getAttribute("data-target"));
-  expect(twoThirdsTarget).toBeGreaterThan(0);
-  await expect(raiseButton).toHaveText(`加注至 ${formatAmount(twoThirdsTarget)}`);
-  await expect(page.locator("#raiseAmountValue")).toHaveText(formatAmount(twoThirdsTarget));
+  const threeQuarterTarget = Number(await threeQuarterButton.getAttribute("data-target"));
+  expect(threeQuarterTarget).toBeGreaterThan(0);
+  await expect(raiseButton).toHaveText(`加注至 ${formatAmount(threeQuarterTarget)}`);
+  await expect(page.locator("#raiseAmountValue")).toHaveText(formatAmount(threeQuarterTarget));
 
   await raiseButton.click();
 
@@ -138,7 +136,7 @@ test("玩家 All-in 會清空可用籌碼並寫入牌局紀錄", async ({ page }
   const stackBefore = Number(await page.locator("#playerStack").textContent());
   expect(stackBefore).toBeGreaterThan(0);
   expect(stackBefore).toBeLessThanOrEqual(2000);
-  await expect(allInButton).toHaveText(`All-in ${formatAmount(stackBefore)}`);
+  await expect(allInButton).toHaveText(`All-in · ${formatAmount(stackBefore)}`);
 
   await allInButton.click();
 
