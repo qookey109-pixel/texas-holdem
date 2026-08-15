@@ -39,35 +39,24 @@ function installDelayedReturningSession(page, delayMs = 2500) {
   }, { sessionDelay: delayMs });
 }
 
-test("返回登入驗證期間顯示專用牌桌動畫，完成後立即收起", async ({ page }) => {
+test("返回登入驗證期間顯示純向量牌桌動畫，完成後依原節奏收起", async ({ page }) => {
   await installDelayedReturningSession(page);
   await page.goto("/", { waitUntil: "domcontentloaded" });
 
   await expect.poll(
     () => page.evaluate(() => window.AuthEntryV2?.version || ""),
     { timeout: 5_000 },
-  ).toBe("2.2.0-opening-polish-v1");
+  ).toBe("3.0.0-vector-opening-v2");
 
   const entryOverlay = page.locator("#authEntryV2Overlay");
   const accountOverlay = page.locator("#authAccountOverlay");
 
   await expect(entryOverlay).toBeVisible();
+  await expect(entryOverlay).toHaveAttribute("data-render-mode", "vector");
   await expect(entryOverlay.locator(".auth-entry-v2-table")).toHaveCount(1);
-  await expect(entryOverlay.locator("#authEntryV2Video")).toHaveCount(1);
+  await expect(entryOverlay.locator("video, img, canvas")).toHaveCount(0);
+  await expect(entryOverlay.locator(".auth-entry-v2-rail")).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-auth-entry-v2", "active");
-
-  // The dedicated returning-session surface owns the transition. Depending on
-  // Safari media timing, either the real video is already playing or the CSS
-  // table fallback remains visible; the player-account dialog must stay closed.
-  await expect.poll(
-    () => page.evaluate(() => {
-      const status = window.AuthEntryV2?.status?.();
-      const fallback = document.querySelector(".auth-entry-v2-table-wrap");
-      const fallbackVisible = Boolean(fallback && getComputedStyle(fallback).visibility !== "hidden");
-      return Boolean(status?.videoState === "playing" || fallbackVisible);
-    }),
-    { timeout: 5_000 },
-  ).toBe(true);
   await expect(accountOverlay).toBeHidden();
 
   await expect.poll(
@@ -75,7 +64,6 @@ test("返回登入驗證期間顯示專用牌桌動畫，完成後立即收起",
     { timeout: 7_000 },
   ).toBe(true);
 
-  // Auth may settle before the minimum returning-entry presentation duration.
   await expect(entryOverlay).toBeVisible();
 
   await expect.poll(
