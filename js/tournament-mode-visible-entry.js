@@ -148,10 +148,6 @@
       state.coach.enabled = false;
     }
 
-    if (typeof renderCoach === "function") {
-      renderCoach();
-    }
-
     const panel = document.querySelector("#coachPanel");
     const mainToggle = document.querySelector("#coachEnabled");
     const oddsToggle = document.querySelector("#coachOddsToggle");
@@ -179,8 +175,9 @@
       else input.removeAttribute("title");
     });
 
-    if (toggleText) {
-      toggleText.textContent = state.coach.enabled ? "ON" : "OFF";
+    const nextToggleText = state.coach.enabled ? "ON" : "OFF";
+    if (toggleText && toggleText.textContent !== nextToggleText) {
+      toggleText.textContent = nextToggleText;
     }
 
     if (panel) {
