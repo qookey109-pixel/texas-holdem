@@ -44,6 +44,12 @@ test("可讀性試驗會微調手牌並放大重要狀態", async ({ page }) => 
 
   await expect(page.locator("#layoutReadabilityTrialStyles")).toHaveCount(1);
 
+  const coachToggle = page.locator("#coachEnabled");
+  await expect(coachToggle).toBeVisible();
+  await expect(coachToggle).not.toBeChecked();
+  await coachToggle.check();
+  await expect(page.locator("#coachContent")).toBeVisible();
+
   const layout = await page.evaluate(() => {
     const trialSnapshot = LayoutReadabilityTrial.snapshot();
     const status = document.querySelector(".seat-status");
