@@ -8,6 +8,7 @@
   const TOURNAMENT_MODE = "tournament";
   let observer = null;
   let syncScheduled = false;
+  let lastCoachChallengeState = null;
 
   function loadUnifiedControls() {
     if (window.GameModeControlsV2?.version) {
@@ -137,12 +138,34 @@
     document.head.appendChild(style);
   }
 
+  function setBooleanProperty(node, property, value) {
+    if (node && node[property] !== value) node[property] = value;
+  }
+
+  function setAttributeValue(node, name, value) {
+    if (!node) return;
+    if (value === null) {
+      if (node.hasAttribute(name)) node.removeAttribute(name);
+      return;
+    }
+    if (node.getAttribute(name) !== value) node.setAttribute(name, value);
+  }
+
+  function toggleAttributeValue(node, name, active) {
+    if (node && node.hasAttribute(name) !== active) node.toggleAttribute(name, active);
+  }
+
+  function toggleClassValue(node, name, active) {
+    if (node && node.classList.contains(name) !== active) node.classList.toggle(name, active);
+  }
+
   function syncCoachPolicy(forceChallenge = null) {
     if (typeof state !== "object" || !state.coach) return false;
 
     const challengeActive = typeof forceChallenge === "boolean"
       ? forceChallenge
       : Boolean(window.TournamentMode?.isActive?.());
+    lastCoachChallengeState = challengeActive;
 
     if (challengeActive) {
       state.coach.enabled = false;
@@ -156,23 +179,22 @@
     const content = document.querySelector("#coachContent");
 
     if (mainToggle) {
-      mainToggle.checked = Boolean(state.coach.enabled);
-      mainToggle.disabled = challengeActive;
-      mainToggle.setAttribute("aria-disabled", String(challengeActive));
-      mainToggle.setAttribute(
+      setBooleanProperty(mainToggle, "checked", Boolean(state.coach.enabled));
+      setBooleanProperty(mainToggle, "disabled", challengeActive);
+      setAttributeValue(mainToggle, "aria-disabled", String(challengeActive));
+      setAttributeValue(
+        mainToggle,
         "aria-label",
         challengeActive ? "AI 教練（挑戰賽模式停用）" : "AI 教練開關",
       );
-      if (challengeActive) mainToggle.title = "挑戰賽模式停用 AI 教練";
-      else mainToggle.removeAttribute("title");
+      setAttributeValue(mainToggle, "title", challengeActive ? "挑戰賽模式停用 AI 教練" : null);
     }
 
     [oddsToggle, adviceToggle].forEach(input => {
       if (!input) return;
-      input.disabled = challengeActive;
-      input.setAttribute("aria-disabled", String(challengeActive));
-      if (challengeActive) input.title = "挑戰賽模式停用 AI 教練";
-      else input.removeAttribute("title");
+      setBooleanProperty(input, "disabled", challengeActive);
+      setAttributeValue(input, "aria-disabled", String(challengeActive));
+      setAttributeValue(input, "title", challengeActive ? "挑戰賽模式停用 AI 教練" : null);
     });
 
     const nextToggleText = state.coach.enabled ? "ON" : "OFF";
@@ -181,16 +203,17 @@
     }
 
     if (panel) {
-      panel.toggleAttribute("data-challenge-locked", challengeActive);
-      panel.setAttribute(
+      toggleAttributeValue(panel, "data-challenge-locked", challengeActive);
+      setAttributeValue(
+        panel,
         "aria-label",
         challengeActive ? "Poker Coach（挑戰賽模式停用）" : "Poker Coach",
       );
-      panel.classList.toggle("is-disabled", !state.coach.enabled);
+      toggleClassValue(panel, "is-disabled", !state.coach.enabled);
     }
 
     if (content && !state.coach.enabled) {
-      content.hidden = true;
+      setBooleanProperty(content, "hidden", true);
     }
 
     return true;
@@ -274,7 +297,10 @@
     loadStreetTransitionPerformance();
     loadUnifiedControls();
     loadTournamentCloudSave();
-    syncCoachPolicy();
+    const challengeActive = Boolean(window.TournamentMode?.isActive?.());
+    if (lastCoachChallengeState !== challengeActive) {
+      syncCoachPolicy(challengeActive);
+    }
     mountChallengeButton();
     mountModeLabel();
   }
