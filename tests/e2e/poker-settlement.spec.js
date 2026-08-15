@@ -4,7 +4,7 @@ function collectRuntimeIssues(page) {
   const issues = [];
 
   page.on("pageerror", error => {
-    issues.push(`pageerror: ${error.message}`));
+    issues.push(`pageerror: ${error.message}`);
   });
 
   page.on("console", message => {
