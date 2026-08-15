@@ -39,53 +39,39 @@ function installFastReturningSession(page, delayMs = 120) {
   }, { sessionDelay: delayMs });
 }
 
-test("返回登入優先準備原始影片試播，CSS V2 保留為備援", async ({ page }) => {
+test("返回登入使用純 DOM/CSS 高解析開場，不再載入低解析影片", async ({ page }) => {
+  let mediaRequests = 0;
+  page.on("request", request => {
+    if (/auth-entry-poker.*\.mp4/i.test(request.url())) mediaRequests += 1;
+  });
+
   await installFastReturningSession(page);
   await page.goto("/", { waitUntil: "domcontentloaded" });
 
   await expect.poll(
     () => page.evaluate(() => window.AuthEntryV2?.version || ""),
     { timeout: 5_000 },
-  ).toBe("2.2.0-opening-polish-v1");
+  ).toBe("3.0.0-vector-opening-v2");
 
   const overlay = page.locator("#authEntryV2Overlay");
   await expect(overlay).toBeVisible();
+  await expect(overlay).toHaveAttribute("data-render-mode", "vector");
   await expect(page.locator('link[data-auth-entry-v2-style]')).toHaveAttribute(
     "href",
-    /auth-entry-v2\.css\?v=auth-entry-video-trial-v1$/,
+    /auth-entry-v2\.css\?v=opening-animation-vector-v2$/,
   );
-  await expect(page.locator('link[data-auth-entry-video-style]')).toHaveAttribute(
+  await expect(page.locator('link[data-auth-entry-presentation-style]')).toHaveAttribute(
     "href",
-    /auth-entry-video-trial\.css\?v=opening-animation-polish-v1$/,
+    /auth-entry-video-trial\.css\?v=opening-animation-vector-v2$/,
   );
 
-  const video = overlay.locator("#authEntryV2Video");
-  await expect(video).toHaveCount(1);
-  await expect(video).toHaveAttribute("src", /assets\/auth-entry-poker-720p\.mp4\?v=auth-entry-video-safari-runtime-v3$/);
-  await expect(video).toHaveAttribute("autoplay", "");
-  await expect(video).toHaveAttribute("muted", "");
-  await expect(video).toHaveAttribute("playsinline", "");
-  await expect(video).toHaveAttribute("preload", "auto");
-
-  const mediaConfig = await video.evaluate(element => ({
-    defaultMuted: element.defaultMuted,
-    playsInline: element.playsInline,
-  }));
-  expect(mediaConfig.defaultMuted).toBe(true);
-  expect(mediaConfig.playsInline).toBe(true);
-
-  // Playback startup timing differs in WebKit. Actual playback progression and
-  // runtime playback-rate behavior are covered by auth-entry-video-playback.spec.js.
-  // This setup test only verifies durable media configuration and CSS fallback.
-
-  // The layered table must remain in the DOM so unsupported codecs/network failures
-  // never leave a blank returning-login screen. Once the video is active it may be
-  // intentionally hidden to avoid wasting paint work underneath the real media.
+  await expect(overlay.locator("video, img, canvas")).toHaveCount(0);
   await expect(overlay.locator(".auth-entry-v2-rail")).toHaveCount(1);
   await expect(overlay.locator(".auth-entry-v2-felt")).toHaveCount(1);
   await expect(overlay.locator(".auth-entry-v2-card")).toHaveCount(2);
   await expect(overlay.locator(".auth-entry-v2-chip-stack")).toHaveCount(3);
   await expect(overlay.locator(".auth-entry-v2-chip-stack i")).toHaveCount(15);
+  await expect(overlay.locator(".auth-entry-v2-pot i")).toHaveCount(5);
   await expect(overlay.locator(".auth-entry-v2-dealer")).toHaveText("D");
   await expect(overlay.locator(".auth-entry-v2-table-mark")).toContainText("TEXAS HOLD'EM");
 
@@ -94,20 +80,14 @@ test("返回登入優先準備原始影片試播，CSS V2 保留為備援", asyn
     const firstCard = element.querySelector(".auth-entry-v2-card-one");
     const firstStack = element.querySelector(".auth-entry-v2-stack-red");
     const progress = element.querySelector(".auth-entry-v2-progress span");
-    const shell = element.querySelector(".auth-entry-v2-video-shell");
-    const videoElement = element.querySelector(".auth-entry-v2-video");
-    const videoStyle = getComputedStyle(videoElement);
-    const videoMatrix = new DOMMatrix(videoStyle.transform);
     const overlayStyle = getComputedStyle(element);
     return {
       tableAnimation: getComputedStyle(table).animationName,
       cardAnimation: getComputedStyle(firstCard).animationName,
       chipAnimation: getComputedStyle(firstStack).animationName,
       progressAnimation: getComputedStyle(progress).animationName,
-      videoShellPosition: getComputedStyle(shell).position,
-      videoObjectFit: videoStyle.objectFit,
-      videoScale: videoMatrix.a,
-      overlayBackdropFilter: overlayStyle.backdropFilter || overlayStyle.webkitBackdropFilter || "none",
+      backdropFilter: overlayStyle.backdropFilter || overlayStyle.webkitBackdropFilter || "none",
+      renderMode: element.dataset.renderMode,
     };
   });
 
@@ -115,16 +95,12 @@ test("返回登入優先準備原始影片試播，CSS V2 保留為備援", asyn
   expect(presentation.cardAnimation).toContain("auth-entry-v2-card-one");
   expect(presentation.chipAnimation).toContain("auth-entry-v2-chip-stack-one");
   expect(presentation.progressAnimation).toContain("auth-entry-v2-progress");
-  expect(presentation.videoShellPosition).toBe("absolute");
-  expect(presentation.videoObjectFit).toBe("cover");
-  expect(presentation.videoScale).toBeCloseTo(1.24, 2);
-  expect(presentation.overlayBackdropFilter).toBe("none");
+  expect(presentation.backdropFilter).toBe("none");
+  expect(presentation.renderMode).toBe("vector");
 
-  await overlay.evaluate(element => element.classList.add("has-video"));
-  await expect(overlay.locator(".auth-entry-v2-kicker")).toBeHidden();
-  await expect(overlay.locator(".auth-entry-v2-copy strong")).toHaveCSS("margin-top", "0px");
-  await expect(overlay.locator(".auth-entry-v2-table-wrap")).toHaveCSS("visibility", "hidden");
-  await expect(overlay.locator(".auth-entry-v2-table-wrap")).toHaveCSS("filter", "none");
+  await page.waitForTimeout(2_450);
+  await expect(overlay.locator(".auth-entry-v2-card-one")).toHaveCSS("opacity", "1");
+  await expect(overlay.locator(".auth-entry-v2-card-two")).toHaveCSS("opacity", "1");
 
   await expect.poll(
     () => page.evaluate(() => window.TexasHoldemAuth?.status().signedIn || false),
@@ -132,24 +108,14 @@ test("返回登入優先準備原始影片試播，CSS V2 保留為備援", asyn
   ).toBe(true);
 
   await expect.poll(
-    () => page.evaluate(() => performance.now() - (window.AuthEntryV2?.status().startedAt || performance.now())),
-    { timeout: 7_000 },
-  ).toBeGreaterThan(5_000);
-
-  await expect(overlay).toBeVisible();
-
-  await expect.poll(
     () => page.evaluate(() => window.AuthEntryV2?.status().visible ?? true),
-    { timeout: 4_000 },
+    { timeout: 6_000 },
   ).toBe(false);
 
-  const elapsedAtClose = await page.evaluate(
-    () => performance.now() - (window.AuthEntryV2?.status().startedAt || performance.now()),
-  );
-  expect(elapsedAtClose).toBeGreaterThanOrEqual(6_300);
+  expect(mediaRequests).toBe(0);
 });
 
-test("Retina 顯示限制影片尺寸並降低額外放大", async ({ browser }) => {
+test("Retina 2x 仍使用純向量結構，不依賴 raster media", async ({ browser }) => {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor: 2,
@@ -161,61 +127,35 @@ test("Retina 顯示限制影片尺寸並降低額外放大", async ({ browser })
   await expect.poll(
     () => page.evaluate(() => window.AuthEntryV2?.version || ""),
     { timeout: 5_000 },
-  ).toBe("2.2.0-opening-polish-v1");
+  ).toBe("3.0.0-vector-opening-v2");
 
   const density = await page.locator("#authEntryV2Overlay").evaluate(element => {
-    const shell = element.querySelector(".auth-entry-v2-video-shell");
-    const video = element.querySelector(".auth-entry-v2-video");
-    const shellRect = shell.getBoundingClientRect();
-    const matrix = new DOMMatrix(getComputedStyle(video).transform);
+    const table = element.querySelector(".auth-entry-v2-table-wrap");
+    const rect = table.getBoundingClientRect();
     return {
       dpr: window.devicePixelRatio,
-      shellWidth: shellRect.width,
-      videoScale: matrix.a,
+      tableWidth: rect.width,
+      rasterNodes: element.querySelectorAll("video, img, canvas").length,
+      renderMode: element.dataset.renderMode,
     };
   });
 
   expect(density.dpr).toBe(2);
-  expect(density.shellWidth).toBeLessThanOrEqual(560.5);
-  expect(density.videoScale).toBeCloseTo(1.16, 2);
+  expect(density.tableWidth).toBeLessThanOrEqual(650.5);
+  expect(density.rasterNodes).toBe(0);
+  expect(density.renderMode).toBe("vector");
   await context.close();
 });
 
-test("原始影片載入失敗時仍安全使用 CSS 牌桌備援", async ({ page }) => {
-  await page.route("**/assets/auth-entry-poker-720p.mp4*", route => route.abort());
-  await installFastReturningSession(page, 80);
+test("全新未登入開啟仍不增加六秒開場等待", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded" });
 
   await expect.poll(
     () => page.evaluate(() => window.AuthEntryV2?.version || ""),
     { timeout: 5_000 },
-  ).toBe("2.2.0-opening-polish-v1");
-
-  const overlay = page.locator("#authEntryV2Overlay");
-  await expect(overlay).toBeVisible();
-  await expect(overlay.locator(".auth-entry-v2-rail")).toBeVisible();
-
-  await expect.poll(
-    () => page.evaluate(() => window.AuthEntryV2?.status().videoState || ""),
-    { timeout: 5_000 },
-  ).toBe("fallback");
-
-  await expect.poll(
-    () => page.evaluate(() => window.AuthEntryV2?.status().visible ?? true),
-    { timeout: 8_000 },
-  ).toBe(false);
-});
-
-test("全新未登入開啟仍不增加影片或六秒等待", async ({ page }) => {
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-
-  await expect.poll(
-    () => page.evaluate(() => window.AuthEntryV2?.version || ""),
-    { timeout: 5_000 },
-  ).toBe("2.2.0-opening-polish-v1");
+  ).toBe("3.0.0-vector-opening-v2");
 
   await expect(page.locator("#authEntryV2Overlay")).toHaveCount(0);
-  await expect(page.locator("#authEntryV2Video")).toHaveCount(0);
   await expect.poll(
     () => page.evaluate(() => window.TexasHoldemAuth?.status().loading ?? true),
     { timeout: 5_000 },

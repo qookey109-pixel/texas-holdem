@@ -1,239 +1,401 @@
-/* Opening Animation Polish V1.
-   Keep the existing 720p H.264 source and CSS table fallback, but preserve more
-   source detail on high-density screens and avoid expensive hidden-layer blur. */
+/* Opening Animation V2 — vector/DOM presentation layer.
+   The low-resolution trial video is no longer loaded. All visible detail is
+   rendered from CSS/DOM so Retina, 2K, and 4K displays stay crisp. */
 
-/* The overlay is already nearly opaque. Avoid a full-screen live backdrop blur,
-   which adds GPU work without improving the video itself. */
 .auth-entry-v2-overlay {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(52, 184, 126, .16), transparent 30%),
+    radial-gradient(ellipse at 50% 66%, rgba(9, 70, 52, .24), transparent 50%),
+    linear-gradient(158deg, #040d12 0%, #02070b 58%, #010407 100%);
 }
 
 .auth-entry-v2-stage {
-  width: min(760px, 96vw);
-}
-
-.auth-entry-v2-table-wrap {
-  width: min(640px, 88vw);
+  width: min(820px, 96vw);
   contain: layout paint;
-  transition:
-    opacity 240ms ease,
-    transform 320ms ease,
-    visibility 0s linear 240ms;
 }
 
-.auth-entry-v2-halo {
-  transition: opacity 260ms ease;
-}
-
-.auth-entry-v2-video-shell {
-  position: absolute;
-  z-index: 6;
-  top: 0;
-  left: 50%;
-  width: min(640px, 88vw);
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-  contain: layout paint;
-  border: 1px solid rgba(235, 207, 142, 0.34);
-  border-radius: clamp(15px, 2.4vw, 24px);
-  background:
-    radial-gradient(circle at 50% 48%, rgba(25, 111, 78, 0.22), transparent 48%),
-    #03090b;
-  box-shadow:
-    0 30px 76px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(107, 217, 166, 0.07),
-    0 0 42px rgba(45, 175, 119, 0.11);
-  opacity: 0;
-  transform: translateX(-50%) translateY(3px) scale(0.99);
-  pointer-events: none;
-  backface-visibility: hidden;
-  transition:
-    opacity 260ms ease,
-    transform 380ms cubic-bezier(.16, .8, .22, 1),
-    box-shadow 380ms ease;
-}
-
-.auth-entry-v2-video-shell::before {
-  content: "";
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.055),
-    inset 0 1px 0 rgba(255, 240, 201, 0.11),
-    inset 0 -34px 58px rgba(0, 0, 0, 0.2);
-  pointer-events: none;
-}
-
-.auth-entry-v2-video-shell::after {
-  content: "";
-  position: absolute;
-  z-index: 4;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    linear-gradient(118deg, rgba(255, 247, 224, 0.07), transparent 24%, transparent 70%),
-    radial-gradient(ellipse at 50% 38%, transparent 50%, rgba(0, 0, 0, 0.1) 100%);
-  pointer-events: none;
-}
-
-.auth-entry-v2-video {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  background: #03090b;
-  object-fit: cover;
-  object-position: 49% 48%;
-  /* Preserve the existing edge crop intent without magnifying the 720p source
-     as aggressively as the previous 1.31x treatment. */
-  transform: translate3d(-0.8%, -0.7%, 0) scale(1.24);
-  transform-origin: 50% 50%;
-  backface-visibility: hidden;
-}
-
-.auth-entry-v2-video-glass {
-  position: absolute;
-  z-index: 3;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(255, 248, 226, 0.055), transparent 17%, transparent 78%, rgba(0, 0, 0, 0.17)),
-    radial-gradient(ellipse at 50% 44%, transparent 45%, rgba(0, 0, 0, 0.11) 100%);
-  pointer-events: none;
-}
-
-.auth-entry-v2-overlay.has-video .auth-entry-v2-video-shell {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0) scale(1);
-  box-shadow:
-    0 32px 84px rgba(0, 0, 0, 0.63),
-    0 0 0 1px rgba(107, 217, 166, 0.11),
-    0 0 54px rgba(45, 175, 119, 0.15);
-}
-
-.auth-entry-v2-overlay.has-video .auth-entry-v2-table-wrap {
-  opacity: 0;
-  visibility: hidden;
-  transform: scale(0.99);
-}
-
-.auth-entry-v2-overlay.has-video .auth-entry-v2-halo {
-  opacity: 0.3 !important;
-}
-
-.auth-entry-v2-overlay.has-video .auth-entry-v2-copy {
-  position: relative;
-  z-index: 8;
-}
-
-/* When the real video is playing, do not render an extra brand line beneath it. */
-.auth-entry-v2-overlay.has-video .auth-entry-v2-kicker {
-  display: none;
-}
-
-.auth-entry-v2-overlay.has-video .auth-entry-v2-copy strong {
-  margin-top: 0;
-  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.34);
-}
-
-.auth-entry-v2-overlay.has-video .auth-entry-v2-progress {
-  box-shadow: 0 0 16px rgba(76, 208, 146, 0.1);
-}
-
+.auth-entry-v2-video-shell,
 .auth-entry-v2-play-button {
-  position: absolute;
-  z-index: 12;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  min-width: 150px;
-  min-height: 44px;
-  padding: 10px 16px;
-  border: 1px solid rgba(234, 205, 136, .7);
-  border-radius: 999px;
-  background: rgba(3, 12, 17, .88);
-  color: #f7f3e8;
-  font: 800 13px/1 system-ui, sans-serif;
-  letter-spacing: .05em;
-  box-shadow: 0 12px 34px rgba(0,0,0,.48);
-  cursor: pointer;
-}
-
-.auth-entry-v2-play-button[hidden] {
   display: none !important;
 }
 
-.auth-entry-v2-overlay.video-needs-gesture .auth-entry-v2-video-shell {
-  opacity: .42;
+.auth-entry-v2-halo {
+  width: min(690px, 86vw);
+  filter: none;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(81, 224, 157, .16), transparent 43%),
+    radial-gradient(circle, rgba(32, 142, 99, .12), transparent 68%);
 }
 
-/* 1280px source width can nearly cover a 2x 560px presentation after the
-   lighter crop, so Retina-class displays avoid unnecessary upscaling. */
-@media (min-resolution: 1.75dppx) {
-  .auth-entry-v2-table-wrap,
-  .auth-entry-v2-video-shell {
-    width: min(560px, 86vw);
+.auth-entry-v2-overlay::after {
+  top: calc(50% + 146px);
+  width: min(660px, 80vw);
+  height: 120px;
+  filter: none;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, .66) 0 28%, transparent 70%);
+}
+
+.auth-entry-v2-table-wrap {
+  width: min(680px, 88vw);
+  aspect-ratio: 1.86;
+  contain: layout paint;
+  perspective: 1100px;
+}
+
+.auth-entry-v2-table-shadow {
+  left: 6%;
+  right: 6%;
+  bottom: -9%;
+  height: 34%;
+  filter: none;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, .72) 0 34%, transparent 72%);
+}
+
+.auth-entry-v2-table {
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.auth-entry-v2-rail {
+  border: 1px solid rgba(255, 225, 154, .64);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.17), transparent 19%),
+    linear-gradient(145deg, #805b39 0%, #4a321f 46%, #21150d 100%);
+  box-shadow:
+    inset 0 0 0 3px rgba(18, 10, 5, .82),
+    inset 0 -14px 22px rgba(0, 0, 0, .42),
+    0 22px 42px rgba(0, 0, 0, .5),
+    0 0 0 1px rgba(255, 221, 139, .08),
+    0 0 34px rgba(220, 179, 84, .08);
+}
+
+.auth-entry-v2-rail::before {
+  inset: 3.4%;
+  border-color: rgba(255, 229, 162, .25);
+}
+
+.auth-entry-v2-rail-highlight {
+  position: absolute;
+  z-index: 2;
+  left: 14%;
+  right: 14%;
+  top: 4.8%;
+  height: 7%;
+  border-radius: 50%;
+  background: linear-gradient(90deg, transparent, rgba(255, 239, 196, .36), transparent);
+  opacity: .5;
+  pointer-events: none;
+}
+
+.auth-entry-v2-felt {
+  width: 89.5%;
+  height: 79.5%;
+  border-color: rgba(136, 238, 188, .25);
+  background:
+    radial-gradient(ellipse at 45% 38%, rgba(103, 235, 174, .18), transparent 34%),
+    linear-gradient(112deg, transparent 0 42%, rgba(255,255,255,.025) 50%, transparent 58%),
+    repeating-radial-gradient(ellipse at 50% 50%, rgba(255,255,255,.014) 0 1px, transparent 1px 4px),
+    linear-gradient(145deg, #157a50 0%, #0b583b 52%, #063d2c 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(2, 30, 20, .76),
+    inset 0 -28px 44px rgba(0, 0, 0, .25),
+    inset 0 22px 32px rgba(94, 229, 169, .05);
+}
+
+.auth-entry-v2-felt::after {
+  content: "";
+  position: absolute;
+  inset: -25% -40%;
+  z-index: 0;
+  background: linear-gradient(
+    108deg,
+    transparent 39%,
+    rgba(255,255,255,.015) 45%,
+    rgba(255, 229, 164, .13) 49%,
+    rgba(255,255,255,.025) 53%,
+    transparent 60%
+  );
+  transform: translate3d(-48%, 0, 0);
+  animation: auth-entry-v2-vector-felt-sweep 2.2s 4.15s cubic-bezier(.2,.7,.25,1) both;
+  pointer-events: none;
+}
+
+.auth-entry-v2-table-mark,
+.auth-entry-v2-cards,
+.auth-entry-v2-chips,
+.auth-entry-v2-dealer,
+.auth-entry-v2-pot,
+.auth-entry-v2-spark,
+.auth-entry-v2-felt-line {
+  z-index: 2;
+}
+
+.auth-entry-v2-table-mark {
+  top: 69%;
+  color: rgba(245, 231, 190, .54);
+  text-shadow: 0 1px 0 rgba(0,0,0,.32);
+}
+
+.auth-entry-v2-table-mark b {
+  font-size: clamp(7px, 1.15vw, 10px);
+}
+
+.auth-entry-v2-table-mark em {
+  font-size: clamp(6px, .96vw, 8px);
+}
+
+.auth-entry-v2-cards {
+  top: 44%;
+  width: 148px;
+  height: 96px;
+}
+
+.auth-entry-v2-card {
+  width: 60px;
+  height: 84px;
+  padding: 7px 8px;
+  border-color: rgba(19, 24, 25, .88);
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, #fffef8 0%, #f4f0e4 72%, #e7e0d0 100%);
+  box-shadow:
+    0 12px 20px rgba(0, 0, 0, .34),
+    inset 0 0 0 1px rgba(255,255,255,.9),
+    0 0 0 1px rgba(255,255,255,.06);
+}
+
+.auth-entry-v2-card::after {
+  inset: 5px;
+  border-color: rgba(20, 29, 30, .1);
+}
+
+.auth-entry-v2-card b {
+  font-size: 20px;
+  letter-spacing: -.03em;
+}
+
+.auth-entry-v2-card i {
+  font-size: 35px;
+}
+
+.auth-entry-v2-card-one {
+  left: 14px;
+}
+
+.auth-entry-v2-card-two {
+  right: 14px;
+}
+
+.auth-entry-v2-card-glint {
+  position: absolute;
+  inset: -20% auto -20% -75%;
+  width: 42%;
+  transform: skewX(-17deg);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.62), transparent);
+  opacity: 0;
+  animation: auth-entry-v2-vector-card-glint .8s 4.75s ease-out both;
+  pointer-events: none;
+}
+
+.auth-entry-v2-card-two .auth-entry-v2-card-glint {
+  animation-delay: 4.9s;
+}
+
+.auth-entry-v2-chips {
+  right: 13%;
+  top: 32%;
+  transform: scale(1.08);
+  transform-origin: center;
+}
+
+.auth-entry-v2-chip-stack i {
+  border-color: rgba(255,255,255,.76);
+  box-shadow:
+    inset 0 -3px 0 var(--chip-edge),
+    0 3px 4px rgba(0,0,0,.24),
+    inset 0 1px 0 rgba(255,255,255,.28);
+}
+
+.auth-entry-v2-pot {
+  position: absolute;
+  left: 50%;
+  top: 29%;
+  width: 86px;
+  height: 28px;
+  opacity: 0;
+  transform: translate(-50%, -12px) scale(.8);
+  animation: auth-entry-v2-vector-pot-in .8s 3.15s cubic-bezier(.2,.85,.2,1.1) forwards;
+}
+
+.auth-entry-v2-pot i {
+  position: absolute;
+  width: 22px;
+  height: 8px;
+  border: 1px solid rgba(255,255,255,.7);
+  border-radius: 50%;
+  background:
+    linear-gradient(90deg, #d5aa46 0 18%, #f5efe1 18% 28%, #d5aa46 28% 72%, #f5efe1 72% 82%, #d5aa46 82%);
+  box-shadow: inset 0 -2px 0 #8b681e, 0 3px 5px rgba(0,0,0,.24);
+}
+
+.auth-entry-v2-pot i:nth-child(1) { left: 4px; top: 14px; transform: rotate(-8deg); }
+.auth-entry-v2-pot i:nth-child(2) { left: 21px; top: 9px; transform: rotate(4deg); }
+.auth-entry-v2-pot i:nth-child(3) { left: 38px; top: 15px; transform: rotate(-3deg); }
+.auth-entry-v2-pot i:nth-child(4) { left: 54px; top: 7px; transform: rotate(9deg); }
+.auth-entry-v2-pot i:nth-child(5) { left: 31px; top: 1px; transform: rotate(-5deg); }
+
+.auth-entry-v2-dealer {
+  width: 31px;
+  height: 31px;
+  border-color: rgba(221, 188, 100, .92);
+  box-shadow:
+    0 7px 12px rgba(0,0,0,.3),
+    inset 0 1px 0 rgba(255,255,255,.95);
+}
+
+.auth-entry-v2-light-sweep {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: 2%;
+  width: min(720px, 92vw);
+  height: 90%;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%);
+  background:
+    linear-gradient(106deg, transparent 38%, rgba(243, 211, 132, .085) 48%, transparent 57%);
+  animation: auth-entry-v2-vector-light-sweep 1.45s 4.45s ease-out both;
+}
+
+.auth-entry-v2-copy {
+  margin-top: clamp(20px, 3.5vh, 32px);
+}
+
+.auth-entry-v2-kicker {
+  color: rgba(232, 199, 117, .9);
+  text-shadow: 0 0 16px rgba(216, 178, 82, .15);
+}
+
+.auth-entry-v2-copy strong {
+  color: #fbf8ef;
+  text-shadow:
+    0 2px 12px rgba(0,0,0,.5),
+    0 0 18px rgba(233, 198, 111, .08);
+}
+
+.auth-entry-v2-progress {
+  height: 3px;
+  background: rgba(255,255,255,.065);
+}
+
+.auth-entry-v2-progress span {
+  background: linear-gradient(90deg, #4ec78f, #dcb96c 70%, #fae3a3);
+  box-shadow: 0 0 10px rgba(222, 188, 104, .4);
+}
+
+.auth-entry-v2-overlay[data-stage="cards"] .auth-entry-v2-rail {
+  box-shadow:
+    inset 0 0 0 3px rgba(18, 10, 5, .82),
+    inset 0 -14px 22px rgba(0, 0, 0, .42),
+    0 22px 42px rgba(0, 0, 0, .5),
+    0 0 30px rgba(77, 208, 147, .08);
+}
+
+.auth-entry-v2-overlay[data-stage="chips"] .auth-entry-v2-chips,
+.auth-entry-v2-overlay[data-stage="dealer"] .auth-entry-v2-dealer {
+  filter: brightness(1.08);
+}
+
+.auth-entry-v2-overlay[data-stage="ready"] .auth-entry-v2-rail {
+  box-shadow:
+    inset 0 0 0 3px rgba(18, 10, 5, .82),
+    inset 0 -14px 22px rgba(0, 0, 0, .42),
+    0 22px 42px rgba(0, 0, 0, .5),
+    0 0 34px rgba(217, 181, 91, .12);
+}
+
+@keyframes auth-entry-v2-vector-felt-sweep {
+  0% { opacity: 0; transform: translate3d(-48%, 0, 0); }
+  20% { opacity: .9; }
+  100% { opacity: 0; transform: translate3d(48%, 0, 0); }
+}
+
+@keyframes auth-entry-v2-vector-card-glint {
+  0% { opacity: 0; transform: translateX(0) skewX(-17deg); }
+  30% { opacity: .72; }
+  100% { opacity: 0; transform: translateX(330%) skewX(-17deg); }
+}
+
+@keyframes auth-entry-v2-vector-pot-in {
+  0% { opacity: 0; transform: translate(-50%, -12px) scale(.8); }
+  72% { opacity: 1; transform: translate(-50%, 2px) scale(1.04); }
+  100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+@keyframes auth-entry-v2-vector-light-sweep {
+  0% { opacity: 0; transform: translateX(-56%) translate3d(-8%, 0, 0); }
+  30% { opacity: .9; }
+  100% { opacity: 0; transform: translateX(-44%) translate3d(8%, 0, 0); }
+}
+
+@media (min-resolution: 1.5dppx) {
+  .auth-entry-v2-table-wrap {
+    width: min(650px, 84vw);
   }
 
-  .auth-entry-v2-video {
-    object-position: 48.5% 47.5%;
-    transform: translate3d(-0.7%, -0.6%, 0) scale(1.16);
+  .auth-entry-v2-rail,
+  .auth-entry-v2-felt,
+  .auth-entry-v2-card,
+  .auth-entry-v2-chip-stack i,
+  .auth-entry-v2-dealer {
+    backface-visibility: hidden;
   }
 }
 
 @media (max-width: 620px) {
+  .auth-entry-v2-table-wrap {
+    width: min(540px, 88vw);
+  }
+
+  .auth-entry-v2-card {
+    width: 48px;
+    height: 68px;
+    padding: 5px 6px;
+  }
+
+  .auth-entry-v2-card b { font-size: 17px; }
+  .auth-entry-v2-card i { font-size: 27px; }
+
+  .auth-entry-v2-cards {
+    width: 122px;
+    height: 78px;
+  }
+
+  .auth-entry-v2-chips {
+    right: 10%;
+    transform: scale(.88);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
   .auth-entry-v2-stage {
-    width: 96vw;
-  }
-
-  .auth-entry-v2-table-wrap,
-  .auth-entry-v2-video-shell {
-    width: min(94vw, 560px);
-  }
-
-  .auth-entry-v2-video-shell {
-    border-radius: 16px;
-  }
-}
-
-@media (min-resolution: 2.5dppx) and (max-width: 620px) {
-  .auth-entry-v2-table-wrap,
-  .auth-entry-v2-video-shell {
-    width: min(88vw, 420px);
-  }
-}
-
-@media (max-height: 620px) and (orientation: landscape) {
-  .auth-entry-v2-stage {
-    width: min(680px, 92vw);
-    transform: translateY(0);
-  }
-
-  .auth-entry-v2-table-wrap,
-  .auth-entry-v2-video-shell {
-    width: min(500px, 72vw);
-  }
-
-  .auth-entry-v2-copy {
-    margin-top: 12px;
-  }
-}
-
-@media (min-resolution: 1.75dppx) and (max-height: 620px) and (orientation: landscape) {
-  .auth-entry-v2-table-wrap,
-  .auth-entry-v2-video-shell {
-    width: min(460px, 70vw);
+    transform: translateY(-2px) scale(.82);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-entry-v2-video-shell,
-  .auth-entry-v2-table-wrap,
-  .auth-entry-v2-halo {
-    transition: none !important;
+  .auth-entry-v2-light-sweep,
+  .auth-entry-v2-card-glint,
+  .auth-entry-v2-pot,
+  .auth-entry-v2-felt::after {
+    animation: none !important;
+  }
+
+  .auth-entry-v2-pot {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
   }
 }
