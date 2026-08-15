@@ -79,9 +79,10 @@ test("返回登入優先準備原始影片試播，CSS V2 保留為備援", asyn
   // This setup test only verifies durable media configuration and CSS fallback.
 
   // The layered table must remain in the DOM so unsupported codecs/network failures
-  // never leave a blank returning-login screen.
-  await expect(overlay.locator(".auth-entry-v2-rail")).toBeVisible();
-  await expect(overlay.locator(".auth-entry-v2-felt")).toBeVisible();
+  // never leave a blank returning-login screen. Once the video is active it may be
+  // intentionally hidden to avoid wasting paint work underneath the real media.
+  await expect(overlay.locator(".auth-entry-v2-rail")).toHaveCount(1);
+  await expect(overlay.locator(".auth-entry-v2-felt")).toHaveCount(1);
   await expect(overlay.locator(".auth-entry-v2-card")).toHaveCount(2);
   await expect(overlay.locator(".auth-entry-v2-chip-stack")).toHaveCount(3);
   await expect(overlay.locator(".auth-entry-v2-chip-stack i")).toHaveCount(15);
