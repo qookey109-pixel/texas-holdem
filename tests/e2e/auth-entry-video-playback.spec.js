@@ -45,7 +45,7 @@ test("返回登入影片在瀏覽器中真的持續播放而非停在單一畫�
   await expect.poll(
     () => page.evaluate(() => window.AuthEntryV2?.version || ""),
     { timeout: 5_000 },
-  ).toBe("2.1.3-safari-runtime");
+  ).toBe("2.2.0-opening-polish-v1");
 
   const video = page.locator("#authEntryV2Video");
   await expect(video).toHaveCount(1);
@@ -93,7 +93,7 @@ test("Safari/macOS 減少動態偏好仍播放主影片，只停用周邊 CSS �
   await expect.poll(
     () => page.evaluate(() => window.AuthEntryV2?.version || ""),
     { timeout: 5_000 },
-  ).toBe("2.1.3-safari-runtime");
+  ).toBe("2.2.0-opening-polish-v1");
 
   await expect.poll(
     () => page.evaluate(() => window.AuthEntryV2?.status().reducedMotion ?? false),

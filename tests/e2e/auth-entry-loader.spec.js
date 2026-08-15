@@ -46,19 +46,26 @@ test("返回登入驗證期間顯示專用牌桌動畫，完成後立即收起",
   await expect.poll(
     () => page.evaluate(() => window.AuthEntryV2?.version || ""),
     { timeout: 5_000 },
-  ).toBe("2.1.3-safari-runtime");
+  ).toBe("2.2.0-opening-polish-v1");
 
   const entryOverlay = page.locator("#authEntryV2Overlay");
   const accountOverlay = page.locator("#authAccountOverlay");
 
   await expect(entryOverlay).toBeVisible();
-  await expect(entryOverlay.locator(".auth-entry-v2-table")).toBeVisible();
+  await expect(entryOverlay.locator(".auth-entry-v2-table")).toHaveCount(1);
+  await expect(entryOverlay.locator("#authEntryV2Video")).toHaveCount(1);
   await expect(page.locator("html")).toHaveAttribute("data-auth-entry-v2", "active");
 
-  // Returning-session loading belongs to the dedicated AuthEntryV2 surface.
-  // The player-account dialog stays closed unless the user explicitly opens it.
+  // The dedicated returning-session surface owns the transition. Depending on
+  // Safari media timing, either the real video is already playing or the CSS
+  // table fallback remains visible; the player-account dialog must stay closed.
   await expect.poll(
-    () => page.evaluate(() => window.TexasHoldemAuth?.status().loading ?? false),
+    () => page.evaluate(() => {
+      const status = window.AuthEntryV2?.status?.();
+      const fallback = document.querySelector(".auth-entry-v2-table-wrap");
+      const fallbackVisible = Boolean(fallback && getComputedStyle(fallback).visibility !== "hidden");
+      return Boolean(status?.videoState === "playing" || fallbackVisible);
+    }),
     { timeout: 5_000 },
   ).toBe(true);
   await expect(accountOverlay).toBeHidden();

@@ -5,6 +5,8 @@ on:
     paths:
       - assets/auth-entry-poker-720p.mp4
       - js/auth-entry-v2.js
+      - js/auth-entry-v2.css
+      - js/auth-entry-video-trial.css
       - js/config.js
       - tests/e2e/auth-entry-v2.spec.js
       - tests/e2e/auth-entry-video-playback.spec.js
@@ -15,6 +17,8 @@ on:
     paths:
       - assets/auth-entry-poker-720p.mp4
       - js/auth-entry-v2.js
+      - js/auth-entry-v2.css
+      - js/auth-entry-video-trial.css
       - js/config.js
       - tests/e2e/auth-entry-v2.spec.js
       - tests/e2e/auth-entry-video-playback.spec.js

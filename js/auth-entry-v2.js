@@ -9,7 +9,7 @@
     identityStorageKey: "texasHoldemPlayerIdentityV1",
     coreScriptUrl: "js/google-auth.js?v=google-auth-v1.1",
     styleUrl: "js/auth-entry-v2.css?v=auth-entry-video-trial-v1",
-    videoStyleUrl: "js/auth-entry-video-trial.css?v=auth-entry-video-crop-v2",
+    videoStyleUrl: "js/auth-entry-video-trial.css?v=opening-animation-polish-v1",
     videoUrl: "assets/auth-entry-poker-720p.mp4?v=auth-entry-video-safari-runtime-v3",
     videoPlaybackRate: 1.55,
     minimumDurationMs: 6500,
@@ -408,7 +408,7 @@
   }
 
   window.AuthEntryV2 = Object.freeze({
-    version: "2.1.3-safari-runtime",
+    version: "2.2.0-opening-polish-v1",
     minimumDurationMs: CONFIG.minimumDurationMs,
     videoUrl: CONFIG.videoUrl,
     status: () => ({
