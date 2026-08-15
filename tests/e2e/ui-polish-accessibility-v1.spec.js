@@ -60,8 +60,8 @@ test("UI polish adds control semantics, selected quick bets, and modal motion", 
   expect(await page.locator(".session-summary-modal").evaluate(element => getComputedStyle(element).animationName)).toContain("uiPolishModalIn");
   await summaryOverlay.evaluate(element => { element.hidden = true; });
 
-  await expect(page.locator("#autoLayoutButton")).toHaveText("📐 套用官方版面");
-  await expect(page.locator("#autoLayoutButton")).toHaveAttribute("aria-label", "套用官方版面");
+  await expect(page.locator("#autoLayoutButton")).toHaveCount(0);
+  await expect(page.locator("#resetLayoutButton")).toHaveText("⭐ 官方預設");
 });
 
 test("reduced-motion collapses core table and modal animation durations", async ({ page }) => {
