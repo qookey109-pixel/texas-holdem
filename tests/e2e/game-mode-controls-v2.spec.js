@@ -24,6 +24,21 @@ test("挑戰賽入口固定在新手教學旁、模式標籤同步且重新整�
   await expect(page.locator("#coachPanel")).toBeVisible();
   expect(await page.evaluate(() => document.querySelector(".side-rail")?.firstElementChild?.id)).toBe("coachPanel");
 
+  const coachToggle = page.locator("#coachEnabled");
+  const coachOddsToggle = page.locator("#coachOddsToggle");
+  const coachAdviceToggle = page.locator("#coachAdviceToggle");
+  await expect(coachToggle).not.toBeChecked();
+  await expect(coachToggle).toBeEnabled();
+  await expect(coachOddsToggle).toBeEnabled();
+  await expect(coachAdviceToggle).toBeEnabled();
+  await expect(page.locator(".coach-main-toggle span")).toHaveText("OFF");
+  await expect(page.locator("#coachContent")).toBeHidden();
+  expect(await page.evaluate(() => state.coach.enabled)).toBe(false);
+
+  await coachToggle.check();
+  await expect.poll(() => page.evaluate(() => state.coach.enabled)).toBe(true);
+  await expect(page.locator(".coach-main-toggle span")).toHaveText("ON");
+
   const autoButton = page.locator("#autoNewHandButton");
   await expect.poll(() => page.evaluate(() => state.autoNewHand)).toBe(true);
   await expect(autoButton).toHaveText("⏸ 自動牌局");
@@ -60,6 +75,16 @@ test("挑戰賽入口固定在新手教學旁、模式標籤同步且重新整�
   await expect(modeLabel).toHaveAttribute("data-mode", "challenge");
   await expect.poll(() => page.evaluate(() => state.autoNewHand)).toBe(false);
 
+  await expect.poll(() => page.evaluate(() => state.coach.enabled)).toBe(false);
+  await expect(coachToggle).not.toBeChecked();
+  await expect(coachToggle).toBeDisabled();
+  await expect(coachOddsToggle).toBeDisabled();
+  await expect(coachAdviceToggle).toBeDisabled();
+  await expect(page.locator(".coach-main-toggle span")).toHaveText("OFF");
+  await expect(page.locator("#coachContent")).toBeHidden();
+  await expect(page.locator("#coachPanel")).toHaveAttribute("data-challenge-locked", "");
+  await expect(coachToggle).toHaveAttribute("aria-label", "AI 教練（挑戰賽模式停用）");
+
   await page.reload({ waitUntil: "networkidle" });
   await expect.poll(
     () => page.evaluate(() => window.GameModeControlsV2?.version || ""),
@@ -71,6 +96,11 @@ test("挑戰賽入口固定在新手教學旁、模式標籤同步且重新整�
     () => page.evaluate(() => window.TournamentMode?.isActive?.()),
   ).toBe(false);
   await expect.poll(() => page.evaluate(() => state.autoNewHand)).toBe(true);
+  await expect.poll(() => page.evaluate(() => state.coach.enabled)).toBe(false);
+  await expect(page.locator("#coachEnabled")).not.toBeChecked();
+  await expect(page.locator("#coachEnabled")).toBeEnabled();
+  await expect(page.locator(".coach-main-toggle span")).toHaveText("OFF");
+  await expect(page.locator("#coachContent")).toBeHidden();
   await expect(page.locator("#autoNewHandButton")).toHaveText("⏸ 自動牌局");
   await expect(page.locator("#coachPanel")).toBeVisible();
   await expect(page.locator("#challengeModeButton")).toHaveText("🏆 挑戰賽模式");

@@ -36,6 +36,11 @@ test("固定牌面攤牌會發出五張公共牌、分配底池並顯示勝者",
   const runtimeIssues = collectRuntimeIssues(page);
   await openFreshTable(page);
 
+  const coachToggle = page.locator("#coachEnabled");
+  await expect(coachToggle).not.toBeChecked();
+  await coachToggle.check();
+  await expect.poll(() => page.evaluate(() => state.coach.enabled)).toBe(true);
+
   await expect.poll(
     () => page.evaluate(() => Boolean(window.CoachReviewPlacement?.version)),
     { timeout: 5_000 },

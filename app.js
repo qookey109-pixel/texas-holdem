@@ -26,7 +26,7 @@ const state = {
   heroCurrentHand: createHeroHandTracker(),
   sessionEnded: false,
   coach: {
-    enabled: true,
+    enabled: false,
     odds: true,
     advice: true,
     lastBoardKey: "",

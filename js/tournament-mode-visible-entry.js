@@ -8,6 +8,7 @@
   const TOURNAMENT_MODE = "tournament";
   let observer = null;
   let syncScheduled = false;
+  let lastCoachChallengeState = null;
 
   function loadUnifiedControls() {
     if (window.GameModeControlsV2?.version) {
@@ -137,8 +138,94 @@
     document.head.appendChild(style);
   }
 
+  function setBooleanProperty(node, property, value) {
+    if (node && node[property] !== value) node[property] = value;
+  }
+
+  function setAttributeValue(node, name, value) {
+    if (!node) return;
+    if (value === null) {
+      if (node.hasAttribute(name)) node.removeAttribute(name);
+      return;
+    }
+    if (node.getAttribute(name) !== value) node.setAttribute(name, value);
+  }
+
+  function toggleAttributeValue(node, name, active) {
+    if (node && node.hasAttribute(name) !== active) node.toggleAttribute(name, active);
+  }
+
+  function toggleClassValue(node, name, active) {
+    if (node && node.classList.contains(name) !== active) node.classList.toggle(name, active);
+  }
+
+  function syncCoachPolicy(forceChallenge = null) {
+    if (typeof state !== "object" || !state.coach) return false;
+
+    const challengeActive = typeof forceChallenge === "boolean"
+      ? forceChallenge
+      : Boolean(window.TournamentMode?.isActive?.());
+    lastCoachChallengeState = challengeActive;
+
+    if (challengeActive) {
+      state.coach.enabled = false;
+    }
+
+    const panel = document.querySelector("#coachPanel");
+    const mainToggle = document.querySelector("#coachEnabled");
+    const oddsToggle = document.querySelector("#coachOddsToggle");
+    const adviceToggle = document.querySelector("#coachAdviceToggle");
+    const toggleText = document.querySelector(".coach-main-toggle span");
+    const content = document.querySelector("#coachContent");
+
+    if (mainToggle) {
+      setBooleanProperty(mainToggle, "checked", Boolean(state.coach.enabled));
+      setBooleanProperty(mainToggle, "disabled", challengeActive);
+      setAttributeValue(mainToggle, "aria-disabled", String(challengeActive));
+      setAttributeValue(
+        mainToggle,
+        "aria-label",
+        challengeActive ? "AI 教練（挑戰賽模式停用）" : "AI 教練開關",
+      );
+      setAttributeValue(mainToggle, "title", challengeActive ? "挑戰賽模式停用 AI 教練" : null);
+    }
+
+    [oddsToggle, adviceToggle].forEach(input => {
+      if (!input) return;
+      setBooleanProperty(input, "disabled", challengeActive);
+      setAttributeValue(input, "aria-disabled", String(challengeActive));
+      setAttributeValue(input, "title", challengeActive ? "挑戰賽模式停用 AI 教練" : null);
+    });
+
+    const nextToggleText = state.coach.enabled ? "ON" : "OFF";
+    if (toggleText && toggleText.textContent !== nextToggleText) {
+      toggleText.textContent = nextToggleText;
+    }
+
+    if (panel) {
+      toggleAttributeValue(panel, "data-challenge-locked", challengeActive);
+      setAttributeValue(
+        panel,
+        "aria-label",
+        challengeActive ? "Poker Coach（挑戰賽模式停用）" : "Poker Coach",
+      );
+      toggleClassValue(panel, "is-disabled", !state.coach.enabled);
+    }
+
+    if (content && !state.coach.enabled) {
+      setBooleanProperty(content, "hidden", true);
+    }
+
+    return true;
+  }
+
   function setMode(nextMode) {
     const mode = nextMode === TOURNAMENT_MODE ? TOURNAMENT_MODE : NORMAL_MODE;
+
+    if (mode === TOURNAMENT_MODE) {
+      syncCoachPolicy(true);
+    }
+
     if (window.GameModeControlsV2?.setTournamentMode) {
       window.GameModeControlsV2.setTournamentMode(mode);
     } else {
@@ -147,6 +234,8 @@
         persist: false,
       });
     }
+
+    syncCoachPolicy(mode === TOURNAMENT_MODE);
     scheduleSync();
   }
 
@@ -208,6 +297,10 @@
     loadStreetTransitionPerformance();
     loadUnifiedControls();
     loadTournamentCloudSave();
+    const challengeActive = Boolean(window.TournamentMode?.isActive?.());
+    if (lastCoachChallengeState !== challengeActive) {
+      syncCoachPolicy(challengeActive);
+    }
     mountChallengeButton();
     mountModeLabel();
   }
