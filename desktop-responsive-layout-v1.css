@@ -1,0 +1,257 @@
+/* Desktop Responsive Layout V1
+ * Scope: desktop/tablet landscape only. Mobile V1 remains authoritative <= 1180x650.
+ * Goal: keep the official percentage-based layout while making component sizing react
+ * smoothly to viewport height/width. No gameplay, AI, economy, G1, Gemini or Long Session logic.
+ *
+ * The existing layout-size editor injects !important rules at runtime. Responsive sizing
+ * therefore uses the same saved CSS variables with a viewport-height cap instead of
+ * replacing the user's stored size preference.
+ */
+
+@media (min-width: 901px) and (min-height: 651px) {
+  .app-shell {
+    width: min(1760px, 100%);
+    padding: clamp(6px, 0.55vw, 10px);
+  }
+
+  .table {
+    grid-template-columns: minmax(0, 1fr) clamp(236px, 18.5vw, 320px);
+    gap: clamp(6px, 0.55vw, 10px);
+    height: calc(100dvh - 16px);
+    padding: clamp(7px, 0.65vw, 11px);
+  }
+
+  .top-bar {
+    gap: clamp(7px, 0.75vw, 12px);
+  }
+
+  .top-bar-actions {
+    gap: clamp(4px, 0.48vw, 8px) !important;
+  }
+
+  .top-bar-actions .ghost-button {
+    min-width: clamp(72px, 6.1vw, 98px);
+    padding-inline: clamp(7px, 0.65vw, 10px);
+    font-size: clamp(0.72rem, 0.68vw, 0.82rem);
+  }
+
+  .top-bar-actions .layout-button,
+  .top-bar-actions .tutorial-button {
+    min-width: clamp(86px, 7.1vw, 104px);
+  }
+
+  .top-bar-actions .auto-button {
+    min-width: clamp(90px, 7.4vw, 108px);
+  }
+
+  #newHandButton {
+    min-width: clamp(76px, 6.3vw, 90px);
+  }
+
+  .arena::before {
+    inset:
+      clamp(72px, 10.2vh, 102px)
+      clamp(32px, 3.8vw, 54px)
+      clamp(84px, 11.8vh, 116px);
+  }
+
+  .arena::after {
+    inset:
+      clamp(96px, 13.2vh, 132px)
+      clamp(62px, 7vw, 106px)
+      clamp(112px, 15.8vh, 154px);
+  }
+
+  /* Respect saved layout-size preferences, but cap their rendered size by viewport height. */
+  html body .arena .seat,
+  html body .arena .seat-header {
+    width: clamp(150px, min(var(--layout-ai-seat-width, 176px), 18vw, 21vh), 210px) !important;
+    inline-size: clamp(150px, min(var(--layout-ai-seat-width, 176px), 18vw, 21vh), 210px) !important;
+    max-width: clamp(150px, min(var(--layout-ai-seat-width, 176px), 18vw, 21vh), 210px) !important;
+  }
+
+  /* Do not override .seat.has-street-bet gap from topbar-seat-polish.js. */
+  html body .arena .seat-header {
+    grid-template-columns: minmax(0, 1fr) clamp(48px, 5vw, 58px) !important;
+    grid-template-rows: repeat(3, clamp(16px, 2vh, 20px)) !important;
+    min-height: clamp(62px, 8.2vh, 74px) !important;
+    padding: clamp(5px, 0.7vh, 7px) clamp(6px, 0.55vw, 8px) !important;
+  }
+
+  html body .arena .player-emoji {
+    width: clamp(24px, 3.3vh, 29px) !important;
+    height: clamp(24px, 3.3vh, 29px) !important;
+    font-size: clamp(0.94rem, 2vh, 1.14rem) !important;
+  }
+
+  html body .arena .seat h2 {
+    font-size: clamp(0.82rem, 1.45vh, 0.94rem) !important;
+  }
+
+  .seat-meta {
+    font-size: clamp(0.6rem, 1.12vh, 0.72rem);
+  }
+
+  html body .arena .seat-meta strong {
+    font-size: clamp(0.88rem, 1.6vh, 1.02rem) !important;
+  }
+
+  html body .arena .seat .card {
+    width: clamp(32px, min(var(--layout-ai-card-width, 44px), 5vw, 5.8vh), 58px) !important;
+  }
+
+  .board-cards {
+    gap: clamp(5px, 0.7vw, 10px);
+  }
+
+  html body .arena .board-cards .card {
+    width: clamp(65px, min(var(--layout-board-card-width, 86px), 7.2vw, 10.5vh), 105px) !important;
+  }
+
+  .player-cards {
+    padding: clamp(4px, 0.6vh, 7px) clamp(7px, 0.8vw, 12px);
+    gap: clamp(4px, 0.55vw, 8px);
+  }
+
+  html body .arena #playerCards .card {
+    width: clamp(70px, min(var(--layout-hero-card-width, 92px), 10vw, 10.8vh), 115px) !important;
+  }
+
+  .player-panel {
+    width: clamp(154px, 14.5vw, 210px);
+    min-height: clamp(56px, 7.6vh, 72px);
+    padding: clamp(7px, 0.85vh, 10px) clamp(9px, 0.8vw, 13px);
+  }
+
+  .hero-table-stack {
+    gap: clamp(5px, 0.55vw, 9px);
+  }
+
+  .pot-chip {
+    min-height: clamp(42px, 5.7vh, 54px);
+    padding: clamp(6px, 0.8vh, 9px) clamp(12px, 1vw, 18px);
+  }
+
+  .table-corner-stats {
+    left: clamp(12px, 1.4vw, 22px);
+    top: clamp(12px, 1.8vh, 20px);
+  }
+
+  .side-rail {
+    gap: clamp(6px, 0.7vh, 10px);
+    min-width: 0;
+  }
+
+  .log-panel,
+  .coach-panel {
+    min-width: 0;
+  }
+
+  html body .arena .ai-profile-panel {
+    width: clamp(230px, min(var(--layout-ai-profile-width, 272px), 31vw, 33vh), 330px) !important;
+  }
+}
+
+/* Compact desktop/laptop: preserve the full desktop table, but reclaim horizontal space. */
+@media (min-width: 901px) and (max-width: 1280px) and (min-height: 651px) {
+  .table {
+    grid-template-columns: minmax(0, 1fr) clamp(224px, 20vw, 260px);
+  }
+
+  .top-bar-actions .ghost-button {
+    min-width: 68px;
+    padding-inline: 6px;
+    font-size: 0.7rem;
+  }
+
+  .top-bar-actions .layout-button,
+  .top-bar-actions .tutorial-button,
+  .top-bar-actions .auto-button {
+    min-width: 82px;
+  }
+}
+
+/* Short desktop windows are not mobile: scale vertical assets instead of clipping them. */
+@media (min-width: 1181px) and (min-height: 541px) and (max-height: 650px) {
+  .app-shell {
+    width: min(1680px, 100%);
+    padding: 5px;
+  }
+
+  .table {
+    grid-template-columns: minmax(0, 1fr) clamp(220px, 18vw, 270px);
+    grid-template-rows: 36px minmax(0, 1fr) auto;
+    gap: 5px;
+    height: calc(100dvh - 10px);
+    padding: 6px;
+  }
+
+  .top-bar .eyebrow {
+    display: none;
+  }
+
+  .top-bar-actions .ghost-button {
+    min-height: 30px;
+    height: 30px;
+    min-width: 66px;
+    padding-inline: 6px;
+    font-size: 0.68rem;
+  }
+
+  .arena::before {
+    inset: 54px 30px 72px;
+  }
+
+  .arena::after {
+    inset: 74px 64px 96px;
+  }
+
+  html body .arena .seat,
+  html body .arena .seat-header {
+    width: clamp(138px, min(var(--layout-ai-seat-width, 176px), 18vw, 23vh), 210px) !important;
+    inline-size: clamp(138px, min(var(--layout-ai-seat-width, 176px), 18vw, 23vh), 210px) !important;
+    max-width: clamp(138px, min(var(--layout-ai-seat-width, 176px), 18vw, 23vh), 210px) !important;
+  }
+
+  /* Preserve the zero-gap attached-bet treatment from topbar-seat-polish.js. */
+  html body .arena .seat-header {
+    grid-template-columns: minmax(0, 1fr) 48px !important;
+    grid-template-rows: repeat(3, 16px) !important;
+    min-height: 60px !important;
+    padding: 4px 6px !important;
+  }
+
+  html body .arena .seat .card {
+    width: clamp(28px, min(var(--layout-ai-card-width, 44px), 5vw, 5.4vh), 58px) !important;
+  }
+
+  html body .arena .board-cards .card {
+    width: clamp(56px, min(var(--layout-board-card-width, 86px), 7.2vw, 10vh), 105px) !important;
+  }
+
+  html body .arena #playerCards .card {
+    width: clamp(64px, min(var(--layout-hero-card-width, 92px), 10vw, 10.5vh), 115px) !important;
+  }
+
+  .player-panel {
+    width: clamp(138px, 12vw, 170px);
+    min-height: 48px;
+    padding: 5px 8px;
+  }
+
+  .table-corner-stats {
+    left: 10px;
+    top: 9px;
+  }
+}
+
+/* Very wide displays get a little more usable table width without stretching forever. */
+@media (min-width: 1800px) and (min-height: 800px) {
+  .app-shell {
+    width: min(1760px, calc(100vw - 24px));
+  }
+
+  .table {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
