@@ -4,7 +4,7 @@ function collectRuntimeIssues(page) {
   const issues = [];
 
   page.on("pageerror", error => {
-    issues.push(`pageerror: ${error.message}`);
+    issues.push(`pageerror: ${error.message}`));
   });
 
   page.on("console", message => {
@@ -35,6 +35,11 @@ async function openFreshTable(page) {
 test("固定牌面攤牌會發出五張公共牌、分配底池並顯示勝者", async ({ page }) => {
   const runtimeIssues = collectRuntimeIssues(page);
   await openFreshTable(page);
+
+  const coachToggle = page.locator("#coachEnabled");
+  await expect(coachToggle).not.toBeChecked();
+  await coachToggle.check();
+  await expect.poll(() => page.evaluate(() => state.coach.enabled)).toBe(true);
 
   await expect.poll(
     () => page.evaluate(() => Boolean(window.CoachReviewPlacement?.version)),
