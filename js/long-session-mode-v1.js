@@ -1,4 +1,6 @@
-// Opt-in Long Session stakes ladder. Default Normal remains unchanged when this module is off.
+// Gate 8 manual-preview runtime for the accepted PR #210 demotion candidate.
+// Preview-only: initial bankroll 2,000; 1.00x total-wealth promotion remains unchanged;
+// after bust, fall back to the highest affordable lower 100BB table when current re-entry is unaffordable.
 (() => {
   "use strict";
 
@@ -139,8 +141,19 @@
         proposedBankroll = normalized.bankroll - current.entry;
         proposedTableStack = current.entry;
       } else {
-        transition = "session-ended";
-        proposedTableStack = 0;
+        const fallback = [...TABLES]
+          .slice(0, current.index)
+          .reverse()
+          .find(table => normalized.bankroll >= table.entry) || null;
+        if (fallback) {
+          transition = "move-down";
+          target = fallback;
+          proposedBankroll = normalized.bankroll - fallback.entry;
+          proposedTableStack = fallback.entry;
+        } else {
+          transition = "session-ended";
+          proposedTableStack = 0;
+        }
       }
     } else if (current.index < TABLES.length - 1) {
       const candidate = tableAt(current.index + 1);
@@ -193,7 +206,7 @@
       };
     }
 
-    if (proposal.transition === "reentry" && action === "secondary") {
+    if ((proposal.transition === "reentry" || proposal.transition === "move-down") && action === "secondary") {
       return {
         action,
         transition: "paused",
@@ -252,6 +265,14 @@
         secondary: `留在 ${proposal.currentTable.small}/${proposal.currentTable.big}`,
       };
     }
+    if (proposal.transition === "move-down") {
+      return {
+        title: "Long Session 降桌",
+        body: `本桌籌碼歸零，資金庫不足以重新進入 ${proposal.currentTable.small}/${proposal.currentTable.big}，但可回到 ${proposal.targetTable.small}/${proposal.targetTable.big} 以固定 100BB 繼續。`,
+        primary: `降到 ${proposal.targetTable.small}/${proposal.targetTable.big}`,
+        secondary: "暫停 Long Session",
+      };
+    }
     if (proposal.transition === "reentry") {
       return {
         title: "Long Session 重新買入",
@@ -262,7 +283,7 @@
     }
     return {
       title: "Long Session 結束",
-      body: "本桌籌碼已歸零，而且資金庫不足以支付本桌 100BB 標準買入。",
+      body: "本桌籌碼已歸零，而且資金庫不足以支付任何可用牌桌的 100BB 標準買入。",
       primary: "回到一般模式",
       secondary: "保留結果",
     };
@@ -283,7 +304,7 @@
     const aiEntry = proposal.transition === "session-ended" ? 0 : proposal.targetTable.entry;
     root.innerHTML = `
       <div class="long-session-decision-card">
-        <p class="eyebrow">Long Session</p>
+        <p class="eyebrow">Long Session · Gate 8 Preview</p>
         <h2 id="longSessionDecisionTitle">${copy.title}</h2>
         <p>${copy.body}</p>
         <div class="long-session-decision-stats">
@@ -347,6 +368,12 @@
       return startCommittedHand({ fresh: true, message: `升桌到 ${table.small}/${table.big}，Hero 與 6 位 AI 皆以 100BB 入桌。` });
     }
 
+    if (result.transition === "move-down") {
+      const table = tableAt(session.tableIndex);
+      announce?.(`Long Session 降桌 ${table.small} / ${table.big}`);
+      return startCommittedHand({ fresh: true, message: `降桌到 ${table.small}/${table.big}，Hero 與 6 位 AI 皆以 100BB 入桌。` });
+    }
+
     if (transition === "reentry") {
       const table = tableAt(session.tableIndex);
       announce?.("Long Session 重新買入");
@@ -395,13 +422,13 @@
     enabled = true;
     pendingEnable = false;
     pendingDisable = false;
-    session = createSession({ tableIndex: 0, bankroll: 0, tableStack: TABLES[0].entry });
+    session = createSession({ tableIndex: 0, bankroll: 2000, tableStack: TABLES[0].entry });
     destroyDecisionUi();
     document.body.classList.add("is-long-session-mode");
     if (restart) {
       resetGameSession();
-      announce?.("Long Session：10 / 20，100BB");
-      startCommittedHand({ fresh: true, message: "開始 Long Session：10/20，Hero 與 6 位 AI 皆以 2,000（100BB）入桌。" });
+      announce?.("Long Session Gate 8：10 / 20，100BB + Bank 2,000");
+      startCommittedHand({ fresh: true, message: "開始 Gate 8 Preview：10/20，Hero 與 6 位 AI 皆以 2,000（100BB）入桌；資金庫另有 2,000。" });
     }
     syncUi();
     return true;
@@ -507,11 +534,11 @@
         ? "🪜 Long Session（本手後關閉）"
         : enabled
           ? "🪜 結束 Long Session"
-          : "🪜 Long Session";
+          : "🪜 Long Session · Gate 8";
     if (button.textContent !== label) button.textContent = label;
     button.title = enabled
-      ? "本模式只在牌與牌之間切桌；關閉後回到正式一般模式"
-      : "固定 100BB 五桌階梯：10/20 → 20/40 → 50/100 → 100/200 → 200/400";
+      ? "Gate 8 preview：本模式只在牌與牌之間切桌；關閉後回到一般模式"
+      : "Gate 8 preview：固定 100BB 五桌階梯，初始 Bank 2,000；高桌 bust 可降到最高可負擔較低桌";
   }
 
   function mountBadge() {
@@ -544,7 +571,7 @@
         button.addEventListener("click", toggle);
         grid.appendChild(button);
       }
-      const label = enabled ? "🪜 結束 Long Session" : pendingEnable ? "🪜 本手後開始 Long Session" : "🪜 Long Session";
+      const label = enabled ? "🪜 結束 Long Session" : pendingEnable ? "🪜 本手後開始 Long Session" : "🪜 Long Session · Gate 8";
       if (button.textContent !== label) button.textContent = label;
     });
   }
@@ -685,6 +712,7 @@
 
   window.LongSessionModeV1 = Object.freeze({
     version: VERSION,
+    preview: "gate8-pr210-demotion",
     tables: TABLES,
     isActive: () => enabled,
     isInstalled: () => installed,
