@@ -137,8 +137,75 @@
     document.head.appendChild(style);
   }
 
+  function syncCoachPolicy(forceChallenge = null) {
+    if (typeof state !== "object" || !state.coach) return false;
+
+    const challengeActive = typeof forceChallenge === "boolean"
+      ? forceChallenge
+      : Boolean(window.TournamentMode?.isActive?.());
+
+    if (challengeActive) {
+      state.coach.enabled = false;
+    }
+
+    if (typeof renderCoach === "function") {
+      renderCoach();
+    }
+
+    const panel = document.querySelector("#coachPanel");
+    const mainToggle = document.querySelector("#coachEnabled");
+    const oddsToggle = document.querySelector("#coachOddsToggle");
+    const adviceToggle = document.querySelector("#coachAdviceToggle");
+    const toggleText = document.querySelector(".coach-main-toggle span");
+    const content = document.querySelector("#coachContent");
+
+    if (mainToggle) {
+      mainToggle.checked = Boolean(state.coach.enabled);
+      mainToggle.disabled = challengeActive;
+      mainToggle.setAttribute("aria-disabled", String(challengeActive));
+      mainToggle.setAttribute(
+        "aria-label",
+        challengeActive ? "AI 教練（挑戰賽模式停用）" : "AI 教練開關",
+      );
+      if (challengeActive) mainToggle.title = "挑戰賽模式停用 AI 教練";
+      else mainToggle.removeAttribute("title");
+    }
+
+    [oddsToggle, adviceToggle].forEach(input => {
+      if (!input) return;
+      input.disabled = challengeActive;
+      input.setAttribute("aria-disabled", String(challengeActive));
+      if (challengeActive) input.title = "挑戰賽模式停用 AI 教練";
+      else input.removeAttribute("title");
+    });
+
+    if (toggleText) {
+      toggleText.textContent = state.coach.enabled ? "ON" : "OFF";
+    }
+
+    if (panel) {
+      panel.toggleAttribute("data-challenge-locked", challengeActive);
+      panel.setAttribute(
+        "aria-label",
+        challengeActive ? "Poker Coach（挑戰賽模式停用）" : "Poker Coach",
+      );
+      panel.classList.toggle("is-disabled", !state.coach.enabled);
+    }
+
+    if (content && !state.coach.enabled) {
+      content.hidden = true;
+    }
+
+    return true;
+  }
+
   function setMode(nextMode) {
     const mode = nextMode === TOURNAMENT_MODE ? TOURNAMENT_MODE : NORMAL_MODE;
+
+    if (mode === TOURNAMENT_MODE) {
+      syncCoachPolicy(true);
+    }
+
     if (window.GameModeControlsV2?.setTournamentMode) {
       window.GameModeControlsV2.setTournamentMode(mode);
     } else {
@@ -147,6 +214,8 @@
         persist: false,
       });
     }
+
+    syncCoachPolicy(mode === TOURNAMENT_MODE);
     scheduleSync();
   }
 
@@ -208,6 +277,7 @@
     loadStreetTransitionPerformance();
     loadUnifiedControls();
     loadTournamentCloudSave();
+    syncCoachPolicy();
     mountChallengeButton();
     mountModeLabel();
   }
