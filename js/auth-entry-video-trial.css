@@ -2,6 +2,13 @@
    Keep the existing 720p H.264 source and CSS table fallback, but preserve more
    source detail on high-density screens and avoid expensive hidden-layer blur. */
 
+/* The overlay is already nearly opaque. Avoid a full-screen live backdrop blur,
+   which adds GPU work without improving the video itself. */
+.auth-entry-v2-overlay {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
 .auth-entry-v2-stage {
   width: min(760px, 96vw);
 }
