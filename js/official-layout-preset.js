@@ -7,6 +7,8 @@
   const SIZE_STORAGE_KEY = "texasHoldemLayoutSizesV2";
   const POT_STORAGE_KEY = "texasHoldemPotScaleV1";
   const PRESET_MIGRATION_KEY = "texasHoldemOfficialLayoutPresetVersionV1";
+  const LEGACY_LAYOUT_STORAGE_KEY = "texasHoldemTableLayoutV1";
+  const LAYOUT_PREFERENCE_KEY = "texasHoldemLayoutPreferenceV1";
 
   const OFFICIAL_LAYOUT = Object.freeze({
     seat1: { left: 2.29, top: 73.63 },
@@ -163,7 +165,26 @@
 
   function migratePreviousOfficialDefaults() {
     try {
-      if (localStorage.getItem(PRESET_MIGRATION_KEY) === "4") return;
+      if (localStorage.getItem(PRESET_MIGRATION_KEY) === "5") return;
+
+      const preference = localStorage.getItem(LAYOUT_PREFERENCE_KEY);
+      if (preference !== "custom") {
+        // V5 establishes a clear rule: official is the startup layout unless the
+        // player explicitly saves a custom layout after this migration.
+        localStorage.removeItem(LAYOUT_STORAGE_KEY);
+        localStorage.removeItem(LEGACY_LAYOUT_STORAGE_KEY);
+        localStorage.removeItem(LAYOUT_ARROW_STORAGE_KEY);
+        if (typeof LAYOUT_PANEL_STORAGE_KEY === "string") {
+          localStorage.removeItem(LAYOUT_PANEL_STORAGE_KEY);
+        }
+        localStorage.setItem(SIZE_STORAGE_KEY, JSON.stringify(OFFICIAL_SIZES));
+        localStorage.setItem(POT_STORAGE_KEY, String(OFFICIAL_POT_SCALE));
+        localStorage.setItem(LAYOUT_PREFERENCE_KEY, "official");
+      } else {
+        // A V5 explicit custom preference owns the current V3 layout. The legacy
+        // V1 fallback is never allowed to override it again.
+        localStorage.removeItem(LEGACY_LAYOUT_STORAGE_KEY);
+      }
 
       const rawLayout = localStorage.getItem(LAYOUT_STORAGE_KEY);
       if (rawLayout) {
@@ -174,9 +195,10 @@
             || matchesLayout(parsedLayout, LEGACY_OFFICIAL_LAYOUT)
           ) {
             localStorage.removeItem(LAYOUT_STORAGE_KEY);
+            localStorage.setItem(LAYOUT_PREFERENCE_KEY, "official");
           }
         } catch (_) {
-          // Leave malformed or custom values untouched.
+          // Leave malformed or explicit custom values untouched.
         }
       }
 
@@ -197,7 +219,7 @@
         OFFICIAL_ARROWS,
       );
 
-      localStorage.setItem(PRESET_MIGRATION_KEY, "4");
+      localStorage.setItem(PRESET_MIGRATION_KEY, "5");
     } catch (_) {
       // Runtime layout defaults still work when storage is unavailable.
     }
@@ -259,11 +281,15 @@
     applyOfficialSizes({ persist });
     applyOfficialPot({ persist });
 
-    if (persist && typeof state === "object" && state.layout) {
+    if (persist) {
       try {
-        localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(state.layout.items));
-        localStorage.setItem(LAYOUT_ARROW_STORAGE_KEY, JSON.stringify(state.layout.arrows));
-        if (typeof saveLayoutPanelPosition === "function") saveLayoutPanelPosition();
+        localStorage.setItem(LAYOUT_PREFERENCE_KEY, "official");
+        localStorage.removeItem(LEGACY_LAYOUT_STORAGE_KEY);
+        if (typeof state === "object" && state.layout) {
+          localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(state.layout.items));
+          localStorage.setItem(LAYOUT_ARROW_STORAGE_KEY, JSON.stringify(state.layout.arrows));
+          if (typeof saveLayoutPanelPosition === "function") saveLayoutPanelPosition();
+        }
       } catch (error) {
         console.warn("Official layout preset save failed:", error);
       }
@@ -273,39 +299,57 @@
     if (announceResult && typeof announce === "function") announce("已套用官方預設版面");
   }
 
-  function labelOfficialResetButton() {
-    const button = document.querySelector("#resetLayoutButton");
-    if (!button) return;
-    button.textContent = "⭐ 官方預設";
-    button.title = "套用網站官方版面、指定牌卡大小與 70% 底池大小";
-    button.setAttribute("aria-label", "套用官方預設版面");
+  function labelOfficialButtons() {
+    const resetButton = document.querySelector("#resetLayoutButton");
+    if (resetButton) {
+      resetButton.textContent = "⭐ 官方預設";
+      resetButton.title = "套用並保存網站官方版面、指定牌卡大小與 70% 底池大小";
+      resetButton.setAttribute("aria-label", "套用並保存官方預設版面");
+    }
+
+    const autoButton = document.querySelector("#autoLayoutButton");
+    if (autoButton) {
+      autoButton.textContent = "📐 套用官方版面";
+      autoButton.title = "立即套用官方版面，並設為下次進入時的預設版面";
+      autoButton.setAttribute("aria-label", "套用並保存官方版面");
+    }
   }
 
   migratePreviousOfficialDefaults();
   applyOfficialConstants();
-  labelOfficialResetButton();
+  labelOfficialButtons();
 
   document.addEventListener("click", event => {
-    const button = event.target.closest?.("#resetLayoutButton, #resetLayoutSizesButton");
+    const button = event.target.closest?.(
+      "#saveLayoutButton, #autoLayoutButton, #resetLayoutButton, #resetLayoutSizesButton",
+    );
     if (!button) return;
 
     window.setTimeout(() => {
-      if (button.id === "resetLayoutButton") {
+      if (button.id === "saveLayoutButton") {
+        try {
+          if (localStorage.getItem(LAYOUT_STORAGE_KEY)) {
+            localStorage.setItem(LAYOUT_PREFERENCE_KEY, "custom");
+            localStorage.removeItem(LEGACY_LAYOUT_STORAGE_KEY);
+          }
+        } catch (_) {}
+      } else if (button.id === "autoLayoutButton" || button.id === "resetLayoutButton") {
         applyOfficialLayout({ persist: true, announceResult: false });
       } else {
         applyOfficialSizes({ persist: true });
         applyOfficialPot({ persist: true });
       }
-      labelOfficialResetButton();
+      labelOfficialButtons();
     }, 0);
   }, true);
 
   window.OfficialLayoutPreset = Object.freeze({
-    version: "3.0.0",
+    version: "3.1.0",
     layout: cloneLayout(),
     sizes: { ...OFFICIAL_SIZES },
     potScale: OFFICIAL_POT_SCALE,
     arrows: { ...OFFICIAL_ARROWS },
+    preferenceKey: LAYOUT_PREFERENCE_KEY,
     apply: applyOfficialLayout,
   });
 })();

@@ -76,7 +76,7 @@ const OFFICIAL_ARROWS = {
   dialogue6: "down",
 };
 
-test("V2 官方預設會自動升級到使用者匯出的 V3", async ({ page }) => {
+test("V2 官方預設會自動升級到 persistent official V3.1", async ({ page }) => {
   await page.addInitScript(({ layout, sizes, arrows }) => {
     localStorage.setItem("texasHoldemTableLayoutV3", JSON.stringify(layout));
     localStorage.setItem("texasHoldemLayoutSizesV2", JSON.stringify(sizes));
@@ -92,7 +92,7 @@ test("V2 官方預設會自動升級到使用者匯出的 V3", async ({ page }) 
   await page.goto("/", { waitUntil: "networkidle" });
 
   await expect(page.locator('script[src="js/official-layout-preset.js?v=official-layout-v3"]')).toHaveCount(1);
-  await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset?.version)).toBe("3.0.0");
+  await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset?.version)).toBe("3.1.0");
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.layout.heroCards.top)).toBe(64.57);
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.sizes)).toEqual(OFFICIAL_SIZES);
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.potScale)).toBe(70);
@@ -104,16 +104,18 @@ test("V2 官方預設會自動升級到使用者匯出的 V3", async ({ page }) 
     pot: localStorage.getItem("texasHoldemPotScaleV1"),
     arrows: JSON.parse(localStorage.getItem("texasHoldemDialogueArrowsV1") || "null"),
     migration: localStorage.getItem("texasHoldemOfficialLayoutPresetVersionV1"),
+    preference: localStorage.getItem("texasHoldemLayoutPreferenceV1"),
   }));
 
   expect(migrated.layout).toBeNull();
   expect(migrated.sizes).toEqual(OFFICIAL_SIZES);
   expect(migrated.pot).toBe("70");
   expect(migrated.arrows).toEqual(OFFICIAL_ARROWS);
-  expect(migrated.migration).toBe("4");
+  expect(migrated.migration).toBe("5");
+  expect(migrated.preference).toBe("official");
 });
 
-test("V1 官方預設可直接升級到 V3，不需要先載入 V2", async ({ page }) => {
+test("V1 官方預設可直接升級到 persistent official V3.1", async ({ page }) => {
   await page.addInitScript(({ layout, sizes, arrows }) => {
     localStorage.setItem("texasHoldemTableLayoutV3", JSON.stringify(layout));
     localStorage.setItem("texasHoldemLayoutSizesV2", JSON.stringify(sizes));
@@ -134,17 +136,19 @@ test("V1 官方預設可直接升級到 V3，不需要先載入 V2", async ({ pa
     pot: localStorage.getItem("texasHoldemPotScaleV1"),
     arrows: JSON.parse(localStorage.getItem("texasHoldemDialogueArrowsV1") || "null"),
     migration: localStorage.getItem("texasHoldemOfficialLayoutPresetVersionV1"),
+    preference: localStorage.getItem("texasHoldemLayoutPreferenceV1"),
   }));
 
   expect(migrated.layout).toBeNull();
   expect(migrated.sizes).toEqual(OFFICIAL_SIZES);
   expect(migrated.pot).toBe("70");
   expect(migrated.arrows).toEqual(OFFICIAL_ARROWS);
-  expect(migrated.migration).toBe("4");
+  expect(migrated.migration).toBe("5");
+  expect(migrated.preference).toBe("official");
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.layout.heroCards.top)).toBe(64.57);
 });
 
-test("玩家自行修改的位置、尺寸、底池與箭頭不會被官方升級覆蓋", async ({ page }) => {
+test("明確標記 custom 的玩家位置、尺寸、底池與箭頭不會被官方升級覆蓋", async ({ page }) => {
   const customLayout = structuredClone(PREVIOUS_OFFICIAL_LAYOUT);
   customLayout.heroCards.top = 61.4;
   const customSizes = { ...PREVIOUS_OFFICIAL_SIZES, boardCard: 77 };
@@ -155,7 +159,8 @@ test("玩家自行修改的位置、尺寸、底池與箭頭不會被官方升�
     localStorage.setItem("texasHoldemLayoutSizesV2", JSON.stringify(sizes));
     localStorage.setItem("texasHoldemPotScaleV1", "80");
     localStorage.setItem("texasHoldemDialogueArrowsV1", JSON.stringify(arrows));
-    localStorage.setItem("texasHoldemOfficialLayoutPresetVersionV1", "3");
+    localStorage.setItem("texasHoldemLayoutPreferenceV1", "custom");
+    localStorage.setItem("texasHoldemOfficialLayoutPresetVersionV1", "4");
   }, { layout: customLayout, sizes: customSizes, arrows: customArrows });
 
   await page.goto("/", { waitUntil: "networkidle" });
@@ -166,12 +171,14 @@ test("玩家自行修改的位置、尺寸、底池與箭頭不會被官方升�
     pot: localStorage.getItem("texasHoldemPotScaleV1"),
     arrows: JSON.parse(localStorage.getItem("texasHoldemDialogueArrowsV1") || "null"),
     migration: localStorage.getItem("texasHoldemOfficialLayoutPresetVersionV1"),
+    preference: localStorage.getItem("texasHoldemLayoutPreferenceV1"),
   }));
 
   expect(saved.layout.heroCards.top).toBe(61.4);
   expect(saved.sizes.boardCard).toBe(77);
   expect(saved.pot).toBe("80");
   expect(saved.arrows.dialogue1).toBe("up");
-  expect(saved.migration).toBe("4");
+  expect(saved.migration).toBe("5");
+  expect(saved.preference).toBe("custom");
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.layout.heroCards.top)).toBe(64.57);
 });
