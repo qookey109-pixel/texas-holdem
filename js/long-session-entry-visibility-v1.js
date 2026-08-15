@@ -1,4 +1,5 @@
-// Keep Long Session available internally while its player-facing entry stays hidden.
+// Gate 8 manual-preview only: expose the retained Long Session entry locally.
+// Do not merge or publish this branch; production keeps the entry hidden.
 (() => {
   "use strict";
 
@@ -8,35 +9,27 @@
   const SELECTOR = "#longSessionModeButton,[data-long-session-mobile-toggle]";
   let observer = null;
 
-  function hideEntry(element) {
+  function showEntry(element) {
     if (!(element instanceof HTMLElement)) return false;
-    element.hidden = true;
-    element.setAttribute("aria-hidden", "true");
-    element.tabIndex = -1;
+    element.hidden = false;
+    element.removeAttribute("aria-hidden");
+    if (element.tabIndex < 0) element.tabIndex = 0;
     return true;
   }
 
   function apply(root = document) {
-    let hiddenCount = 0;
+    let shownCount = 0;
     if (root instanceof HTMLElement && root.matches(SELECTOR)) {
-      hiddenCount += hideEntry(root) ? 1 : 0;
+      shownCount += showEntry(root) ? 1 : 0;
     }
     root.querySelectorAll?.(SELECTOR).forEach(element => {
-      hiddenCount += hideEntry(element) ? 1 : 0;
+      shownCount += showEntry(element) ? 1 : 0;
     });
-    return hiddenCount;
-  }
-
-  function installStyles() {
-    if (document.getElementById("longSessionEntryVisibilityStyles")) return;
-    const style = document.createElement("style");
-    style.id = "longSessionEntryVisibilityStyles";
-    style.textContent = `${SELECTOR}{display:none !important;}`;
-    document.head.appendChild(style);
+    return shownCount;
   }
 
   function install() {
-    installStyles();
+    document.getElementById("longSessionEntryVisibilityStyles")?.remove();
     apply(document);
     observer?.disconnect();
     observer = new MutationObserver(records => {
@@ -51,11 +44,9 @@
 
   window.LongSessionEntryVisibilityV1 = Object.freeze({
     version: VERSION,
+    preview: true,
     apply: () => apply(document),
-    isHidden() {
-      const entries = [...document.querySelectorAll(SELECTOR)];
-      return entries.every(element => element.hidden && element.getAttribute("aria-hidden") === "true");
-    },
+    isHidden: () => false,
   });
 
   document.readyState === "loading"
