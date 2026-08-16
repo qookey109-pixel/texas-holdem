@@ -148,6 +148,21 @@
   applyOfficialConstants();
   labelOfficialButton();
 
+  document.addEventListener("click", event => {
+    const button = event.target.closest?.("#resetLayoutButton, #resetLayoutSizesButton");
+    if (!button) return;
+
+    window.setTimeout(() => {
+      if (button.id === "resetLayoutButton") {
+        applyOfficialLayout({ persist: true, announceResult: false });
+      } else {
+        applyOfficialSizes({ persist: true });
+        applyOfficialPot({ persist: true });
+      }
+      labelOfficialButton();
+    }, 0);
+  }, true);
+
   window.OfficialLayoutPreset = Object.freeze({
     version: "4.0.0",
     storageGeneration: "V4",
