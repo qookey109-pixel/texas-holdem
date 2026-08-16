@@ -22,45 +22,46 @@ const DIALOGUE_COOLDOWN_MS = 6500;
 const MAX_DIALOGUE_PER_STREET = 3;
 const CARD_MOTION_MS = 620;
 const THEME_STORAGE_KEY = "texasHoldemTheme";
-const LAYOUT_STORAGE_KEY = "texasHoldemTableLayoutV3";
-const LAYOUT_PANEL_STORAGE_KEY = "texasHoldemLayoutPanelPositionV1";
-const LAYOUT_ARROW_STORAGE_KEY = "texasHoldemDialogueArrowsV1";
+const LAYOUT_STORAGE_KEY = "texasHoldemTableLayoutV4";
+const LAYOUT_PANEL_STORAGE_KEY = "texasHoldemLayoutPanelPositionV2";
+const LAYOUT_ARROW_STORAGE_KEY = "texasHoldemDialogueArrowsV2";
+const LAYOUT_PREFERENCE_KEY = "texasHoldemLayoutPreferenceV2";
 const HERO_STYLE_STORAGE_KEY = "texasHoldemHeroStyleStatsV1";
 const DEFAULT_LAYOUT = {
-  seat1: { left: 4, top: 53 },
-  seat2: { left: 7.2, top: 25.5 },
-  seat3: { left: 27, top: 7 },
-  seat4: { left: 60.5, top: 7 },
-  seat5: { left: 79.5, top: 25.5 },
-  seat6: { left: 82, top: 53 },
-  seatCards1: { left: 14, top: 63 },
-  seatCards2: { left: 16, top: 39 },
-  seatCards3: { left: 36, top: 20 },
-  seatCards4: { left: 64, top: 20 },
-  seatCards5: { left: 84, top: 39 },
-  seatCards6: { left: 84, top: 63 },
-  dialogue1: { left: 22, top: 48 },
-  dialogue2: { left: 19, top: 24 },
-  dialogue3: { left: 33, top: 18 },
-  dialogue4: { left: 66, top: 18 },
-  dialogue5: { left: 78, top: 24 },
-  dialogue6: { left: 78, top: 48 },
-  board: { left: 50, top: 53 },
-  pot: { left: 50, top: 35 },
-  stage: { left: 50, top: 43 },
+  seat1: { left: 2.29, top: 73.63 },
+  seat2: { left: 1.5, top: 18 },
+  seat3: { left: 29.25, top: 2.5 },
+  seat4: { left: 55.04, top: 2.39 },
+  seat5: { left: 80.16, top: 14.55 },
+  seat6: { left: 82.05, top: 62.81 },
+  seatCards1: { left: 23.38, top: 57.02 },
+  seatCards2: { left: 23, top: 38.5 },
+  seatCards3: { left: 38.59, top: 26.36 },
+  seatCards4: { left: 60.94, top: 26.61 },
+  seatCards5: { left: 76.3, top: 35.69 },
+  seatCards6: { left: 76.42, top: 54.77 },
+  dialogue1: { left: 10.87, top: 67.62 },
+  dialogue2: { left: 9, top: 34 },
+  dialogue3: { left: 36.91, top: 19.16 },
+  dialogue4: { left: 63.5, top: 19.5 },
+  dialogue5: { left: 89.19, top: 32.6 },
+  dialogue6: { left: 92.35, top: 57.17 },
+  board: { left: 50, top: 46.55 },
+  pot: { left: 50, top: 32.5 },
+  stage: { left: 50, top: 37.5 },
   hero: { left: 50, top: 88 },
-  heroCards: { left: 43, top: 88 },
-  heroPanel: { left: 61, top: 88 },
-  heroStack: { left: 50, top: 70 },
-  actions: { left: 82, top: 80 },
+  heroCards: { left: 50, top: 64.57 },
+  heroPanel: { left: 50, top: 90.46 },
+  heroStack: { left: 33.28, top: 90.48 },
+  actions: { left: 81.6, top: 89.13 },
 };
 const DEFAULT_DIALOGUE_ARROWS = {
-  dialogue1: "left",
-  dialogue2: "left",
+  dialogue1: "down",
+  dialogue2: "up",
   dialogue3: "up",
   dialogue4: "up",
-  dialogue5: "right",
-  dialogue6: "right",
+  dialogue5: "up",
+  dialogue6: "down",
 };
 const DIALOGUE_ARROW_DIRECTIONS = new Set(["up", "down", "left", "right"]);
 const CENTERED_LAYOUT_KEYS = new Set([
