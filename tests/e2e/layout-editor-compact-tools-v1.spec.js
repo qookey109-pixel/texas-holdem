@@ -71,7 +71,7 @@ test("版面編輯器直接顯示常用工具，官方版面只保留一個操�
   }
 });
 
-test("舊 V1 或未標記的舊 V3 不再覆蓋官方啟動版面", async ({ page }) => {
+test("Layout V4 會退役舊 V1/V3 與舊面板位置，直接使用官方啟動版面", async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("texasHoldemTableLayoutV1", JSON.stringify({
       actions: { left: 12, top: 12 },
@@ -79,7 +79,10 @@ test("舊 V1 或未標記的舊 V3 不再覆蓋官方啟動版面", async ({ pag
     localStorage.setItem("texasHoldemTableLayoutV3", JSON.stringify({
       actions: { left: 22, top: 22 },
     }));
-    localStorage.setItem("texasHoldemOfficialLayoutPresetVersionV1", "4");
+    localStorage.setItem("texasHoldemLayoutPanelPositionV1", JSON.stringify({ left: 28, top: 220 }));
+    localStorage.setItem("texasHoldemDialogueArrowsV1", JSON.stringify({ dialogue1: "left" }));
+    localStorage.setItem("texasHoldemLayoutPreferenceV1", "custom");
+    localStorage.setItem("texasHoldemOfficialLayoutPresetVersionV1", "5");
   });
 
   await page.goto("/", { waitUntil: "networkidle" });
@@ -90,30 +93,43 @@ test("舊 V1 或未標記的舊 V3 不再覆蓋官方啟動版面", async ({ pag
     top: 89.13,
   });
   await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemTableLayoutV1"))).toBeNull();
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemLayoutPreferenceV1"))).toBe("official");
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemOfficialLayoutPresetVersionV1"))).toBe("5");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemTableLayoutV3"))).toBeNull();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemLayoutPanelPositionV1"))).toBeNull();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemDialogueArrowsV1"))).toBeNull();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemLayoutPreferenceV1"))).toBeNull();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemOfficialLayoutPresetVersionV1"))).toBeNull();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemTableLayoutV4"))).toBeNull();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemLayoutPanelPositionV2"))).toBeNull();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemLayoutPreferenceV2"))).toBe("official");
 });
 
-test("官方模式自動進官方版面；只有按儲存版面後才保留自訂位置", async ({ page }) => {
+test("官方模式自動進官方版面；只有按儲存版面後才建立 V4 自訂位置", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
   await expect(page.locator("#arena")).toBeVisible();
 
   const fresh = await page.evaluate(() => ({
     version: window.OfficialLayoutPreset.version,
+    generation: window.OfficialLayoutPreset.storageGeneration,
     officialSeat1: window.OfficialLayoutPreset.layout.seat1,
     officialActions: window.OfficialLayoutPreset.layout.actions,
     seat1: state.layout.items.seat1,
     actions: state.layout.items.actions,
-    preference: localStorage.getItem("texasHoldemLayoutPreferenceV1"),
+    preference: localStorage.getItem("texasHoldemLayoutPreferenceV2"),
+    savedLayout: localStorage.getItem("texasHoldemTableLayoutV4"),
+    savedPanel: localStorage.getItem("texasHoldemLayoutPanelPositionV2"),
   }));
 
-  expect(fresh.version).toBe("3.1.0");
+  expect(fresh.version).toBe("4.0.0");
+  expect(fresh.generation).toBe("V4");
   expect(fresh.seat1).toEqual(fresh.officialSeat1);
   expect(fresh.actions).toEqual(fresh.officialActions);
   expect(fresh.preference).toBe("official");
+  expect(fresh.savedLayout).toBeNull();
+  expect(fresh.savedPanel).toBeNull();
 
   await page.evaluate(() => {
     state.layout.items.actions = { left: 72.25, top: 76.5 };
+    state.layout.panel = { left: 48, top: 36 };
     applyLayout();
   });
 
@@ -122,11 +138,12 @@ test("官方模式自動進官方版面；只有按儲存版面後才保留自�
   await expect(saveButton).toBeVisible();
   await saveButton.click();
 
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemLayoutPreferenceV1"))).toBe("custom");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemLayoutPreferenceV2"))).toBe("custom");
   await expect.poll(() => page.evaluate(() => {
-    const saved = JSON.parse(localStorage.getItem("texasHoldemTableLayoutV3") || "null");
+    const saved = JSON.parse(localStorage.getItem("texasHoldemTableLayoutV4") || "null");
     return saved?.actions || null;
   })).toEqual({ left: 72.25, top: 76.5 });
+  await expect.poll(() => page.evaluate(() => Boolean(localStorage.getItem("texasHoldemLayoutPanelPositionV2")))).toBe(true);
 
   await page.reload({ waitUntil: "networkidle" });
   await expect.poll(() => page.evaluate(() => state.layout.items.actions.left)).toBe(72.25);
@@ -139,10 +156,12 @@ test("官方模式自動進官方版面；只有按儲存版面後才保留自�
   await resetButton.click();
 
   await expect.poll(() => page.evaluate(() => state.layout.items.actions)).toEqual({ left: 81.6, top: 89.13 });
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemLayoutPreferenceV1"))).toBe("official");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemLayoutPreferenceV2"))).toBe("official");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemTableLayoutV4"))).toBeNull();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemLayoutPanelPositionV2"))).toBeNull();
 
   await page.reload({ waitUntil: "networkidle" });
   await expect.poll(() => page.evaluate(() => state.layout.items.seat1)).toEqual({ left: 2.29, top: 73.63 });
   await expect.poll(() => page.evaluate(() => state.layout.items.actions)).toEqual({ left: 81.6, top: 89.13 });
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemLayoutPreferenceV1"))).toBe("official");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemLayoutPreferenceV2"))).toBe("official");
 });
