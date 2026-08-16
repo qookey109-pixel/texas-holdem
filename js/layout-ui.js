@@ -44,16 +44,25 @@ function normalizeDialogueArrows(arrows) {
   return normalized;
 }
 
-function readSavedLayout() {
+function hasSavedCustomLayout() {
   try {
-    const saved = localStorage.getItem(LAYOUT_STORAGE_KEY) || localStorage.getItem("texasHoldemTableLayoutV1");
-    return normalizeLayout(JSON.parse(saved || "null"));
+    return localStorage.getItem(LAYOUT_PREFERENCE_KEY) === "custom";
+  } catch (_) {
+    return false;
+  }
+}
+
+function readSavedLayout() {
+  if (!hasSavedCustomLayout()) return cloneDefaultLayout();
+  try {
+    return normalizeLayout(JSON.parse(localStorage.getItem(LAYOUT_STORAGE_KEY) || "null"));
   } catch (error) {
     return cloneDefaultLayout();
   }
 }
 
 function readSavedDialogueArrows() {
+  if (!hasSavedCustomLayout()) return cloneDefaultDialogueArrows();
   try {
     return normalizeDialogueArrows(JSON.parse(localStorage.getItem(LAYOUT_ARROW_STORAGE_KEY) || "null"));
   } catch (error) {
@@ -71,6 +80,7 @@ function normalizePanelPosition(position) {
 }
 
 function readSavedPanelPosition() {
+  if (!hasSavedCustomLayout()) return normalizePanelPosition(null);
   try {
     return normalizePanelPosition(JSON.parse(localStorage.getItem(LAYOUT_PANEL_STORAGE_KEY) || "null"));
   } catch (error) {
@@ -243,6 +253,7 @@ function setLayoutEditing(editing) {
 
 function saveLayout() {
   try {
+    localStorage.setItem(LAYOUT_PREFERENCE_KEY, "custom");
     localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(state.layout.items));
     localStorage.setItem(LAYOUT_ARROW_STORAGE_KEY, JSON.stringify(state.layout.arrows));
     saveLayoutPanelPosition();
@@ -254,10 +265,17 @@ function saveLayout() {
 }
 
 function resetLayout() {
+  if (window.OfficialLayoutPreset?.apply) {
+    window.OfficialLayoutPreset.apply({ persist: true, announceResult: false });
+    announce("版面已還原官方預設");
+    return;
+  }
+
   state.layout.items = cloneDefaultLayout();
   state.layout.arrows = cloneDefaultDialogueArrows();
   state.layout.panel = normalizePanelPosition(null);
   try {
+    localStorage.setItem(LAYOUT_PREFERENCE_KEY, "official");
     localStorage.removeItem(LAYOUT_STORAGE_KEY);
     localStorage.removeItem(LAYOUT_ARROW_STORAGE_KEY);
     localStorage.removeItem(LAYOUT_PANEL_STORAGE_KEY);
@@ -265,7 +283,7 @@ function resetLayout() {
     console.warn("Layout reset failed:", error);
   }
   applyLayout();
-  announce("版面已還原預設");
+  announce("版面已還原官方預設");
 }
 
 function autoArrangeLayout() {
@@ -410,7 +428,6 @@ function endLayoutPanelDrag(event) {
   els.layoutEditorPanel?.classList.remove("is-panel-dragging");
   els.layoutPanelHandle?.releasePointerCapture?.(event.pointerId);
   state.layout.panelDrag = null;
-  saveLayoutPanelPosition();
   event.stopPropagation();
 }
 
