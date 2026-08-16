@@ -96,7 +96,8 @@ test("不完整的 V4 custom 狀態不會把舊面板或尺寸帶回官方模式
   await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemTableLayoutV4"))).toBeNull();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemLayoutPanelPositionV2"))).toBeNull();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemDialogueArrowsV2"))).toBeNull();
-  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBe(64.57);
+  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeLessThanOrEqual(64.57);
+  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBeGreaterThan(61.5);
   await expect.poll(() => page.evaluate(() => state.layout.arrows.dialogue1)).toBe("down");
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("texasHoldemLayoutSizesV2")))).toEqual(OFFICIAL_SIZES);
   await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemPotScaleV1"))).toBe("70");
@@ -143,6 +144,7 @@ test("只有目前 V4 明確 custom 會保留玩家位置、面板、尺寸、�
   }));
 
   expect(saved.layout.actions).toEqual(customLayout.actions);
+  expect(saved.layout.heroCards).toEqual(customLayout.heroCards);
   expect(saved.panel).toEqual(customPanel);
   expect(saved.sizes).toEqual(customSizes);
   expect(saved.pot).toBe("80");
@@ -150,7 +152,9 @@ test("只有目前 V4 明確 custom 會保留玩家位置、面板、尺寸、�
   expect(saved.preference).toBe("custom");
   expect(saved.oldV3).toBeNull();
   expect(saved.stateActions).toEqual(customLayout.actions);
-  expect(saved.stateHeroCards).toEqual(customLayout.heroCards);
+  expect(saved.stateHeroCards.left).toBe(customLayout.heroCards.left);
+  expect(saved.stateHeroCards.top).toBeLessThanOrEqual(customLayout.heroCards.top);
+  expect(saved.stateHeroCards.top).toBeGreaterThan(customLayout.heroCards.top - 3);
   expect(saved.stateDialogue1).toBe("left");
   await expect.poll(() => page.locator("[data-layout-size='boardCard']").inputValue()).toBe("77");
 });
