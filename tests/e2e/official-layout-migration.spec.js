@@ -1,64 +1,5 @@
 import { expect, test } from "@playwright/test";
 
-const PREVIOUS_OFFICIAL_LAYOUT = {
-  seat1: { left: 2.29, top: 73.63 },
-  seat2: { left: 1.5, top: 17.5 },
-  seat3: { left: 28.25, top: 2 },
-  seat4: { left: 57.54, top: 1.89 },
-  seat5: { left: 79.66, top: 14.55 },
-  seat6: { left: 82.05, top: 62.81 },
-  seatCards1: { left: 22.88, top: 59.02 },
-  seatCards2: { left: 21.5, top: 37.5 },
-  seatCards3: { left: 38.59, top: 26.36 },
-  seatCards4: { left: 60.94, top: 26.61 },
-  seatCards5: { left: 76.3, top: 35.19 },
-  seatCards6: { left: 77.42, top: 54.77 },
-  dialogue1: { left: 10.87, top: 67.62 },
-  dialogue2: { left: 9, top: 33 },
-  dialogue3: { left: 34.41, top: 18.16 },
-  dialogue4: { left: 66, top: 18 },
-  dialogue5: { left: 90.19, top: 31.6 },
-  dialogue6: { left: 92.35, top: 57.17 },
-  board: { left: 50, top: 47.55 },
-  pot: { left: 50, top: 33.5 },
-  stage: { left: 50, top: 39 },
-  hero: { left: 50, top: 88 },
-  heroCards: { left: 50, top: 65.7 },
-  heroPanel: { left: 50, top: 90.46 },
-  heroStack: { left: 33.28, top: 90.48 },
-  actions: { left: 81.6, top: 89.13 },
-};
-
-const LEGACY_OFFICIAL_LAYOUT = {
-  ...PREVIOUS_OFFICIAL_LAYOUT,
-  heroCards: { left: 50, top: 63.2 },
-};
-
-const PREVIOUS_OFFICIAL_SIZES = {
-  heroCard: 92,
-  boardCard: 86,
-  aiCard: 44,
-  aiSeat: 176,
-  aiProfile: 272,
-};
-
-const LEGACY_OFFICIAL_SIZES = {
-  heroCard: 70,
-  boardCard: 65,
-  aiCard: 52,
-  aiSeat: 176,
-  aiProfile: 272,
-};
-
-const PREVIOUS_OFFICIAL_ARROWS = {
-  dialogue1: "left",
-  dialogue2: "left",
-  dialogue3: "up",
-  dialogue4: "up",
-  dialogue5: "right",
-  dialogue6: "right",
-};
-
 const OFFICIAL_SIZES = {
   heroCard: 70,
   boardCard: 68,
@@ -76,109 +17,140 @@ const OFFICIAL_ARROWS = {
   dialogue6: "down",
 };
 
-test("V2 官方預設會自動升級到 persistent official V3.1", async ({ page }) => {
-  await page.addInitScript(({ layout, sizes, arrows }) => {
-    localStorage.setItem("texasHoldemTableLayoutV3", JSON.stringify(layout));
-    localStorage.setItem("texasHoldemLayoutSizesV2", JSON.stringify(sizes));
-    localStorage.setItem("texasHoldemPotScaleV1", "100");
-    localStorage.setItem("texasHoldemDialogueArrowsV1", JSON.stringify(arrows));
-    localStorage.setItem("texasHoldemOfficialLayoutPresetVersionV1", "3");
-  }, {
-    layout: PREVIOUS_OFFICIAL_LAYOUT,
-    sizes: PREVIOUS_OFFICIAL_SIZES,
-    arrows: PREVIOUS_OFFICIAL_ARROWS,
+test("Layout V4 一次退役舊 layout generation 並從官方基線啟動", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("texasHoldemTableLayoutV1", JSON.stringify({ actions: { left: 12, top: 12 } }));
+    localStorage.setItem("texasHoldemTableLayoutV3", JSON.stringify({ actions: { left: 22, top: 22 } }));
+    localStorage.setItem("texasHoldemLayoutPanelPositionV1", JSON.stringify({ left: 30, top: 240 }));
+    localStorage.setItem("texasHoldemDialogueArrowsV1", JSON.stringify({ dialogue1: "left" }));
+    localStorage.setItem("texasHoldemLayoutPreferenceV1", "custom");
+    localStorage.setItem("texasHoldemOfficialLayoutPresetVersionV1", "5");
+    localStorage.setItem("texasHoldemLayoutSizesV2", JSON.stringify({
+      heroCard: 100,
+      boardCard: 90,
+      aiCard: 50,
+      aiSeat: 200,
+      aiProfile: 300,
+    }));
+    localStorage.setItem("texasHoldemPotScaleV1", "120");
   });
 
   await page.goto("/", { waitUntil: "networkidle" });
 
-  await expect(page.locator('script[src="js/official-layout-preset.js?v=official-layout-v3"]')).toHaveCount(1);
-  await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset?.version)).toBe("3.1.0");
+  await expect(page.locator('script[src="js/official-layout-preset.js?v=official-layout-v4"]')).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset?.version)).toBe("4.0.0");
+  await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset?.storageGeneration)).toBe("V4");
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.layout.heroCards.top)).toBe(64.57);
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.sizes)).toEqual(OFFICIAL_SIZES);
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.potScale)).toBe(70);
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.arrows)).toEqual(OFFICIAL_ARROWS);
+  await expect.poll(() => page.evaluate(() => state.layout.items.actions)).toEqual({ left: 81.6, top: 89.13 });
 
-  const migrated = await page.evaluate(() => ({
-    layout: localStorage.getItem("texasHoldemTableLayoutV3"),
+  const storage = await page.evaluate(() => ({
+    oldV1: localStorage.getItem("texasHoldemTableLayoutV1"),
+    oldV3: localStorage.getItem("texasHoldemTableLayoutV3"),
+    oldPanel: localStorage.getItem("texasHoldemLayoutPanelPositionV1"),
+    oldArrows: localStorage.getItem("texasHoldemDialogueArrowsV1"),
+    oldPreference: localStorage.getItem("texasHoldemLayoutPreferenceV1"),
+    oldMigration: localStorage.getItem("texasHoldemOfficialLayoutPresetVersionV1"),
+    v4Layout: localStorage.getItem("texasHoldemTableLayoutV4"),
+    v4Panel: localStorage.getItem("texasHoldemLayoutPanelPositionV2"),
+    v4Arrows: localStorage.getItem("texasHoldemDialogueArrowsV2"),
+    v4Preference: localStorage.getItem("texasHoldemLayoutPreferenceV2"),
     sizes: JSON.parse(localStorage.getItem("texasHoldemLayoutSizesV2") || "null"),
     pot: localStorage.getItem("texasHoldemPotScaleV1"),
-    arrows: JSON.parse(localStorage.getItem("texasHoldemDialogueArrowsV1") || "null"),
-    migration: localStorage.getItem("texasHoldemOfficialLayoutPresetVersionV1"),
-    preference: localStorage.getItem("texasHoldemLayoutPreferenceV1"),
   }));
 
-  expect(migrated.layout).toBeNull();
-  expect(migrated.sizes).toEqual(OFFICIAL_SIZES);
-  expect(migrated.pot).toBe("70");
-  expect(migrated.arrows).toEqual(OFFICIAL_ARROWS);
-  expect(migrated.migration).toBe("5");
-  expect(migrated.preference).toBe("official");
+  expect(storage.oldV1).toBeNull();
+  expect(storage.oldV3).toBeNull();
+  expect(storage.oldPanel).toBeNull();
+  expect(storage.oldArrows).toBeNull();
+  expect(storage.oldPreference).toBeNull();
+  expect(storage.oldMigration).toBeNull();
+  expect(storage.v4Layout).toBeNull();
+  expect(storage.v4Panel).toBeNull();
+  expect(storage.v4Arrows).toBeNull();
+  expect(storage.v4Preference).toBe("official");
+  expect(storage.sizes).toEqual(OFFICIAL_SIZES);
+  expect(storage.pot).toBe("70");
 });
 
-test("V1 官方預設可直接升級到 persistent official V3.1", async ({ page }) => {
-  await page.addInitScript(({ layout, sizes, arrows }) => {
-    localStorage.setItem("texasHoldemTableLayoutV3", JSON.stringify(layout));
-    localStorage.setItem("texasHoldemLayoutSizesV2", JSON.stringify(sizes));
-    localStorage.setItem("texasHoldemPotScaleV1", "70");
-    localStorage.setItem("texasHoldemDialogueArrowsV1", JSON.stringify(arrows));
-    localStorage.setItem("texasHoldemOfficialLayoutPresetVersionV1", "2");
-  }, {
-    layout: LEGACY_OFFICIAL_LAYOUT,
-    sizes: LEGACY_OFFICIAL_SIZES,
-    arrows: PREVIOUS_OFFICIAL_ARROWS,
+test("不完整的 V4 custom 狀態不會把舊面板或尺寸帶回官方模式", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("texasHoldemLayoutPreferenceV2", "custom");
+    localStorage.setItem("texasHoldemLayoutPanelPositionV2", JSON.stringify({ left: 18, top: 180 }));
+    localStorage.setItem("texasHoldemDialogueArrowsV2", JSON.stringify({ dialogue1: "left" }));
+    localStorage.setItem("texasHoldemLayoutSizesV2", JSON.stringify({
+      heroCard: 110,
+      boardCard: 100,
+      aiCard: 55,
+      aiSeat: 205,
+      aiProfile: 320,
+    }));
+    localStorage.setItem("texasHoldemPotScaleV1", "140");
   });
 
   await page.goto("/", { waitUntil: "networkidle" });
 
-  const migrated = await page.evaluate(() => ({
-    layout: localStorage.getItem("texasHoldemTableLayoutV3"),
-    sizes: JSON.parse(localStorage.getItem("texasHoldemLayoutSizesV2") || "null"),
-    pot: localStorage.getItem("texasHoldemPotScaleV1"),
-    arrows: JSON.parse(localStorage.getItem("texasHoldemDialogueArrowsV1") || "null"),
-    migration: localStorage.getItem("texasHoldemOfficialLayoutPresetVersionV1"),
-    preference: localStorage.getItem("texasHoldemLayoutPreferenceV1"),
-  }));
-
-  expect(migrated.layout).toBeNull();
-  expect(migrated.sizes).toEqual(OFFICIAL_SIZES);
-  expect(migrated.pot).toBe("70");
-  expect(migrated.arrows).toEqual(OFFICIAL_ARROWS);
-  expect(migrated.migration).toBe("5");
-  expect(migrated.preference).toBe("official");
-  await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.layout.heroCards.top)).toBe(64.57);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemLayoutPreferenceV2"))).toBe("official");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemTableLayoutV4"))).toBeNull();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemLayoutPanelPositionV2"))).toBeNull();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemDialogueArrowsV2"))).toBeNull();
+  await expect.poll(() => page.evaluate(() => state.layout.items.heroCards.top)).toBe(64.57);
+  await expect.poll(() => page.evaluate(() => state.layout.arrows.dialogue1)).toBe("down");
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("texasHoldemLayoutSizesV2")))).toEqual(OFFICIAL_SIZES);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemPotScaleV1"))).toBe("70");
 });
 
-test("明確標記 custom 的玩家位置、尺寸、底池與箭頭不會被官方升級覆蓋", async ({ page }) => {
-  const customLayout = structuredClone(PREVIOUS_OFFICIAL_LAYOUT);
-  customLayout.heroCards.top = 61.4;
-  const customSizes = { ...PREVIOUS_OFFICIAL_SIZES, boardCard: 77 };
-  const customArrows = { ...PREVIOUS_OFFICIAL_ARROWS, dialogue1: "up" };
+test("只有目前 V4 明確 custom 會保留玩家位置、面板、尺寸、底池與箭頭", async ({ page }) => {
+  const customLayout = {
+    heroCards: { left: 50, top: 61.4 },
+    actions: { left: 70.25, top: 78.5 },
+  };
+  const customSizes = {
+    heroCard: 84,
+    boardCard: 77,
+    aiCard: 41,
+    aiSeat: 184,
+    aiProfile: 286,
+  };
+  const customArrows = { dialogue1: "left", dialogue6: "right" };
+  const customPanel = { left: 42, top: 28 };
 
-  await page.addInitScript(({ layout, sizes, arrows }) => {
-    localStorage.setItem("texasHoldemTableLayoutV3", JSON.stringify(layout));
+  await page.addInitScript(({ layout, sizes, arrows, panel }) => {
+    localStorage.setItem("texasHoldemTableLayoutV4", JSON.stringify(layout));
+    localStorage.setItem("texasHoldemLayoutPanelPositionV2", JSON.stringify(panel));
+    localStorage.setItem("texasHoldemDialogueArrowsV2", JSON.stringify(arrows));
+    localStorage.setItem("texasHoldemLayoutPreferenceV2", "custom");
     localStorage.setItem("texasHoldemLayoutSizesV2", JSON.stringify(sizes));
     localStorage.setItem("texasHoldemPotScaleV1", "80");
-    localStorage.setItem("texasHoldemDialogueArrowsV1", JSON.stringify(arrows));
-    localStorage.setItem("texasHoldemLayoutPreferenceV1", "custom");
-    localStorage.setItem("texasHoldemOfficialLayoutPresetVersionV1", "4");
-  }, { layout: customLayout, sizes: customSizes, arrows: customArrows });
+    localStorage.setItem("texasHoldemTableLayoutV3", JSON.stringify({ actions: { left: 9, top: 9 } }));
+  }, { layout: customLayout, sizes: customSizes, arrows: customArrows, panel: customPanel });
 
   await page.goto("/", { waitUntil: "networkidle" });
 
   const saved = await page.evaluate(() => ({
-    layout: JSON.parse(localStorage.getItem("texasHoldemTableLayoutV3") || "null"),
+    layout: JSON.parse(localStorage.getItem("texasHoldemTableLayoutV4") || "null"),
+    panel: JSON.parse(localStorage.getItem("texasHoldemLayoutPanelPositionV2") || "null"),
     sizes: JSON.parse(localStorage.getItem("texasHoldemLayoutSizesV2") || "null"),
     pot: localStorage.getItem("texasHoldemPotScaleV1"),
-    arrows: JSON.parse(localStorage.getItem("texasHoldemDialogueArrowsV1") || "null"),
-    migration: localStorage.getItem("texasHoldemOfficialLayoutPresetVersionV1"),
-    preference: localStorage.getItem("texasHoldemLayoutPreferenceV1"),
+    arrows: JSON.parse(localStorage.getItem("texasHoldemDialogueArrowsV2") || "null"),
+    preference: localStorage.getItem("texasHoldemLayoutPreferenceV2"),
+    oldV3: localStorage.getItem("texasHoldemTableLayoutV3"),
+    stateActions: state.layout.items.actions,
+    stateHeroCards: state.layout.items.heroCards,
+    stateDialogue1: state.layout.arrows.dialogue1,
   }));
 
-  expect(saved.layout.heroCards.top).toBe(61.4);
-  expect(saved.sizes.boardCard).toBe(77);
+  expect(saved.layout.actions).toEqual(customLayout.actions);
+  expect(saved.panel).toEqual(customPanel);
+  expect(saved.sizes).toEqual(customSizes);
   expect(saved.pot).toBe("80");
-  expect(saved.arrows.dialogue1).toBe("up");
-  expect(saved.migration).toBe("5");
+  expect(saved.arrows).toEqual(customArrows);
   expect(saved.preference).toBe("custom");
-  await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.layout.heroCards.top)).toBe(64.57);
+  expect(saved.oldV3).toBeNull();
+  expect(saved.stateActions).toEqual(customLayout.actions);
+  expect(saved.stateHeroCards).toEqual(customLayout.heroCards);
+  expect(saved.stateDialogue1).toBe("left");
+  await expect.poll(() => page.locator("[data-layout-size='boardCard']").inputValue()).toBe("77");
 });
