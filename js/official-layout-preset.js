@@ -1,4 +1,4 @@
-// Approved official table layout captured from the production layout editor.
+// Layout V4: one official baseline, one explicit custom generation.
 (() => {
   "use strict";
 
@@ -6,73 +6,17 @@
 
   const SIZE_STORAGE_KEY = "texasHoldemLayoutSizesV2";
   const POT_STORAGE_KEY = "texasHoldemPotScaleV1";
-  const PRESET_MIGRATION_KEY = "texasHoldemOfficialLayoutPresetVersionV1";
-  const LEGACY_LAYOUT_STORAGE_KEY = "texasHoldemTableLayoutV1";
-  const LAYOUT_PREFERENCE_KEY = "texasHoldemLayoutPreferenceV1";
+  const LEGACY_STORAGE_KEYS = Object.freeze([
+    "texasHoldemTableLayoutV1",
+    "texasHoldemTableLayoutV2",
+    "texasHoldemTableLayoutV3",
+    "texasHoldemLayoutPanelPositionV1",
+    "texasHoldemDialogueArrowsV1",
+    "texasHoldemLayoutPreferenceV1",
+    "texasHoldemOfficialLayoutPresetVersionV1",
+  ]);
 
-  const OFFICIAL_LAYOUT = Object.freeze({
-    seat1: { left: 2.29, top: 73.63 },
-    seat2: { left: 1.5, top: 18 },
-    seat3: { left: 29.25, top: 2.5 },
-    seat4: { left: 55.04, top: 2.39 },
-    seat5: { left: 80.16, top: 14.55 },
-    seat6: { left: 82.05, top: 62.81 },
-    seatCards1: { left: 23.38, top: 57.02 },
-    seatCards2: { left: 23, top: 38.5 },
-    seatCards3: { left: 38.59, top: 26.36 },
-    seatCards4: { left: 60.94, top: 26.61 },
-    seatCards5: { left: 76.3, top: 35.69 },
-    seatCards6: { left: 76.42, top: 54.77 },
-    dialogue1: { left: 10.87, top: 67.62 },
-    dialogue2: { left: 9, top: 34 },
-    dialogue3: { left: 36.91, top: 19.16 },
-    dialogue4: { left: 63.5, top: 19.5 },
-    dialogue5: { left: 89.19, top: 32.6 },
-    dialogue6: { left: 92.35, top: 57.17 },
-    board: { left: 50, top: 46.55 },
-    pot: { left: 50, top: 32.5 },
-    stage: { left: 50, top: 37.5 },
-    hero: { left: 50, top: 88 },
-    heroCards: { left: 50, top: 64.57 },
-    heroPanel: { left: 50, top: 90.46 },
-    heroStack: { left: 33.28, top: 90.48 },
-    actions: { left: 81.6, top: 89.13 },
-  });
-
-  const PREVIOUS_OFFICIAL_LAYOUT = Object.freeze({
-    seat1: { left: 2.29, top: 73.63 },
-    seat2: { left: 1.5, top: 17.5 },
-    seat3: { left: 28.25, top: 2 },
-    seat4: { left: 57.54, top: 1.89 },
-    seat5: { left: 79.66, top: 14.55 },
-    seat6: { left: 82.05, top: 62.81 },
-    seatCards1: { left: 22.88, top: 59.02 },
-    seatCards2: { left: 21.5, top: 37.5 },
-    seatCards3: { left: 38.59, top: 26.36 },
-    seatCards4: { left: 60.94, top: 26.61 },
-    seatCards5: { left: 76.3, top: 35.19 },
-    seatCards6: { left: 77.42, top: 54.77 },
-    dialogue1: { left: 10.87, top: 67.62 },
-    dialogue2: { left: 9, top: 33 },
-    dialogue3: { left: 34.41, top: 18.16 },
-    dialogue4: { left: 66, top: 18 },
-    dialogue5: { left: 90.19, top: 31.6 },
-    dialogue6: { left: 92.35, top: 57.17 },
-    board: { left: 50, top: 47.55 },
-    pot: { left: 50, top: 33.5 },
-    stage: { left: 50, top: 39 },
-    hero: { left: 50, top: 88 },
-    heroCards: { left: 50, top: 65.7 },
-    heroPanel: { left: 50, top: 90.46 },
-    heroStack: { left: 33.28, top: 90.48 },
-    actions: { left: 81.6, top: 89.13 },
-  });
-
-  const LEGACY_OFFICIAL_LAYOUT = Object.freeze({
-    ...PREVIOUS_OFFICIAL_LAYOUT,
-    heroCards: { left: 50, top: 63.2 },
-  });
-
+  const OFFICIAL_LAYOUT = Object.freeze(JSON.parse(JSON.stringify(DEFAULT_LAYOUT)));
   const OFFICIAL_SIZES = Object.freeze({
     heroCard: 70,
     boardCard: 68,
@@ -80,39 +24,8 @@
     aiSeat: 176,
     aiProfile: 272,
   });
-  const PREVIOUS_OFFICIAL_SIZES = Object.freeze({
-    heroCard: 92,
-    boardCard: 86,
-    aiCard: 44,
-    aiSeat: 176,
-    aiProfile: 272,
-  });
-  const LEGACY_OFFICIAL_SIZES = Object.freeze({
-    heroCard: 70,
-    boardCard: 65,
-    aiCard: 52,
-    aiSeat: 176,
-    aiProfile: 272,
-  });
   const OFFICIAL_POT_SCALE = 70;
-  const PREVIOUS_OFFICIAL_POT_SCALE = 100;
-  const OFFICIAL_ARROWS = Object.freeze({
-    dialogue1: "down",
-    dialogue2: "up",
-    dialogue3: "up",
-    dialogue4: "up",
-    dialogue5: "up",
-    dialogue6: "down",
-  });
-  const PREVIOUS_OFFICIAL_ARROWS = Object.freeze({
-    dialogue1: "left",
-    dialogue2: "left",
-    dialogue3: "up",
-    dialogue4: "up",
-    dialogue5: "right",
-    dialogue6: "right",
-  });
-
+  const OFFICIAL_ARROWS = Object.freeze({ ...DEFAULT_DIALOGUE_ARROWS });
   const SIZE_CSS_VARS = Object.freeze({
     heroCard: "--layout-hero-card-width",
     boardCard: "--layout-board-card-width",
@@ -125,117 +38,43 @@
     return JSON.parse(JSON.stringify(OFFICIAL_LAYOUT));
   }
 
-  function matchesObject(raw, expected) {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
-    const rawKeys = Object.keys(raw);
-    const expectedKeys = Object.keys(expected);
-    if (rawKeys.length !== expectedKeys.length) return false;
-    return expectedKeys.every(key => String(raw[key]) === String(expected[key]));
+  function clearLegacyStorage() {
+    LEGACY_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
   }
 
-  function matchesLayout(raw, expected) {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
-    const rawKeys = Object.keys(raw);
-    const expectedKeys = Object.keys(expected);
-    if (rawKeys.length !== expectedKeys.length) return false;
-    return expectedKeys.every(key => (
-      raw[key]
-      && Number(raw[key].left) === Number(expected[key].left)
-      && Number(raw[key].top) === Number(expected[key].top)
-    ));
+  function clearV4CustomStorage() {
+    localStorage.removeItem(LAYOUT_STORAGE_KEY);
+    localStorage.removeItem(LAYOUT_PANEL_STORAGE_KEY);
+    localStorage.removeItem(LAYOUT_ARROW_STORAGE_KEY);
   }
 
-  function migrateStoredObject(key, previousValues, officialValue) {
-    const raw = localStorage.getItem(key);
-    if (!raw) {
-      localStorage.setItem(key, JSON.stringify(officialValue));
-      return;
-    }
+  function persistOfficialDimensions() {
+    localStorage.setItem(SIZE_STORAGE_KEY, JSON.stringify(OFFICIAL_SIZES));
+    localStorage.setItem(POT_STORAGE_KEY, String(OFFICIAL_POT_SCALE));
+  }
 
+  function prepareStorageGeneration() {
     try {
-      const parsed = JSON.parse(raw);
-      const candidates = Array.isArray(previousValues) ? previousValues : [previousValues];
-      if (candidates.some(expected => matchesObject(parsed, expected))) {
-        localStorage.setItem(key, JSON.stringify(officialValue));
-      }
+      clearLegacyStorage();
+
+      const explicitCustom = localStorage.getItem(LAYOUT_PREFERENCE_KEY) === "custom";
+      const hasV4Layout = Boolean(localStorage.getItem(LAYOUT_STORAGE_KEY));
+      if (explicitCustom && hasV4Layout) return;
+
+      clearV4CustomStorage();
+      persistOfficialDimensions();
+      localStorage.setItem(LAYOUT_PREFERENCE_KEY, "official");
     } catch (_) {
-      // Leave malformed or custom values untouched.
-    }
-  }
-
-  function migratePreviousOfficialDefaults() {
-    try {
-      if (localStorage.getItem(PRESET_MIGRATION_KEY) === "5") return;
-
-      const preference = localStorage.getItem(LAYOUT_PREFERENCE_KEY);
-      if (preference !== "custom") {
-        // V5 establishes a clear rule: official is the startup layout unless the
-        // player explicitly saves a custom layout after this migration.
-        localStorage.removeItem(LAYOUT_STORAGE_KEY);
-        localStorage.removeItem(LEGACY_LAYOUT_STORAGE_KEY);
-        localStorage.removeItem(LAYOUT_ARROW_STORAGE_KEY);
-        if (typeof LAYOUT_PANEL_STORAGE_KEY === "string") {
-          localStorage.removeItem(LAYOUT_PANEL_STORAGE_KEY);
-        }
-        localStorage.setItem(SIZE_STORAGE_KEY, JSON.stringify(OFFICIAL_SIZES));
-        localStorage.setItem(POT_STORAGE_KEY, String(OFFICIAL_POT_SCALE));
-        localStorage.setItem(LAYOUT_PREFERENCE_KEY, "official");
-      } else {
-        // A V5 explicit custom preference owns the current V3 layout. The legacy
-        // V1 fallback is never allowed to override it again.
-        localStorage.removeItem(LEGACY_LAYOUT_STORAGE_KEY);
-      }
-
-      const rawLayout = localStorage.getItem(LAYOUT_STORAGE_KEY);
-      if (rawLayout) {
-        try {
-          const parsedLayout = JSON.parse(rawLayout);
-          if (
-            matchesLayout(parsedLayout, PREVIOUS_OFFICIAL_LAYOUT)
-            || matchesLayout(parsedLayout, LEGACY_OFFICIAL_LAYOUT)
-          ) {
-            localStorage.removeItem(LAYOUT_STORAGE_KEY);
-            localStorage.setItem(LAYOUT_PREFERENCE_KEY, "official");
-          }
-        } catch (_) {
-          // Leave malformed or explicit custom values untouched.
-        }
-      }
-
-      migrateStoredObject(
-        SIZE_STORAGE_KEY,
-        [PREVIOUS_OFFICIAL_SIZES, LEGACY_OFFICIAL_SIZES],
-        OFFICIAL_SIZES,
-      );
-
-      const rawPot = localStorage.getItem(POT_STORAGE_KEY);
-      if (!rawPot || Number(rawPot) === PREVIOUS_OFFICIAL_POT_SCALE) {
-        localStorage.setItem(POT_STORAGE_KEY, String(OFFICIAL_POT_SCALE));
-      }
-
-      migrateStoredObject(
-        LAYOUT_ARROW_STORAGE_KEY,
-        PREVIOUS_OFFICIAL_ARROWS,
-        OFFICIAL_ARROWS,
-      );
-
-      localStorage.setItem(PRESET_MIGRATION_KEY, "5");
-    } catch (_) {
-      // Runtime layout defaults still work when storage is unavailable.
+      // Runtime defaults remain authoritative when storage is unavailable.
     }
   }
 
   function applyOfficialConstants() {
-    if (typeof DEFAULT_LAYOUT === "object") {
-      Object.entries(OFFICIAL_LAYOUT).forEach(([key, value]) => {
-        if (DEFAULT_LAYOUT[key]) Object.assign(DEFAULT_LAYOUT[key], value);
-        else DEFAULT_LAYOUT[key] = { ...value };
-      });
-    }
-
-    if (typeof DEFAULT_DIALOGUE_ARROWS === "object") {
-      Object.assign(DEFAULT_DIALOGUE_ARROWS, OFFICIAL_ARROWS);
-    }
+    Object.entries(OFFICIAL_LAYOUT).forEach(([key, value]) => {
+      if (DEFAULT_LAYOUT[key]) Object.assign(DEFAULT_LAYOUT[key], value);
+      else DEFAULT_LAYOUT[key] = { ...value };
+    });
+    Object.assign(DEFAULT_DIALOGUE_ARROWS, OFFICIAL_ARROWS);
   }
 
   function applyOfficialSizes({ persist = false } = {}) {
@@ -257,14 +96,15 @@
   function applyOfficialPot({ persist = false } = {}) {
     if (window.LayoutCornerResize?.setPotScale) {
       window.LayoutCornerResize.setPotScale(OFFICIAL_POT_SCALE, { persist });
-    } else {
-      document.documentElement.style.setProperty(
-        "--layout-pot-scale",
-        (OFFICIAL_POT_SCALE / 100).toFixed(3),
-      );
-      if (persist) {
-        try { localStorage.setItem(POT_STORAGE_KEY, String(OFFICIAL_POT_SCALE)); } catch (_) {}
-      }
+      return;
+    }
+
+    document.documentElement.style.setProperty(
+      "--layout-pot-scale",
+      (OFFICIAL_POT_SCALE / 100).toFixed(3),
+    );
+    if (persist) {
+      try { localStorage.setItem(POT_STORAGE_KEY, String(OFFICIAL_POT_SCALE)); } catch (_) {}
     }
   }
 
@@ -283,13 +123,10 @@
 
     if (persist) {
       try {
+        clearLegacyStorage();
+        clearV4CustomStorage();
+        persistOfficialDimensions();
         localStorage.setItem(LAYOUT_PREFERENCE_KEY, "official");
-        localStorage.removeItem(LEGACY_LAYOUT_STORAGE_KEY);
-        if (typeof state === "object" && state.layout) {
-          localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(state.layout.items));
-          localStorage.setItem(LAYOUT_ARROW_STORAGE_KEY, JSON.stringify(state.layout.arrows));
-          if (typeof saveLayoutPanelPosition === "function") saveLayoutPanelPosition();
-        }
       } catch (error) {
         console.warn("Official layout preset save failed:", error);
       }
@@ -299,52 +136,36 @@
     if (announceResult && typeof announce === "function") announce("已套用官方預設版面");
   }
 
-  function labelOfficialButtons() {
+  function labelOfficialButton() {
     const resetButton = document.querySelector("#resetLayoutButton");
-    if (resetButton) {
-      resetButton.textContent = "⭐ 官方預設";
-      resetButton.title = "套用並保存網站官方版面、指定牌卡大小與 70% 底池大小";
-      resetButton.setAttribute("aria-label", "套用並保存官方預設版面");
-    }
-
-    const autoButton = document.querySelector("#autoLayoutButton");
-    if (autoButton) {
-      autoButton.textContent = "📐 套用官方版面";
-      autoButton.title = "立即套用官方版面，並設為下次進入時的預設版面";
-      autoButton.setAttribute("aria-label", "套用並保存官方版面");
-    }
+    if (!resetButton) return;
+    resetButton.textContent = "⭐ 官方預設";
+    resetButton.title = "清除自訂版面並回到網站官方位置、大小與底池設定";
+    resetButton.setAttribute("aria-label", "清除自訂版面並套用官方預設");
   }
 
-  migratePreviousOfficialDefaults();
+  prepareStorageGeneration();
   applyOfficialConstants();
-  labelOfficialButtons();
+  labelOfficialButton();
 
   document.addEventListener("click", event => {
-    const button = event.target.closest?.(
-      "#saveLayoutButton, #autoLayoutButton, #resetLayoutButton, #resetLayoutSizesButton",
-    );
+    const button = event.target.closest?.("#resetLayoutButton, #resetLayoutSizesButton");
     if (!button) return;
 
     window.setTimeout(() => {
-      if (button.id === "saveLayoutButton") {
-        try {
-          if (localStorage.getItem(LAYOUT_STORAGE_KEY)) {
-            localStorage.setItem(LAYOUT_PREFERENCE_KEY, "custom");
-            localStorage.removeItem(LEGACY_LAYOUT_STORAGE_KEY);
-          }
-        } catch (_) {}
-      } else if (button.id === "autoLayoutButton" || button.id === "resetLayoutButton") {
+      if (button.id === "resetLayoutButton") {
         applyOfficialLayout({ persist: true, announceResult: false });
       } else {
         applyOfficialSizes({ persist: true });
         applyOfficialPot({ persist: true });
       }
-      labelOfficialButtons();
+      labelOfficialButton();
     }, 0);
   }, true);
 
   window.OfficialLayoutPreset = Object.freeze({
-    version: "3.1.0",
+    version: "4.0.0",
+    storageGeneration: "V4",
     layout: cloneLayout(),
     sizes: { ...OFFICIAL_SIZES },
     potScale: OFFICIAL_POT_SCALE,
