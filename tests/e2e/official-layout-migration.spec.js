@@ -37,7 +37,8 @@ test("Layout V4 一次退役舊 layout generation 並從官方基線啟動", asy
 
   await page.goto("/", { waitUntil: "networkidle" });
 
-  await expect(page.locator('script[src="js/official-layout-preset.js?v=official-layout-v4"]')).toHaveCount(1);
+  await expect(page.locator('script[src="js/official-layout-preset.js?v=official-layout-runtime-authority-v1"]')).toHaveCount(1);
+  await expect(page.locator('script[src="js/official-layout-runtime-authority-v1.js?v=official-layout-runtime-authority-v1"]')).toHaveCount(1);
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset?.version)).toBe("4.0.1");
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset?.storageGeneration)).toBe("V4");
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.layout.heroCards.top)).toBe(64.57);
@@ -46,6 +47,7 @@ test("Layout V4 一次退役舊 layout generation 並從官方基線啟動", asy
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.arrows)).toEqual(OFFICIAL_ARROWS);
   await expect.poll(() => page.evaluate(() => state.layout.items.actions)).toEqual({ left: 81.6, top: 89.13 });
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.layoutStartupApplied)).toBe("true");
+  await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute("data-official-layout-runtime-ready"))).toBe("true");
 
   const runtimeLayout = await page.evaluate(() => {
     const arena = document.querySelector("#arena");
