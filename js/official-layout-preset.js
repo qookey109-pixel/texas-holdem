@@ -136,6 +136,32 @@
     if (announceResult && typeof announce === "function") announce("已套用官方預設版面");
   }
 
+  function applyInitialRuntimeLayout() {
+    try {
+      if (!state?.layout || typeof applyLayout !== "function") return false;
+      applyLayout();
+      document.documentElement.dataset.layoutStartupApplied = "true";
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function scheduleInitialRuntimeLayout() {
+    const applyAfterScripts = () => {
+      if (!applyInitialRuntimeLayout()) {
+        window.setTimeout(applyInitialRuntimeLayout, 0);
+      }
+      window.requestAnimationFrame?.(() => applyInitialRuntimeLayout());
+    };
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", applyAfterScripts, { once: true });
+    } else {
+      applyAfterScripts();
+    }
+  }
+
   function labelOfficialButton() {
     const resetButton = document.querySelector("#resetLayoutButton");
     if (!resetButton) return;
@@ -164,7 +190,7 @@
   }, true);
 
   window.OfficialLayoutPreset = Object.freeze({
-    version: "4.0.0",
+    version: "4.0.1",
     storageGeneration: "V4",
     layout: cloneLayout(),
     sizes: { ...OFFICIAL_SIZES },
@@ -173,4 +199,6 @@
     preferenceKey: LAYOUT_PREFERENCE_KEY,
     apply: applyOfficialLayout,
   });
+
+  scheduleInitialRuntimeLayout();
 })();

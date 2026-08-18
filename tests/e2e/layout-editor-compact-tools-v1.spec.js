@@ -119,7 +119,7 @@ test("官方模式自動進官方版面；只有按儲存版面後才建立 V4 �
     savedPanel: localStorage.getItem("texasHoldemLayoutPanelPositionV2"),
   }));
 
-  expect(fresh.version).toBe("4.0.0");
+  expect(fresh.version).toBe("4.0.1");
   expect(fresh.generation).toBe("V4");
   expect(fresh.seat1).toEqual(fresh.officialSeat1);
   expect(fresh.actions).toEqual(fresh.officialActions);

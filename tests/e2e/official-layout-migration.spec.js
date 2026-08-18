@@ -38,13 +38,35 @@ test("Layout V4 一次退役舊 layout generation 並從官方基線啟動", asy
   await page.goto("/", { waitUntil: "networkidle" });
 
   await expect(page.locator('script[src="js/official-layout-preset.js?v=official-layout-v4"]')).toHaveCount(1);
-  await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset?.version)).toBe("4.0.0");
+  await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset?.version)).toBe("4.0.1");
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset?.storageGeneration)).toBe("V4");
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.layout.heroCards.top)).toBe(64.57);
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.sizes)).toEqual(OFFICIAL_SIZES);
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.potScale)).toBe(70);
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset.arrows)).toEqual(OFFICIAL_ARROWS);
   await expect.poll(() => page.evaluate(() => state.layout.items.actions)).toEqual({ left: 81.6, top: 89.13 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.layoutStartupApplied)).toBe("true");
+
+  const runtimeLayout = await page.evaluate(() => {
+    const arena = document.querySelector("#arena");
+    return {
+      actionsLeft: arena.style.getPropertyValue("--layout-actions-left").trim(),
+      actionsTop: arena.style.getPropertyValue("--layout-actions-top").trim(),
+      boardLeft: arena.style.getPropertyValue("--layout-board-left").trim(),
+      boardTop: arena.style.getPropertyValue("--layout-board-top").trim(),
+      seat1Left: arena.style.getPropertyValue("--layout-seat1-left").trim(),
+      seat1Top: arena.style.getPropertyValue("--layout-seat1-top").trim(),
+    };
+  });
+
+  expect(runtimeLayout).toEqual({
+    actionsLeft: "81.6%",
+    actionsTop: "89.13%",
+    boardLeft: "50%",
+    boardTop: "46.55%",
+    seat1Left: "2.29%",
+    seat1Top: "73.63%",
+  });
 
   const storage = await page.evaluate(() => ({
     oldV1: localStorage.getItem("texasHoldemTableLayoutV1"),
@@ -101,6 +123,7 @@ test("不完整的 V4 custom 狀態不會把舊面板或尺寸帶回官方模式
   await expect.poll(() => page.evaluate(() => state.layout.arrows.dialogue1)).toBe("down");
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("texasHoldemLayoutSizesV2")))).toEqual(OFFICIAL_SIZES);
   await expect.poll(() => page.evaluate(() => localStorage.getItem("texasHoldemPotScaleV1"))).toBe("70");
+  await expect.poll(() => page.evaluate(() => document.querySelector("#arena").style.getPropertyValue("--layout-actions-left").trim())).toBe("81.6%");
 });
 
 test("只有目前 V4 明確 custom 會保留玩家位置、面板、尺寸、底池與箭頭", async ({ page }) => {
@@ -141,6 +164,8 @@ test("只有目前 V4 明確 custom 會保留玩家位置、面板、尺寸、�
     stateActions: state.layout.items.actions,
     stateHeroCards: state.layout.items.heroCards,
     stateDialogue1: state.layout.arrows.dialogue1,
+    runtimeActionsLeft: document.querySelector("#arena").style.getPropertyValue("--layout-actions-left").trim(),
+    runtimeActionsTop: document.querySelector("#arena").style.getPropertyValue("--layout-actions-top").trim(),
   }));
 
   expect(saved.layout.actions).toEqual(customLayout.actions);
@@ -156,5 +181,7 @@ test("只有目前 V4 明確 custom 會保留玩家位置、面板、尺寸、�
   expect(saved.stateHeroCards.top).toBeLessThanOrEqual(customLayout.heroCards.top);
   expect(saved.stateHeroCards.top).toBeGreaterThan(customLayout.heroCards.top - 3);
   expect(saved.stateDialogue1).toBe("left");
+  expect(saved.runtimeActionsLeft).toBe("70.25%");
+  expect(saved.runtimeActionsTop).toBe("78.5%");
   await expect.poll(() => page.locator("[data-layout-size='boardCard']").inputValue()).toBe("77");
 });
