@@ -4,7 +4,8 @@
 
   if (window.OfficialLayoutPreset?.version) return;
 
-  const VERSION = "4.1.0";
+  const VERSION = "4.0.1";
+  const RUNTIME_AUTHORITY_VERSION = "1.0.0";
   const SIZE_STORAGE_KEY = "texasHoldemLayoutSizesV2";
   const POT_STORAGE_KEY = "texasHoldemPotScaleV1";
   const RUNTIME_READY_ATTRIBUTE = "data-official-layout-runtime-ready";
@@ -43,9 +44,7 @@
   let runtimeMode = "pending";
   let runtimeReason = "boot";
 
-  function cloneLayout() {
-    return JSON.parse(JSON.stringify(OFFICIAL_LAYOUT));
-  }
+  const cloneLayout = () => JSON.parse(JSON.stringify(OFFICIAL_LAYOUT));
 
   function clearLegacyStorage() {
     LEGACY_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
@@ -74,9 +73,7 @@
   function prepareStorageGeneration() {
     try {
       clearLegacyStorage();
-
       if (hasExplicitCustomLayout()) return;
-
       clearV4CustomStorage();
       persistOfficialDimensions();
       localStorage.setItem(LAYOUT_PREFERENCE_KEY, "official");
@@ -207,7 +204,8 @@
       getComputedStyle(document.documentElement).getPropertyValue("--layout-pot-scale"),
     );
     return {
-      version: VERSION,
+      version: RUNTIME_AUTHORITY_VERSION,
+      presetVersion: VERSION,
       ready: document.documentElement.getAttribute(RUNTIME_READY_ATTRIBUTE) === "true",
       mode: runtimeMode,
       reason: runtimeReason,
@@ -230,13 +228,11 @@
       }
 
       if (reconcileRuntime({ reason: controllerReady ? "controller-ready" : "timeout" })) return;
-
       if (!timedOut) {
         window.requestAnimationFrame(attempt);
         return;
       }
 
-      // A separate unrelated boot error must not leave the table hidden forever.
       runtimeMode = "fallback";
       runtimeReason = "timeout-fallback";
       document.documentElement.setAttribute(RUNTIME_READY_ATTRIBUTE, "true");
@@ -276,6 +272,7 @@
 
   window.OfficialLayoutPreset = Object.freeze({
     version: VERSION,
+    runtimeAuthorityVersion: RUNTIME_AUTHORITY_VERSION,
     storageGeneration: "V4",
     layout: cloneLayout(),
     sizes: { ...OFFICIAL_SIZES },
