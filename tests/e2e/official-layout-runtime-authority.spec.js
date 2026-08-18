@@ -39,7 +39,7 @@ async function renderedSnapshot(page) {
         ) * 100).toFixed(1),
       ),
       preference: localStorage.getItem("texasHoldemLayoutPreferenceV2"),
-      runtimeAuthority: window.OfficialLayoutRuntimeAuthorityV1?.status?.() || null,
+      runtimeAuthority: window.OfficialLayoutPreset?.runtimeStatus?.() || null,
     };
   });
 }
@@ -84,6 +84,8 @@ test("desktop cold boot rendered geometry already equals the official reset resu
   expect(initial.sizes).toEqual(OFFICIAL_SIZES);
   expect(initial.potScale).toBe(70);
   expect(initial.runtimeAuthority).toMatchObject({
+    version: "1.0.0",
+    presetVersion: "4.0.1",
     ready: true,
     mode: "official",
   });
@@ -111,13 +113,14 @@ test("late controller overwrite cannot survive an official runtime reconcile", a
   });
 
   await page.evaluate(() => {
-    window.OfficialLayoutRuntimeAuthorityV1.reconcile({ reason: "e2e-late-overwrite" });
+    window.OfficialLayoutPreset.reconcile({ reason: "e2e-late-overwrite" });
   });
 
   const recovered = await renderedSnapshot(page);
   expect(recovered.sizes).toEqual(OFFICIAL_SIZES);
   expect(recovered.potScale).toBe(70);
   expect(recovered.runtimeAuthority).toMatchObject({
+    version: "1.0.0",
     ready: true,
     mode: "official",
     reason: "e2e-late-overwrite",
