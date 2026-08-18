@@ -1,15 +1,18 @@
-// Reversible layout readability trial: spacing, status labels, and side-panel rhythm.
+// Layout readability polish. Positioning belongs exclusively to Layout V4.
 (() => {
   "use strict";
 
-  if (window.LayoutReadabilityTrial?.version) return;
+  const VERSION = "1.2.0";
+  const TRIAL_ID = "readability-v2";
+  const POSITION_AUTHORITY = "layout-v4";
 
-  const TRIAL_ID = "readability-v1";
-  const HERO_CARD_LIFT_PX = 14;
-  let heroCardsLifted = false;
+  if (
+    window.LayoutReadabilityTrial?.version === VERSION
+    && window.LayoutReadabilityTrial?.positionAuthority === POSITION_AUTHORITY
+  ) return;
 
   function installStyles() {
-    if (document.querySelector("#layoutReadabilityTrialStyles")) return;
+    document.querySelector("#layoutReadabilityTrialStyles")?.remove();
 
     const style = document.createElement("style");
     style.id = "layoutReadabilityTrialStyles";
@@ -149,44 +152,77 @@
     return window.state || null;
   }
 
-  function liftHeroCards() {
-    if (heroCardsLifted || window.innerWidth <= 900) return false;
+  function savedCustomHeroCards() {
+    try {
+      if (localStorage.getItem("texasHoldemLayoutPreferenceV2") !== "custom") return null;
+      const layout = JSON.parse(localStorage.getItem("texasHoldemTableLayoutV4") || "null");
+      const item = layout?.heroCards;
+      const left = Number(item?.left);
+      const top = Number(item?.top);
+      if (!Number.isFinite(left) || !Number.isFinite(top)) return null;
+      return { left, top };
+    } catch (_) {
+      return null;
+    }
+  }
 
-    const arena = document.querySelector("#arena");
-    const item = layoutState()?.layout?.items?.heroCards;
-    if (!arena || !item) return false;
+  function authoritativeHeroCards() {
+    const custom = savedCustomHeroCards();
+    if (custom) return { ...custom, mode: "custom" };
 
-    const arenaHeight = arena.getBoundingClientRect().height;
-    if (!arenaHeight) return false;
-
-    const deltaPercent = (HERO_CARD_LIFT_PX / arenaHeight) * 100;
-    const nextTop = Number(item.top) - deltaPercent;
-
-    if (typeof moveLayoutItem === "function") {
-      moveLayoutItem("heroCards", Number(item.left), nextTop);
-    } else {
-      item.top = nextTop;
-      if (typeof applyLayoutKey === "function") applyLayoutKey("heroCards");
+    const official = window.OfficialLayoutPreset?.layout?.heroCards;
+    const left = Number(official?.left);
+    const top = Number(official?.top);
+    if (Number.isFinite(left) && Number.isFinite(top)) {
+      return { left, top, mode: "official" };
     }
 
-    heroCardsLifted = true;
-    document.documentElement.dataset.layoutTrialHeroLifted = "true";
+    const fallback = typeof DEFAULT_LAYOUT !== "undefined" ? DEFAULT_LAYOUT.heroCards : null;
+    const fallbackLeft = Number(fallback?.left);
+    const fallbackTop = Number(fallback?.top);
+    if (Number.isFinite(fallbackLeft) && Number.isFinite(fallbackTop)) {
+      return { left: fallbackLeft, top: fallbackTop, mode: "default" };
+    }
+    return null;
+  }
+
+  function restoreLayoutAuthority() {
+    const gameState = layoutState();
+    const item = authoritativeHeroCards();
+    if (!gameState?.layout?.items?.heroCards || !item) return false;
+
+    gameState.layout.items.heroCards = { left: item.left, top: item.top };
+    if (typeof applyLayoutKey === "function") {
+      applyLayoutKey("heroCards");
+    } else if (typeof applyLayout === "function") {
+      applyLayout();
+    }
+
+    delete document.documentElement.dataset.layoutTrialHeroLifted;
+    document.documentElement.dataset.layoutReadabilityPositionAuthority = POSITION_AUTHORITY;
     return true;
   }
 
+  function refresh() {
+    installStyles();
+    restoreLayoutAuthority();
+    return snapshot();
+  }
+
   function scheduleRefresh() {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(liftHeroCards);
-    });
+    requestAnimationFrame(() => requestAnimationFrame(refresh));
   }
 
   function snapshot() {
     const item = layoutState()?.layout?.items?.heroCards;
+    const authority = authoritativeHeroCards();
     return {
       trial: document.documentElement.dataset.layoutTrial || "",
-      heroCardsLifted,
+      heroCardsLifted: false,
       heroCardsTop: Number(item?.top),
-      liftPixels: HERO_CARD_LIFT_PX,
+      liftPixels: 0,
+      positionAuthority: POSITION_AUTHORITY,
+      authorityMode: authority?.mode || "unknown",
     };
   }
 
@@ -195,9 +231,10 @@
   scheduleRefresh();
 
   window.LayoutReadabilityTrial = {
-    version: "1.1.0",
-    refresh: scheduleRefresh,
-    liftHeroCards,
+    version: VERSION,
+    positionAuthority: POSITION_AUTHORITY,
+    refresh,
+    restoreLayoutAuthority,
     snapshot,
   };
 })();
