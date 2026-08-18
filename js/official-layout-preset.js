@@ -6,6 +6,8 @@
 
   const VERSION = "4.0.1";
   const RUNTIME_AUTHORITY_VERSION = "1.0.0";
+  const READABILITY_VERSION = "1.2.0";
+  const READABILITY_SRC = "js/layout-readability-trial.js?v=layout-v4-position-authority-v2";
   const SIZE_STORAGE_KEY = "texasHoldemLayoutSizesV2";
   const POT_STORAGE_KEY = "texasHoldemPotScaleV1";
   const RUNTIME_READY_ATTRIBUTE = "data-official-layout-runtime-ready";
@@ -162,6 +164,30 @@
     document.head.appendChild(style);
   }
 
+  function readabilityAuthorityReady() {
+    return window.LayoutReadabilityTrial?.version === READABILITY_VERSION
+      && window.LayoutReadabilityTrial?.positionAuthority === "layout-v4";
+  }
+
+  function loadReadabilityAuthority() {
+    if (readabilityAuthorityReady()) return;
+    if (document.querySelector('script[data-layout-readability-v2]')) return;
+
+    const script = document.createElement("script");
+    script.src = READABILITY_SRC;
+    script.async = false;
+    script.dataset.layoutReadabilityV2 = "true";
+    document.body.appendChild(script);
+  }
+
+  function scheduleReadabilityAuthorityLoad() {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", loadReadabilityAuthority, { once: true });
+    } else {
+      loadReadabilityAuthority();
+    }
+  }
+
   function reconcileRuntime({ reason = "manual", reveal = true } = {}) {
     runtimeAttempts += 1;
     runtimeReason = reason;
@@ -190,6 +216,7 @@
         }
       }
 
+      window.LayoutReadabilityTrial?.restoreLayoutAuthority?.();
       applyLayout();
       document.documentElement.dataset.layoutStartupApplied = "true";
       if (reveal) document.documentElement.setAttribute(RUNTIME_READY_ATTRIBUTE, "true");
@@ -206,6 +233,8 @@
     return {
       version: RUNTIME_AUTHORITY_VERSION,
       presetVersion: VERSION,
+      readabilityVersion: window.LayoutReadabilityTrial?.version || "",
+      readabilityAuthority: window.LayoutReadabilityTrial?.positionAuthority || "",
       ready: document.documentElement.getAttribute(RUNTIME_READY_ATTRIBUTE) === "true",
       mode: runtimeMode,
       reason: runtimeReason,
@@ -220,14 +249,17 @@
   function scheduleRuntimeReconcile() {
     const attempt = () => {
       const controllerReady = Boolean(window.LayoutSizeController?.getSizes);
+      const readabilityReady = readabilityAuthorityReady();
       const timedOut = performance.now() - runtimeStartedAt >= RUNTIME_WAIT_TIMEOUT_MS;
 
-      if (!controllerReady && !timedOut) {
+      if ((!controllerReady || !readabilityReady) && !timedOut) {
         window.requestAnimationFrame(attempt);
         return;
       }
 
-      if (reconcileRuntime({ reason: controllerReady ? "controller-ready" : "timeout" })) return;
+      window.LayoutReadabilityTrial?.refresh?.();
+      const reason = controllerReady && readabilityReady ? "controllers-ready" : "timeout";
+      if (reconcileRuntime({ reason })) return;
       if (!timedOut) {
         window.requestAnimationFrame(attempt);
         return;
@@ -253,6 +285,7 @@
   prepareStorageGeneration();
   applyOfficialConstants();
   labelOfficialButton();
+  scheduleReadabilityAuthorityLoad();
 
   document.addEventListener("click", event => {
     const button = event.target.closest?.("#resetLayoutButton, #resetLayoutSizesButton");
