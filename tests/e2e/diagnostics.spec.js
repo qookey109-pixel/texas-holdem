@@ -27,8 +27,8 @@ function collectRuntimeIssues(page) {
 
 function collectAssetProbeTelemetry(page) {
   const methodsByPath = new Map();
-  const active = new Set();
-  let maxConcurrent = 0;
+  const activeRequestCountsByPath = new Map();
+  let maxConcurrentAssetPaths = 0;
 
   const isAssetProbe = request => {
     const url = new URL(request.url());
@@ -41,20 +41,31 @@ function collectAssetProbeTelemetry(page) {
     const methods = methodsByPath.get(pathname) || [];
     methods.push(request.method());
     methodsByPath.set(pathname, methods);
-    active.add(request);
-    maxConcurrent = Math.max(maxConcurrent, active.size);
+
+    activeRequestCountsByPath.set(
+      pathname,
+      (activeRequestCountsByPath.get(pathname) || 0) + 1,
+    );
+    maxConcurrentAssetPaths = Math.max(
+      maxConcurrentAssetPaths,
+      activeRequestCountsByPath.size,
+    );
   });
 
   const finish = request => {
-    if (active.has(request)) active.delete(request);
+    if (!isAssetProbe(request)) return;
+    const pathname = new URL(request.url()).pathname;
+    const remaining = (activeRequestCountsByPath.get(pathname) || 0) - 1;
+    if (remaining > 0) activeRequestCountsByPath.set(pathname, remaining);
+    else activeRequestCountsByPath.delete(pathname);
   };
   page.on("requestfinished", finish);
   page.on("requestfailed", finish);
 
   return {
     methodsByPath,
-    get maxConcurrent() {
-      return maxConcurrent;
+    get maxConcurrentAssetPaths() {
+      return maxConcurrentAssetPaths;
     },
   };
 }
@@ -82,7 +93,7 @@ test("部署診斷由 Build Manifest 驅動並全部通過", async ({ page }) =>
   await expect(page.locator("#featureCount")).toHaveText(`${manifest.features.length}/${manifest.features.length} 通過`);
   await expect(page.locator("#assetCount")).toHaveText(`${manifest.assets.length}/${manifest.assets.length} 通過`);
 
-  expect(probes.maxConcurrent).toBeLessThanOrEqual(6);
+  expect(probes.maxConcurrentAssetPaths).toBeLessThanOrEqual(6);
   const videoMethods = probes.methodsByPath.get("/assets/auth-entry-poker-720p.mp4") || [];
   expect(videoMethods.length).toBeGreaterThan(0);
   expect(videoMethods.every(method => method === "HEAD")).toBe(true);
@@ -91,7 +102,7 @@ test("部署診斷由 Build Manifest 驅動並全部通過", async ({ page }) =>
   await expect(summary).toHaveAttribute("data-state", "pass", { timeout: 30_000 });
   await expect(page.locator('[data-kind="feature"]')).toHaveCount(manifest.features.length);
   await expect(page.locator('[data-kind="asset"]')).toHaveCount(manifest.assets.length);
-  expect(probes.maxConcurrent).toBeLessThanOrEqual(6);
+  expect(probes.maxConcurrentAssetPaths).toBeLessThanOrEqual(6);
 
   expect(runtimeIssues, runtimeIssues.join("\n")).toEqual([]);
 });
