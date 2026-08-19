@@ -267,10 +267,15 @@ if (desktopOnlyMedia.addEventListener) {
   desktopOnlyMedia.addListener(handleDesktopOnlyChange);
 }
 
-function loadScriptOnce(selector, src, dataAttribute) {
-  return new Promise(resolve => {
-    if (document.querySelector(selector)) {
-      resolve();
+function loadScriptOnce(selector, src, dataAttribute, { critical = false, label = src } = {}) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(selector);
+    if (existing) {
+      if (existing.dataset.loadState === "failed" && critical) {
+        reject(new Error(`${label}載入失敗`));
+      } else {
+        resolve(existing);
+      }
       return;
     }
 
@@ -278,10 +283,61 @@ function loadScriptOnce(selector, src, dataAttribute) {
     script.src = src;
     script.async = false;
     script.setAttribute(dataAttribute, "true");
-    script.addEventListener("load", resolve, { once: true });
-    script.addEventListener("error", resolve, { once: true });
+    script.dataset.loadState = "loading";
+    script.addEventListener("load", () => {
+      script.dataset.loadState = "loaded";
+      resolve(script);
+    }, { once: true });
+    script.addEventListener("error", () => {
+      script.dataset.loadState = "failed";
+      const error = new Error(`${label}載入失敗`);
+      if (critical) {
+        reject(error);
+        return;
+      }
+      console.warn(`[boot] Optional script failed to load: ${src}`);
+      resolve(null);
+    }, { once: true });
     document.body.appendChild(script);
   });
+}
+
+function reportBootFailure(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  document.documentElement.dataset.gameBootState = "failed";
+  window.clearTimeout(layoutRevealFallbackTimer);
+  revealStableTableLayout();
+  console.error(`[boot] Critical boot failure: ${message}`);
+
+  let notice = document.querySelector("#gameBootFailure");
+  if (!notice) {
+    notice = document.createElement("section");
+    notice.id = "gameBootFailure";
+    notice.setAttribute("role", "alert");
+    notice.setAttribute("aria-live", "assertive");
+    notice.style.cssText = [
+      "position:fixed",
+      "z-index:10000",
+      "left:50%",
+      "top:18px",
+      "transform:translateX(-50%)",
+      "width:min(560px,calc(100% - 28px))",
+      "padding:14px 16px",
+      "border:1px solid rgba(255,120,120,.65)",
+      "border-radius:12px",
+      "background:rgba(72,12,18,.96)",
+      "color:#fff",
+      "box-shadow:0 16px 40px rgba(0,0,0,.42)",
+      "font:600 14px/1.5 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif",
+    ].join(";");
+    notice.innerHTML = `
+      <strong style="display:block;font-size:15px;margin-bottom:4px">遊戲載入失敗</strong>
+      <span>必要版面模組載入失敗，請重新整理頁面。</span>
+      <button type="button" style="margin-left:10px;padding:5px 9px;border-radius:8px;border:1px solid rgba(255,255,255,.35);background:transparent;color:inherit;cursor:pointer">重新整理</button>
+    `;
+    notice.querySelector("button")?.addEventListener("click", () => window.location.reload());
+    document.body.appendChild(notice);
+  }
 }
 
 function loadCardThemeUi() {
@@ -312,10 +368,12 @@ function applyStoredLayoutDimensions() {
 }
 
 async function bootGame() {
+  document.documentElement.dataset.gameBootState = "loading";
   await loadScriptOnce(
     'script[data-layout-size-controls]',
     "js/layout-size-controls.js?v=side-rail-layout-v4",
     "data-layout-size-controls",
+    { critical: true, label: "必要版面模組" },
   );
 
   applyStoredLayoutDimensions();
@@ -362,13 +420,14 @@ async function bootGame() {
   );
 
   Audio.setMuted?.(state.isMuted);
+  document.documentElement.dataset.gameBootState = "ready";
   if (!applyDesktopOnlyMode()) startHand();
 }
 
 applyTheme(state.theme, { persist: false });
 applyLayout();
 loadCardThemeUi();
-bootGame();
+bootGame().catch(reportBootFailure);
 
 // Mobile V1 keeps the desktop game engine intact and only changes presentation.
 (() => {
