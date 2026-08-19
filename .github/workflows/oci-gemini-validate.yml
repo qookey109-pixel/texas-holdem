@@ -26,7 +26,10 @@ jobs:
           python-version: "3.12"
 
       - name: Check Python syntax
-        run: python -m py_compile backend/oci-gemini-function/func.py
+        run: python -m py_compile backend/oci-gemini-function/func.py backend/oci-gemini-function/test_public_observation_contract.py
+
+      - name: Test public observation contract
+        run: python backend/oci-gemini-function/test_public_observation_contract.py
 
       - name: Validate deployment contracts
         run: |

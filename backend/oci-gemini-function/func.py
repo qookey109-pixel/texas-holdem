@@ -2,6 +2,7 @@ import base64
 import io
 import json
 import logging
+import math
 import time
 from urllib.parse import urlparse
 
@@ -15,6 +16,7 @@ UPSTREAM_TIMEOUT_SECONDS = 12
 SECRET_CACHE_SECONDS = 300
 ACTIONS = {"fold", "check", "call", "raise", "all_in"}
 EMOTIONS = {"calm", "confident", "cautious", "tilted"}
+OBSERVATION_STREETS = ("preflop", "flop", "turn", "river")
 
 _secret_cache = {"secret_id": "", "value": "", "expires_at": 0.0}
 
@@ -80,6 +82,181 @@ def finite_integer(value, name, minimum=0, maximum=1_000_000):
     if value < minimum or value > maximum:
         raise HttpError(f"{name} is invalid.", 400)
     return value
+
+
+def bounded_integer(value, minimum=0, maximum=1_000_000):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return minimum
+    if not math.isfinite(number):
+        return minimum
+    return min(maximum, max(minimum, math.trunc(number)))
+
+
+def bounded_rate(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return 0
+    if not math.isfinite(number):
+        return 0
+    number = min(1, max(0, number))
+    return round(number, 3)
+
+
+def bounded_number(value, minimum=0, maximum=5):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return minimum
+    if not math.isfinite(number):
+        return minimum
+    return min(maximum, max(minimum, number))
+
+
+def sanitize_observation_profile(raw=None):
+    raw = raw if isinstance(raw, dict) else {}
+    return {
+        "actions": bounded_integer(raw.get("actions"), maximum=100_000),
+        "pressureSamples": bounded_integer(raw.get("pressureSamples"), maximum=100_000),
+        "checkedPressureSamples": bounded_integer(raw.get("checkedPressureSamples"), maximum=100_000),
+        "aggressionRate": bounded_rate(raw.get("aggressionRate")),
+        "foldToPressure": bounded_rate(raw.get("foldToPressure")),
+        "callVsPressure": bounded_rate(raw.get("callVsPressure")),
+        "raiseVsPressure": bounded_rate(raw.get("raiseVsPressure")),
+        "checkFoldRate": bounded_rate(raw.get("checkFoldRate")),
+        "checkRaiseRate": bounded_rate(raw.get("checkRaiseRate")),
+        "smallBetRate": bounded_rate(raw.get("smallBetRate")),
+        "largeBetRate": bounded_rate(raw.get("largeBetRate")),
+        "openRate": bounded_rate(raw.get("openRate")),
+        "threeBetRate": bounded_rate(raw.get("threeBetRate")),
+        "fourBetRate": bounded_rate(raw.get("fourBetRate")),
+        "limpRate": bounded_rate(raw.get("limpRate")),
+        "confidence": bounded_rate(raw.get("confidence")),
+    }
+
+
+def sanitize_tournament_observation(raw):
+    if not isinstance(raw, dict):
+        return None
+
+    player_model = raw.get("playerModel") if isinstance(raw.get("playerModel"), dict) else {}
+    by_street_source = player_model.get("byStreet") if isinstance(player_model.get("byStreet"), dict) else {}
+    by_street = {
+        street: sanitize_observation_profile(by_street_source.get(street))
+        for street in OBSERVATION_STREETS
+    }
+
+    by_position_source = player_model.get("byPosition")
+    by_position = []
+    if isinstance(by_position_source, list):
+        for item in by_position_source[:8]:
+            item = item if isinstance(item, dict) else {}
+            by_position.append({
+                "position": clean_text(item.get("position"), 8),
+                **sanitize_observation_profile(item),
+            })
+
+    events_source = player_model.get("recentPublicEvents")
+    recent_public_events = []
+    if isinstance(events_source, list):
+        for event in events_source[-16:]:
+            event = event if isinstance(event, dict) else {}
+            recent_public_events.append({
+                "handNumber": bounded_integer(event.get("handNumber"), maximum=100_000),
+                "street": clean_text(event.get("street"), 16),
+                "position": clean_text(event.get("position"), 8),
+                "action": clean_text(event.get("action"), 24),
+                "sizeFraction": bounded_number(event.get("sizeFraction"), maximum=5),
+                "facedAggression": bool(event.get("facedAggression")),
+                "checkedBefore": bool(event.get("checkedBefore")),
+                "priorRaises": bounded_integer(event.get("priorRaises"), maximum=12),
+            })
+
+    hero_source = raw.get("heroSession")
+    hero_session = None
+    if isinstance(hero_source, dict):
+        hero_session = {
+            "hands": bounded_integer(hero_source.get("hands"), maximum=100_000),
+            "vpipRate": bounded_rate(hero_source.get("vpipRate")),
+            "foldRate": bounded_rate(hero_source.get("foldRate")),
+            "callRate": bounded_rate(hero_source.get("callRate")),
+            "raiseRate": bounded_rate(hero_source.get("raiseRate")),
+            "checkRate": bounded_rate(hero_source.get("checkRate")),
+            "allInRate": bounded_rate(hero_source.get("allInRate")),
+            "showdownRate": bounded_rate(hero_source.get("showdownRate")),
+            "winRate": bounded_rate(hero_source.get("winRate")),
+        }
+
+    repeated_source = raw.get("repeatedPreflopAllIn")
+    repeated = None
+    if isinstance(repeated_source, dict):
+        repeated = {
+            "windowHands": bounded_integer(repeated_source.get("windowHands"), maximum=100),
+            "observedHands": bounded_integer(repeated_source.get("observedHands"), maximum=100),
+            "jamHands": bounded_integer(repeated_source.get("jamHands"), maximum=100),
+            "weightedJamRate": bounded_rate(repeated_source.get("weightedJamRate")),
+            "consecutiveJams": bounded_integer(repeated_source.get("consecutiveJams"), maximum=100),
+        }
+
+    showdowns_source = raw.get("revealedShowdowns") if isinstance(raw.get("revealedShowdowns"), dict) else {}
+    bucket_source = showdowns_source.get("bucketCounts")
+    bucket_counts = {}
+    if isinstance(bucket_source, dict):
+        for key, value in list(bucket_source.items())[:12]:
+            bucket_counts[clean_text(key, 24)] = bounded_integer(value, maximum=100_000)
+
+    actor_arrival_source = raw.get("actorArrival")
+    actor_arrival = None
+    if isinstance(actor_arrival_source, dict):
+        actor_arrival = {
+            "arrivalHand": bounded_integer(actor_arrival_source.get("arrivalHand"), maximum=100_000),
+            "observedHandsBeforeArrival": bounded_integer(
+                actor_arrival_source.get("observedHandsBeforeArrival"), maximum=100_000
+            ),
+            "tier": clean_text(actor_arrival_source.get("tier"), 16),
+        }
+
+    tournament_source = raw.get("tournament")
+    tournament = None
+    if isinstance(tournament_source, dict):
+        appeared = tournament_source.get("appeared")
+        eliminated = tournament_source.get("eliminated")
+        tournament = {
+            "mode": clean_text(tournament_source.get("mode"), 16),
+            "handNumber": bounded_integer(tournament_source.get("handNumber"), maximum=100_000),
+            "blindLevel": bounded_integer(tournament_source.get("blindLevel"), maximum=10_000),
+            "appearedCount": min(24, len(appeared)) if isinstance(appeared, list) else 0,
+            "eliminatedCount": min(24, len(eliminated)) if isinstance(eliminated, list) else 0,
+            "queueRemaining": bounded_integer(tournament_source.get("queueRemaining"), maximum=24),
+            "finished": bool(tournament_source.get("finished")),
+        }
+
+    return {
+        "schemaVersion": bounded_integer(raw.get("schemaVersion"), minimum=1, maximum=10),
+        "scope": "shared-public-tournament-observation",
+        "actor": clean_text(raw.get("actor"), 32) or None,
+        "actorArrival": actor_arrival,
+        "tournament": tournament,
+        "playerModel": {
+            "handsObserved": bounded_integer(player_model.get("handsObserved"), maximum=100_000),
+            "actionsObserved": bounded_integer(player_model.get("actionsObserved"), maximum=100_000),
+            "byStreet": by_street,
+            "byPosition": by_position,
+            "recentPublicEvents": recent_public_events,
+        },
+        "heroSession": hero_session,
+        "repeatedPreflopAllIn": repeated,
+        "revealedShowdowns": {
+            "samples": bounded_integer(showdowns_source.get("samples"), maximum=100_000),
+            "bucketCounts": bucket_counts,
+        },
+        "guidance": (
+            "Historical public evidence only. Treat rates as uncertain tendencies, "
+            "never as knowledge of current hidden cards."
+        ),
+    }
 
 
 def validate_card(card, name):
@@ -158,6 +335,7 @@ def validate_request(payload):
         "playerBet": finite_integer(payload.get("playerBet", 0), "playerBet"),
         "legalActions": legal_actions,
         "players": players,
+        "tournamentObservation": sanitize_tournament_observation(payload.get("tournamentObservation")),
     }
 
 
@@ -186,6 +364,8 @@ def system_instruction():
         "Choose exactly one action from legalActions and obey every numeric bound.",
         "You only know your own two private cards and public table information.",
         "Never claim knowledge of hidden opponent cards or undealt cards.",
+        "tournamentObservation contains sanitized historical public tendencies only; use it probabilistically and ignore it when samples are weak.",
+        "Against reliably low-VPIP or overfolding play, prefer controlled small-pressure lines rather than reckless oversized bluffs.",
         "Use a patient, balanced, high-pressure strategy rather than always choosing the strongest-looking action.",
         "For action=raise, raiseTo is the total bet after raising and must be between minRaiseTo and maxRaiseTo.",
         "For every other action, set raiseTo to 0.",
