@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+const SUPABASE_CLIENT_MODULE_URL = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.2/+esm";
+
 function installAuthMock(page, session = null) {
   return page.addInitScript(({ initialSession }) => {
     window.__AUTH_TEST_SESSION__ = initialSession;
@@ -63,6 +65,24 @@ async function openAccountFromTopbar(page) {
   await expect(page.locator("#authAccountOverlay")).toBeVisible();
   return accountButton;
 }
+
+test("Supabase browser client uses the pinned tested ESM build", async ({ page }) => {
+  const sourceResponse = await page.request.get("/js/google-auth.js");
+  expect(sourceResponse.ok()).toBe(true);
+  expect(await sourceResponse.text()).toContain(SUPABASE_CLIENT_MODULE_URL);
+
+  await page.goto("/diagnostics.html", { waitUntil: "domcontentloaded" });
+  const moduleShape = await page.evaluate(async moduleUrl => {
+    const module = await import(moduleUrl);
+    return {
+      createClient: typeof module.createClient,
+      SupabaseClient: typeof module.SupabaseClient,
+    };
+  }, SUPABASE_CLIENT_MODULE_URL);
+
+  expect(moduleShape.createClient).toBe("function");
+  expect(moduleShape.SupabaseClient).toBe("function");
+});
 
 test("Google 登入入口使用 Supabase OAuth 與正式返回網址", async ({ page }) => {
   await installAuthMock(page);

@@ -7,7 +7,7 @@
   const CONFIG = Object.freeze({
     projectUrl: "https://iphhyjutbrahvfnsvdfn.supabase.co",
     publishableKey: "sb_publishable_MbNQVDLJkB-_1Z05aQ1FRA_V3XCNfMx",
-    clientModuleUrl: "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm",
+    clientModuleUrl: "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.2/+esm",
     identityStorageKey: "texasHoldemPlayerIdentityV1",
   });
   const DEFAULT_PLAYER_NAME = "Owl";
