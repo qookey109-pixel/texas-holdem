@@ -125,6 +125,7 @@ function currentBuyIn() {
 
 document.addEventListener("DOMContentLoaded", () => {
   const AUTHORITY_WAIT_TIMEOUT_MS = 8000;
+  const AUTHORITY_DISCOVERY_TIMEOUT_MS = 30000;
 
   const reportAuthorityFailure = (label, error) => {
     const message = error instanceof Error ? error.message : String(error || "unknown error");
@@ -158,15 +159,39 @@ document.addEventListener("DOMContentLoaded", () => {
     notice.textContent = `核心執行模組載入失敗（${label}）。請重新整理頁面後再繼續。`;
   };
 
-  const verifyAuthorityEventually = ({ label, datasetKey, check }) => {
+  const verifyAuthorityEventually = ({
+    label,
+    datasetKey,
+    check,
+    startWhen,
+    failureSelector,
+  }) => {
     const root = document.documentElement;
     root.dataset[datasetKey] = "loading";
-    const deadline = Date.now() + AUTHORITY_WAIT_TIMEOUT_MS;
+    const discoveryDeadline = Date.now() + AUTHORITY_DISCOVERY_TIMEOUT_MS;
+    let readinessDeadline = startWhen ? 0 : Date.now() + AUTHORITY_WAIT_TIMEOUT_MS;
     let timer = 0;
+    let settled = false;
+
+    const fail = error => {
+      if (settled) return;
+      settled = true;
+      root.dataset[datasetKey] = "failed";
+      reportAuthorityFailure(label, error);
+      if (timer) window.clearInterval(timer);
+    };
+
+    if (failureSelector) {
+      document.querySelector(failureSelector)?.addEventListener("error", () => {
+        fail(new Error("terminal authority script failed to load"));
+      }, { once: true });
+    }
 
     const verify = () => {
+      if (settled) return true;
       try {
         if (check()) {
+          settled = true;
           root.dataset[datasetKey] = "ready";
           if (
             root.dataset.aiRuntimeAuthority === "ready"
@@ -178,17 +203,22 @@ document.addEventListener("DOMContentLoaded", () => {
           return true;
         }
       } catch (error) {
-        root.dataset[datasetKey] = "failed";
-        reportAuthorityFailure(label, error);
-        if (timer) window.clearInterval(timer);
+        fail(error);
         return true;
       }
 
-      if (Date.now() < deadline) return false;
-      root.dataset[datasetKey] = "failed";
-      reportAuthorityFailure(label, new Error("authority readiness timeout"));
-      if (timer) window.clearInterval(timer);
-      return true;
+      if (!readinessDeadline && startWhen?.()) {
+        readinessDeadline = Date.now() + AUTHORITY_WAIT_TIMEOUT_MS;
+      }
+      if (readinessDeadline && Date.now() >= readinessDeadline) {
+        fail(new Error("authority readiness timeout"));
+        return true;
+      }
+      if (!readinessDeadline && Date.now() >= discoveryDeadline) {
+        fail(new Error("terminal authority discovery timeout"));
+        return true;
+      }
+      return false;
     };
 
     if (!verify()) timer = window.setInterval(verify, 50);
@@ -299,6 +329,8 @@ document.addEventListener("DOMContentLoaded", () => {
     authority: {
       label: "AI V2.9.5 authority chain",
       datasetKey: "aiRuntimeAuthority",
+      startWhen: () => window.AiActionDispatcherV1?.version === "1.0.0",
+      failureSelector: 'script[data-ai-action-dispatcher-v1]',
       check: () => Boolean(
         window.AiOpeningBalanceV295?.version === "2.9.5"
         && document.documentElement.dataset.aiOpeningBalanceV295 === "ready"
