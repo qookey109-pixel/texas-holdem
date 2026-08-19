@@ -1,0 +1,59 @@
+name: Repository health
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-health-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Check deployment parity script syntax
+        run: node --check scripts/verify-live-static-parity.mjs
+
+      - name: Check OCI Gemini Python syntax
+        run: python3 -m py_compile backend/oci-gemini-function/func.py
+
+  deployed-static-parity:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: source-health
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Allow GitHub Pages deployment to settle
+        if: github.event_name == 'push'
+        run: sleep 60
+
+      - name: Verify deployed files match main
+        run: >-
+          node scripts/verify-live-static-parity.mjs
+          --base-url https://qookey109-pixel.github.io/texas-holdem/
+          --retries 12
+          --retry-delay-ms 15000
