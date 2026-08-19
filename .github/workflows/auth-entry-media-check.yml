@@ -1,13 +1,12 @@
-name: Auth entry media check
+name: Auth entry vector contract
 
 on:
   pull_request:
     paths:
-      - assets/auth-entry-poker-720p.mp4
+      - build-manifest.json
       - js/auth-entry-v2.js
       - js/auth-entry-v2.css
       - js/auth-entry-video-trial.css
-      - js/config.js
       - tests/e2e/auth-entry-v2.spec.js
       - tests/e2e/auth-entry-video-playback.spec.js
       - .github/workflows/auth-entry-media-check.yml
@@ -15,11 +14,10 @@ on:
     branches:
       - main
     paths:
-      - assets/auth-entry-poker-720p.mp4
+      - build-manifest.json
       - js/auth-entry-v2.js
       - js/auth-entry-v2.css
       - js/auth-entry-video-trial.css
-      - js/config.js
       - tests/e2e/auth-entry-v2.spec.js
       - tests/e2e/auth-entry-video-playback.spec.js
       - .github/workflows/auth-entry-media-check.yml
@@ -28,41 +26,57 @@ permissions:
   contents: read
 
 jobs:
-  verify-media:
+  verify-vector-opening:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install ffmpeg
-        run: |
-          if ! command -v ffprobe >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y ffmpeg
-          fi
-
-      - name: Verify Safari-friendly moving 720p video
+      - name: Verify vector-only auth opening contract
         shell: bash
         run: |
           set -euo pipefail
-          file="assets/auth-entry-poker-720p.mp4"
 
-          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "$file")" = "h264"
-          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=profile -of csv=p=0 "$file")" = "Main"
-          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 "$file")" = "1280"
-          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$file")" = "720"
-          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt -of csv=p=0 "$file")" = "yuv420p"
+          test ! -e assets/auth-entry-poker-720p.mp4
 
-          unique_frames="$(ffmpeg -v error -i "$file" -vf fps=1 -t 6 -f framemd5 - | awk -F, '!/^#/ {gsub(/ /,"",$NF); print $NF}' | sort -u | wc -l | tr -d ' ')"
-          echo "unique sampled frames: ${unique_frames}"
-          test "$unique_frames" -ge 3
+          node <<'NODE'
+          const fs = require('node:fs');
+          const manifest = JSON.parse(fs.readFileSync('build-manifest.json', 'utf8'));
+          const allAssets = manifest.assets.map(asset => asset.path);
+          const authFeature = manifest.features.find(feature => feature.id === 'auth-cloud-save');
 
-          python - <<'PY'
-          from pathlib import Path
-          data = Path('assets/auth-entry-poker-720p.mp4').read_bytes()
-          moov = data.find(b'moov')
-          mdat = data.find(b'mdat')
-          print({'size': len(data), 'moov': moov, 'mdat': mdat})
-          assert 0 <= moov < mdat, 'MP4 must be fast-start optimized'
-          assert len(data) < 8_000_000, 'video unexpectedly large'
-          PY
+          if (!authFeature) throw new Error('auth-cloud-save feature missing');
+          if (allAssets.some(path => /\.mp4$/i.test(path))) {
+            throw new Error('MP4 remains in the formal deploy asset graph');
+          }
+          if (authFeature.assets.some(path => /\.mp4$/i.test(path))) {
+            throw new Error('MP4 remains in auth-cloud-save feature assets');
+          }
+
+          for (const required of [
+            'js/auth-entry-v2.js',
+            'js/auth-entry-v2.css',
+            'js/auth-entry-video-trial.css',
+          ]) {
+            if (!allAssets.includes(required) || !authFeature.assets.includes(required)) {
+              throw new Error(`missing vector auth asset: ${required}`);
+            }
+          }
+
+          const source = fs.readFileSync('js/auth-entry-v2.js', 'utf8');
+          for (const contract of [
+            '3.0.0-vector-opening-v2',
+            'renderMode: "vector"',
+            'videoActive: false',
+            'videoState: "disabled"',
+            'videoUrl: ""',
+          ]) {
+            if (!source.includes(contract)) {
+              throw new Error(`missing vector runtime contract: ${contract}`);
+            }
+          }
+
+          if (/auth-entry-poker.*\.mp4/i.test(source)) {
+            throw new Error('auth runtime references the retired MP4');
+          }
+          NODE
