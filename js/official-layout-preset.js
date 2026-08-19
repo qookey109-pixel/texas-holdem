@@ -4,8 +4,15 @@
 
   if (window.OfficialLayoutPreset?.version) return;
 
+  const VERSION = "4.0.1";
+  const RUNTIME_AUTHORITY_VERSION = "1.0.0";
+  const READABILITY_VERSION = "1.2.0";
+  const READABILITY_SRC = "js/layout-readability-trial.js?v=layout-v4-position-authority-v2";
   const SIZE_STORAGE_KEY = "texasHoldemLayoutSizesV2";
   const POT_STORAGE_KEY = "texasHoldemPotScaleV1";
+  const RUNTIME_READY_ATTRIBUTE = "data-official-layout-runtime-ready";
+  const RUNTIME_GUARD_STYLE_ID = "officialLayoutRuntimeGuardV1";
+  const RUNTIME_WAIT_TIMEOUT_MS = 3000;
   const LEGACY_STORAGE_KEYS = Object.freeze([
     "texasHoldemTableLayoutV1",
     "texasHoldemTableLayoutV2",
@@ -34,9 +41,12 @@
     aiProfile: "--layout-ai-profile-width",
   });
 
-  function cloneLayout() {
-    return JSON.parse(JSON.stringify(OFFICIAL_LAYOUT));
-  }
+  const runtimeStartedAt = performance.now();
+  let runtimeAttempts = 0;
+  let runtimeMode = "pending";
+  let runtimeReason = "boot";
+
+  const cloneLayout = () => JSON.parse(JSON.stringify(OFFICIAL_LAYOUT));
 
   function clearLegacyStorage() {
     LEGACY_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
@@ -53,14 +63,19 @@
     localStorage.setItem(POT_STORAGE_KEY, String(OFFICIAL_POT_SCALE));
   }
 
+  function hasExplicitCustomLayout() {
+    try {
+      return localStorage.getItem(LAYOUT_PREFERENCE_KEY) === "custom"
+        && Boolean(localStorage.getItem(LAYOUT_STORAGE_KEY));
+    } catch (_) {
+      return false;
+    }
+  }
+
   function prepareStorageGeneration() {
     try {
       clearLegacyStorage();
-
-      const explicitCustom = localStorage.getItem(LAYOUT_PREFERENCE_KEY) === "custom";
-      const hasV4Layout = Boolean(localStorage.getItem(LAYOUT_STORAGE_KEY));
-      if (explicitCustom && hasV4Layout) return;
-
+      if (hasExplicitCustomLayout()) return;
       clearV4CustomStorage();
       persistOfficialDimensions();
       localStorage.setItem(LAYOUT_PREFERENCE_KEY, "official");
@@ -132,34 +147,130 @@
       }
     }
 
+    document.documentElement.dataset.layoutStartupApplied = "true";
     if (typeof updateLayoutEditorUI === "function") updateLayoutEditorUI();
     if (announceResult && typeof announce === "function") announce("已套用官方預設版面");
   }
 
-  function applyInitialRuntimeLayout() {
+  function installRuntimeRevealGuard() {
+    if (document.getElementById(RUNTIME_GUARD_STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = RUNTIME_GUARD_STYLE_ID;
+    style.textContent = `
+      html:not([${RUNTIME_READY_ATTRIBUTE}="true"]) #arena {
+        visibility: hidden !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function readabilityAuthorityReady() {
+    return window.LayoutReadabilityTrial?.version === READABILITY_VERSION
+      && window.LayoutReadabilityTrial?.positionAuthority === "layout-v4";
+  }
+
+  function loadReadabilityAuthority() {
+    if (readabilityAuthorityReady()) return;
+    if (document.querySelector('script[data-layout-readability-v2]')) return;
+
+    const script = document.createElement("script");
+    script.src = READABILITY_SRC;
+    script.async = false;
+    script.dataset.layoutReadabilityV2 = "true";
+    document.body.appendChild(script);
+  }
+
+  function scheduleReadabilityAuthorityLoad() {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", loadReadabilityAuthority, { once: true });
+    } else {
+      loadReadabilityAuthority();
+    }
+  }
+
+  function reconcileRuntime({ reason = "manual", reveal = true } = {}) {
+    runtimeAttempts += 1;
+    runtimeReason = reason;
+
     try {
-      if (!state?.layout || typeof applyLayout !== "function") return false;
+      if (typeof state !== "object" || !state?.layout || typeof applyLayout !== "function") {
+        return false;
+      }
+
+      const custom = hasExplicitCustomLayout();
+      runtimeMode = custom ? "custom" : "official";
+
+      if (!custom) {
+        state.layout.items = cloneLayout();
+        state.layout.arrows = { ...OFFICIAL_ARROWS };
+        if (typeof normalizePanelPosition === "function") {
+          state.layout.panel = normalizePanelPosition(null);
+        }
+        applyOfficialSizes({ persist: false });
+        applyOfficialPot({ persist: false });
+        try {
+          persistOfficialDimensions();
+          localStorage.setItem(LAYOUT_PREFERENCE_KEY, "official");
+        } catch (_) {
+          // Runtime CSS remains authoritative when storage is unavailable.
+        }
+      }
+
+      window.LayoutReadabilityTrial?.restoreLayoutAuthority?.();
       applyLayout();
       document.documentElement.dataset.layoutStartupApplied = "true";
+      if (reveal) document.documentElement.setAttribute(RUNTIME_READY_ATTRIBUTE, "true");
       return true;
     } catch (_) {
       return false;
     }
   }
 
-  function scheduleInitialRuntimeLayout() {
-    const applyAfterScripts = () => {
-      if (!applyInitialRuntimeLayout()) {
-        window.setTimeout(applyInitialRuntimeLayout, 0);
+  function runtimeStatus() {
+    const cssPotScale = Number.parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue("--layout-pot-scale"),
+    );
+    return {
+      version: RUNTIME_AUTHORITY_VERSION,
+      presetVersion: VERSION,
+      readabilityVersion: window.LayoutReadabilityTrial?.version || "",
+      readabilityAuthority: window.LayoutReadabilityTrial?.positionAuthority || "",
+      ready: document.documentElement.getAttribute(RUNTIME_READY_ATTRIBUTE) === "true",
+      mode: runtimeMode,
+      reason: runtimeReason,
+      attempts: runtimeAttempts,
+      layoutReady: document.documentElement.dataset.layoutReady || "",
+      sizes: window.LayoutSizeController?.getSizes?.() || null,
+      potScale: window.LayoutCornerResize?.getPotScale?.()
+        ?? (Number.isFinite(cssPotScale) ? Number((cssPotScale * 100).toFixed(1)) : null),
+    };
+  }
+
+  function scheduleRuntimeReconcile() {
+    const attempt = () => {
+      const controllerReady = Boolean(window.LayoutSizeController?.getSizes);
+      const readabilityReady = readabilityAuthorityReady();
+      const timedOut = performance.now() - runtimeStartedAt >= RUNTIME_WAIT_TIMEOUT_MS;
+
+      if ((!controllerReady || !readabilityReady) && !timedOut) {
+        window.requestAnimationFrame(attempt);
+        return;
       }
-      window.requestAnimationFrame?.(() => applyInitialRuntimeLayout());
+
+      window.LayoutReadabilityTrial?.refresh?.();
+      const reason = controllerReady && readabilityReady ? "controllers-ready" : "timeout";
+      if (reconcileRuntime({ reason })) return;
+      if (!timedOut) {
+        window.requestAnimationFrame(attempt);
+        return;
+      }
+
+      runtimeMode = "fallback";
+      runtimeReason = "timeout-fallback";
+      document.documentElement.setAttribute(RUNTIME_READY_ATTRIBUTE, "true");
     };
 
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", applyAfterScripts, { once: true });
-    } else {
-      applyAfterScripts();
-    }
+    window.requestAnimationFrame(attempt);
   }
 
   function labelOfficialButton() {
@@ -170,9 +281,11 @@
     resetButton.setAttribute("aria-label", "清除自訂版面並套用官方預設");
   }
 
+  installRuntimeRevealGuard();
   prepareStorageGeneration();
   applyOfficialConstants();
   labelOfficialButton();
+  scheduleReadabilityAuthorityLoad();
 
   document.addEventListener("click", event => {
     const button = event.target.closest?.("#resetLayoutButton, #resetLayoutSizesButton");
@@ -185,12 +298,14 @@
         applyOfficialSizes({ persist: true });
         applyOfficialPot({ persist: true });
       }
+      reconcileRuntime({ reason: `button-${button.id}` });
       labelOfficialButton();
     }, 0);
   }, true);
 
   window.OfficialLayoutPreset = Object.freeze({
-    version: "4.0.1",
+    version: VERSION,
+    runtimeAuthorityVersion: RUNTIME_AUTHORITY_VERSION,
     storageGeneration: "V4",
     layout: cloneLayout(),
     sizes: { ...OFFICIAL_SIZES },
@@ -198,7 +313,9 @@
     arrows: { ...OFFICIAL_ARROWS },
     preferenceKey: LAYOUT_PREFERENCE_KEY,
     apply: applyOfficialLayout,
+    reconcile: reconcileRuntime,
+    runtimeStatus,
   });
 
-  scheduleInitialRuntimeLayout();
+  scheduleRuntimeReconcile();
 })();

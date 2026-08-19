@@ -25,22 +25,22 @@ function collectRuntimeIssues(page) {
   return issues;
 }
 
-test("可讀性試驗會微調手牌並放大重要狀態", async ({ page }) => {
+test("可讀性樣式保留，但不再改寫 Layout V4 官方位置", async ({ page }) => {
   const runtimeIssues = collectRuntimeIssues(page);
 
   await page.goto("/", { waitUntil: "networkidle" });
+  await expect(page.locator("html")).toHaveAttribute("data-official-layout-runtime-ready", "true");
   await expect(page.locator("#arena")).toBeVisible();
   await expect(page.locator("#playerCards .card")).toHaveCount(2);
 
   await expect.poll(
-    () => page.evaluate(() => Boolean(window.LayoutReadabilityTrial?.version)),
+    () => page.evaluate(() => window.LayoutReadabilityTrial?.version || ""),
     { timeout: 5_000 },
-  ).toBe(true);
-
+  ).toBe("1.2.0");
   await expect.poll(
-    () => page.evaluate(() => LayoutReadabilityTrial.snapshot().heroCardsLifted),
+    () => page.evaluate(() => window.LayoutReadabilityTrial?.positionAuthority || ""),
     { timeout: 5_000 },
-  ).toBe(true);
+  ).toBe("layout-v4");
 
   await expect(page.locator("#layoutReadabilityTrialStyles")).toHaveCount(1);
 
@@ -52,6 +52,8 @@ test("可讀性試驗會微調手牌並放大重要狀態", async ({ page }) => 
 
   const layout = await page.evaluate(() => {
     const trialSnapshot = LayoutReadabilityTrial.snapshot();
+    const officialHeroCards = OfficialLayoutPreset.layout.heroCards;
+    const stateHeroCards = state.layout.items.heroCards;
     const status = document.querySelector(".seat-status");
     const statusStyle = status ? getComputedStyle(status) : null;
     const meter = document.querySelector(".coach-meter");
@@ -62,10 +64,14 @@ test("可讀性試驗會微調手牌並放大重要狀態", async ({ page }) => 
 
     return {
       trial: document.documentElement.dataset.layoutTrial,
-      liftedFlag: document.documentElement.dataset.layoutTrialHeroLifted,
+      liftedFlag: document.documentElement.dataset.layoutTrialHeroLifted || "",
+      positionAuthority: document.documentElement.dataset.layoutReadabilityPositionAuthority,
       heroCardsLifted: trialSnapshot.heroCardsLifted,
       heroCardsTop: trialSnapshot.heroCardsTop,
       liftPixels: trialSnapshot.liftPixels,
+      authorityMode: trialSnapshot.authorityMode,
+      officialHeroCards,
+      stateHeroCards,
       statusFontSize: Number.parseFloat(statusStyle?.fontSize || "0"),
       statusHeight: status?.getBoundingClientRect().height || 0,
       meterHeight: meter?.getBoundingClientRect().height || 0,
@@ -75,12 +81,14 @@ test("可讀性試驗會微調手牌並放大重要狀態", async ({ page }) => 
     };
   });
 
-  expect(layout.trial).toBe("readability-v1");
-  expect(layout.liftedFlag).toBe("true");
-  expect(layout.heroCardsLifted).toBe(true);
-  expect(layout.liftPixels).toBe(14);
-  expect(layout.heroCardsTop).toBeLessThan(65.7);
-  expect(layout.heroCardsTop).toBeGreaterThan(62);
+  expect(layout.trial).toBe("readability-v2");
+  expect(layout.liftedFlag).toBe("");
+  expect(layout.positionAuthority).toBe("layout-v4");
+  expect(layout.heroCardsLifted).toBe(false);
+  expect(layout.liftPixels).toBe(0);
+  expect(layout.authorityMode).toBe("official");
+  expect(layout.stateHeroCards).toEqual(layout.officialHeroCards);
+  expect(layout.heroCardsTop).toBe(64.57);
   expect(layout.statusFontSize).toBeGreaterThanOrEqual(10);
   expect(layout.statusHeight).toBeGreaterThanOrEqual(20);
   expect(layout.meterHeight).toBeGreaterThanOrEqual(10);
