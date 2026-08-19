@@ -336,7 +336,7 @@ document.addEventListener("DOMContentLoaded", () => {
         && document.documentElement.dataset.aiOpeningBalanceV295 === "ready"
         && window.AiActionDispatcherV1?.version === "1.0.0"
         && document.documentElement.dataset.aiActionDispatcherV1 === "ready"
-        && window.continueBetting?.__aiActionDispatcherV1 === true
+        && typeof window.AiActionDispatcherV1?.dispatch === "function"
       ),
     },
   });
