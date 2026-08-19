@@ -12,7 +12,14 @@ function collectRuntimeIssues(page) {
   });
 
   page.on("requestfailed", request => {
-    issues.push(`request failed: ${request.url()} (${request.failure()?.errorText || "unknown"})`);
+    const url = new URL(request.url());
+    const errorText = request.failure()?.errorText || "unknown";
+    const expectedDiagnosticsAbort = (
+      url.searchParams.has("diagnostics")
+      && errorText === "net::ERR_ABORTED"
+    );
+    if (expectedDiagnosticsAbort) return;
+    issues.push(`request failed: ${request.url()} (${errorText})`);
   });
 
   page.on("response", response => {
