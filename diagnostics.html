@@ -134,7 +134,9 @@
           const totalMatch = contentRange.match(/\/(\d+)$/);
           if (totalMatch) return Number(totalMatch[1]);
 
-          const contentLength = Number(response.headers.get("content-length"));
+          const rawContentLength = response.headers.get("content-length");
+          if (rawContentLength === null || rawContentLength.trim() === "") return null;
+          const contentLength = Number(rawContentLength);
           return Number.isFinite(contentLength) && contentLength >= 0 ? contentLength : null;
         }
 
