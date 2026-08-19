@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 async function playerCount(page) {
-  return page.evaluate(() => window.state?.players?.length || 0);
+  return page.evaluate(() => typeof state !== "undefined" ? state.players?.length || 0 : 0);
 }
 
 test("critical layout-size loader failure is surfaced and prevents the first hand", async ({ page }) => {
