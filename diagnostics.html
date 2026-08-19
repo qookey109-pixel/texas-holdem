@@ -84,6 +84,7 @@
       (() => {
         "use strict";
 
+        const ASSET_CHECK_CONCURRENCY = 6;
         const manifestPath = document.querySelector('meta[name="texas-holdem-build-manifest"]')?.content || "build-manifest.json";
         const featureResults = document.querySelector("#featureResults");
         const assetResults = document.querySelector("#assetResults");
@@ -128,18 +129,40 @@
           return { manifest, url: url.href };
         }
 
+        function responseAssetSize(response) {
+          const contentRange = response.headers.get("content-range") || "";
+          const totalMatch = contentRange.match(/\/(\d+)$/);
+          if (totalMatch) return Number(totalMatch[1]);
+
+          const contentLength = Number(response.headers.get("content-length"));
+          return Number.isFinite(contentLength) && contentLength >= 0 ? contentLength : null;
+        }
+
         async function runAssetCheck(asset) {
           const url = cacheBustedUrl(asset.path);
 
           try {
-            const response = await fetch(url, { cache: "no-store" });
-            const text = await response.text();
-            const passed = response.ok && text.trim().length > 0;
+            let probe = "HEAD";
+            let response = await fetch(url, { method: "HEAD", cache: "no-store" });
+
+            if (response.status === 405 || response.status === 501) {
+              probe = "Range GET";
+              response = await fetch(url, {
+                cache: "no-store",
+                headers: { Range: "bytes=0-0" },
+              });
+              response.body?.cancel().catch(() => {});
+            }
+
+            const size = responseAssetSize(response);
+            const passed = response.ok && (size === null || size > 0);
             const detail = response.ok
-              ? text.trim().length > 0
-                ? `HTTP ${response.status}｜${text.length.toLocaleString()} bytes`
-                : `HTTP ${response.status}｜檔案內容為空`
-              : `HTTP ${response.status} ${response.statusText}`;
+              ? size === 0
+                ? `HTTP ${response.status}｜${probe}｜檔案內容為空`
+                : size === null
+                  ? `HTTP ${response.status}｜${probe}｜伺服器未提供檔案大小`
+                  : `HTTP ${response.status}｜${probe}｜${size.toLocaleString()} bytes`
+              : `HTTP ${response.status} ${response.statusText}｜${probe}`;
 
             return { ...asset, passed, detail, url: url.href };
           } catch (error) {
@@ -150,6 +173,23 @@
               url: url.href,
             };
           }
+        }
+
+        async function mapWithConcurrency(items, worker, concurrency) {
+          const results = new Array(items.length);
+          let nextIndex = 0;
+          const workerCount = Math.min(Math.max(1, concurrency), items.length);
+
+          await Promise.all(Array.from({ length: workerCount }, async () => {
+            while (true) {
+              const index = nextIndex;
+              nextIndex += 1;
+              if (index >= items.length) return;
+              results[index] = await worker(items[index]);
+            }
+          }));
+
+          return results;
         }
 
         function createCard({ label, passed, detail, kind }) {
@@ -214,7 +254,11 @@
             const { manifest, url: manifestUrl } = await loadManifest();
             buildInfo.textContent = `Build ${manifest.buildId}｜Channel ${manifest.channel || "unknown"}｜Manifest ${manifestUrl}`;
 
-            const results = await Promise.all(manifest.assets.map(runAssetCheck));
+            const results = await mapWithConcurrency(
+              manifest.assets,
+              runAssetCheck,
+              ASSET_CHECK_CONCURRENCY,
+            );
             const resultByPath = new Map(results.map(result => [result.path, result]));
             const features = manifest.features.map(feature => featureStatus(feature, resultByPath));
 
