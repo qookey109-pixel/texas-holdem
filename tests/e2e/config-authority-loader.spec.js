@@ -22,7 +22,7 @@ test("config waits for the final AI V2.9.5 dispatcher and replacement economy au
     aiVersion: window.AiOpeningBalanceV295?.version || null,
     dispatcherVersion: window.AiActionDispatcherV1?.version || null,
     dispatcherDataset: document.documentElement.dataset.aiActionDispatcherV1 || null,
-    dispatcherInstalled: window.continueBetting?.__aiActionDispatcherV1 === true,
+    dispatcherAvailable: typeof window.AiActionDispatcherV1?.dispatch === "function",
     replacementVersion: window.ReplacementStackBalance?.version || null,
     replacementInstalled: window.ReplacementStackBalance?.isInstalled?.() === true,
   }));
@@ -31,7 +31,7 @@ test("config waits for the final AI V2.9.5 dispatcher and replacement economy au
     aiVersion: "2.9.5",
     dispatcherVersion: "1.0.0",
     dispatcherDataset: "ready",
-    dispatcherInstalled: true,
+    dispatcherAvailable: true,
     replacementVersion: "2.1.0",
     replacementInstalled: true,
   });
