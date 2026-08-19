@@ -25,54 +25,53 @@ function collectRuntimeIssues(page) {
   return issues;
 }
 
-function collectAssetProbeTelemetry(page) {
+async function collectAssetProbeTelemetry(page) {
   const methodsByPath = new Map();
-  const activeRequestCountsByPath = new Map();
-  let maxConcurrentAssetPaths = 0;
+  let activeProbeHandlers = 0;
+  let maxConcurrentAssetProbes = 0;
 
-  const isAssetProbe = request => {
-    const url = new URL(request.url());
-    return url.searchParams.has("diagnostics") && !url.pathname.endsWith("/build-manifest.json");
-  };
+  const isAssetProbeUrl = url => (
+    url.searchParams.has("diagnostics")
+    && !url.pathname.endsWith("/build-manifest.json")
+  );
 
   page.on("request", request => {
-    if (!isAssetProbe(request)) return;
-    const pathname = new URL(request.url()).pathname;
-    const methods = methodsByPath.get(pathname) || [];
+    const url = new URL(request.url());
+    if (!isAssetProbeUrl(url)) return;
+    const methods = methodsByPath.get(url.pathname) || [];
     methods.push(request.method());
-    methodsByPath.set(pathname, methods);
-
-    activeRequestCountsByPath.set(
-      pathname,
-      (activeRequestCountsByPath.get(pathname) || 0) + 1,
-    );
-    maxConcurrentAssetPaths = Math.max(
-      maxConcurrentAssetPaths,
-      activeRequestCountsByPath.size,
-    );
+    methodsByPath.set(url.pathname, methods);
   });
 
-  const finish = request => {
-    if (!isAssetProbe(request)) return;
-    const pathname = new URL(request.url()).pathname;
-    const remaining = (activeRequestCountsByPath.get(pathname) || 0) - 1;
-    if (remaining > 0) activeRequestCountsByPath.set(pathname, remaining);
-    else activeRequestCountsByPath.delete(pathname);
-  };
-  page.on("requestfinished", finish);
-  page.on("requestfailed", finish);
+  await page.route(isAssetProbeUrl, async route => {
+    activeProbeHandlers += 1;
+    maxConcurrentAssetProbes = Math.max(
+      maxConcurrentAssetProbes,
+      activeProbeHandlers,
+    );
+
+    try {
+      // Hold each probe briefly at request start. Because each production worker
+      // awaits its current fetch, a seventh handler can only enter if more than
+      // six asset workers are actually active.
+      await new Promise(resolve => setTimeout(resolve, 50));
+      await route.continue();
+    } finally {
+      activeProbeHandlers -= 1;
+    }
+  });
 
   return {
     methodsByPath,
-    get maxConcurrentAssetPaths() {
-      return maxConcurrentAssetPaths;
+    get maxConcurrentAssetProbes() {
+      return maxConcurrentAssetProbes;
     },
   };
 }
 
 test("部署診斷由 Build Manifest 驅動並全部通過", async ({ page }) => {
   const runtimeIssues = collectRuntimeIssues(page);
-  const probes = collectAssetProbeTelemetry(page);
+  const probes = await collectAssetProbeTelemetry(page);
   const manifestResponse = await page.request.get("/build-manifest.json");
   expect(manifestResponse.ok()).toBe(true);
 
@@ -93,7 +92,7 @@ test("部署診斷由 Build Manifest 驅動並全部通過", async ({ page }) =>
   await expect(page.locator("#featureCount")).toHaveText(`${manifest.features.length}/${manifest.features.length} 通過`);
   await expect(page.locator("#assetCount")).toHaveText(`${manifest.assets.length}/${manifest.assets.length} 通過`);
 
-  expect(probes.maxConcurrentAssetPaths).toBeLessThanOrEqual(6);
+  expect(probes.maxConcurrentAssetProbes).toBeLessThanOrEqual(6);
   const videoMethods = probes.methodsByPath.get("/assets/auth-entry-poker-720p.mp4") || [];
   expect(videoMethods.length).toBeGreaterThan(0);
   expect(videoMethods.every(method => method === "HEAD")).toBe(true);
@@ -102,7 +101,7 @@ test("部署診斷由 Build Manifest 驅動並全部通過", async ({ page }) =>
   await expect(summary).toHaveAttribute("data-state", "pass", { timeout: 30_000 });
   await expect(page.locator('[data-kind="feature"]')).toHaveCount(manifest.features.length);
   await expect(page.locator('[data-kind="asset"]')).toHaveCount(manifest.assets.length);
-  expect(probes.maxConcurrentAssetPaths).toBeLessThanOrEqual(6);
+  expect(probes.maxConcurrentAssetProbes).toBeLessThanOrEqual(6);
 
   expect(runtimeIssues, runtimeIssues.join("\n")).toEqual([]);
 });
