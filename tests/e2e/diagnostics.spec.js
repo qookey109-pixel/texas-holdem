@@ -95,3 +95,40 @@ test("部署診斷由 Build Manifest 驅動並全部通過", async ({ page }) =>
 
   expect(runtimeIssues, runtimeIssues.join("\n")).toEqual([]);
 });
+
+test("HEAD 缺少 Content-Length 時會改用 Range GET 驗證內容", async ({ page }) => {
+  const methods = [];
+
+  await page.route(/\/README\.md\?diagnostics=/, async route => {
+    const method = route.request().method();
+    methods.push(method);
+
+    if (method === "HEAD") {
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "text/markdown" },
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 206,
+      headers: {
+        "content-type": "text/markdown",
+        "content-range": "bytes 0-0/1",
+      },
+      body: "#",
+    });
+  });
+
+  await page.goto("/diagnostics.html", { waitUntil: "networkidle" });
+
+  const summary = page.locator("#summary");
+  await expect(summary).toHaveAttribute("data-state", "pass", { timeout: 30_000 });
+  expect(methods).toContain("HEAD");
+  expect(methods).toContain("GET");
+  expect(methods.indexOf("HEAD")).toBeLessThan(methods.indexOf("GET"));
+
+  const readmeCard = page.locator('[data-kind="asset"]', { hasText: "README.md" });
+  await expect(readmeCard).toContainText("Range GET");
+});
