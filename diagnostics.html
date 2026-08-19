@@ -144,23 +144,36 @@
           try {
             let probe = "HEAD";
             let response = await fetch(url, { method: "HEAD", cache: "no-store" });
+            let size = responseAssetSize(response);
+            let observedBodyByte = false;
 
-            if (response.status === 405 || response.status === 501) {
+            if (response.status === 405 || response.status === 501 || (response.ok && size === null)) {
               probe = "Range GET";
               response = await fetch(url, {
                 cache: "no-store",
                 headers: { Range: "bytes=0-0" },
               });
-              response.body?.cancel().catch(() => {});
+              size = responseAssetSize(response);
+
+              const reader = response.body?.getReader?.();
+              if (reader) {
+                try {
+                  const firstChunk = await reader.read();
+                  observedBodyByte = !firstChunk.done && Boolean(firstChunk.value?.byteLength);
+                } finally {
+                  await reader.cancel().catch(() => {});
+                }
+              }
             }
 
-            const size = responseAssetSize(response);
-            const passed = response.ok && (size === null || size > 0);
+            const passed = response.ok && (size > 0 || observedBodyByte);
             const detail = response.ok
-              ? size === 0
+              ? size === 0 && !observedBodyByte
                 ? `HTTP ${response.status}｜${probe}｜檔案內容為空`
                 : size === null
-                  ? `HTTP ${response.status}｜${probe}｜伺服器未提供檔案大小`
+                  ? observedBodyByte
+                    ? `HTTP ${response.status}｜${probe}｜已讀取首段資料`
+                    : `HTTP ${response.status}｜${probe}｜無法確認檔案內容`
                   : `HTTP ${response.status}｜${probe}｜${size.toLocaleString()} bytes`
               : `HTTP ${response.status} ${response.statusText}｜${probe}`;
 
