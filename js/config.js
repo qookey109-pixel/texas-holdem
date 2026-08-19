@@ -124,6 +124,121 @@ function currentBuyIn() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  const AUTHORITY_WAIT_TIMEOUT_MS = 8000;
+
+  const reportAuthorityFailure = (label, error) => {
+    const message = error instanceof Error ? error.message : String(error || "unknown error");
+    document.documentElement.dataset.configAuthorityState = "failed";
+    document.documentElement.dataset.configAuthorityFailure = label;
+    console.error(`[config] Critical authority failure: ${label}: ${message}`);
+
+    let notice = document.querySelector("#configAuthorityFailure");
+    if (!notice) {
+      notice = document.createElement("section");
+      notice.id = "configAuthorityFailure";
+      notice.setAttribute("role", "alert");
+      notice.setAttribute("aria-live", "assertive");
+      notice.style.cssText = [
+        "position:fixed",
+        "z-index:10001",
+        "left:50%",
+        "top:78px",
+        "transform:translateX(-50%)",
+        "width:min(620px,calc(100% - 28px))",
+        "padding:12px 14px",
+        "border:1px solid rgba(255,158,89,.7)",
+        "border-radius:12px",
+        "background:rgba(72,34,12,.97)",
+        "color:#fff",
+        "box-shadow:0 16px 40px rgba(0,0,0,.4)",
+        "font:600 14px/1.5 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif",
+      ].join(";");
+      document.body.appendChild(notice);
+    }
+    notice.textContent = `核心執行模組載入失敗（${label}）。請重新整理頁面後再繼續。`;
+  };
+
+  const verifyAuthorityEventually = ({ label, datasetKey, check }) => {
+    const root = document.documentElement;
+    root.dataset[datasetKey] = "loading";
+    const deadline = Date.now() + AUTHORITY_WAIT_TIMEOUT_MS;
+    let timer = 0;
+
+    const verify = () => {
+      try {
+        if (check()) {
+          root.dataset[datasetKey] = "ready";
+          if (
+            root.dataset.aiRuntimeAuthority === "ready"
+            && root.dataset.replacementStackAuthority === "ready"
+          ) {
+            root.dataset.configAuthorityState = "ready";
+          }
+          if (timer) window.clearInterval(timer);
+          return true;
+        }
+      } catch (error) {
+        root.dataset[datasetKey] = "failed";
+        reportAuthorityFailure(label, error);
+        if (timer) window.clearInterval(timer);
+        return true;
+      }
+
+      if (Date.now() < deadline) return false;
+      root.dataset[datasetKey] = "failed";
+      reportAuthorityFailure(label, new Error("authority readiness timeout"));
+      if (timer) window.clearInterval(timer);
+      return true;
+    };
+
+    if (!verify()) timer = window.setInterval(verify, 50);
+  };
+
+  const loadTrackedScript = ({
+    selector,
+    src,
+    dataAttribute,
+    label,
+    critical = false,
+    authority,
+    onLoad,
+  }) => {
+    const existing = document.querySelector(selector);
+    const handleLoaded = script => {
+      if (script) script.dataset.loadState = "loaded";
+      onLoad?.();
+      if (authority) verifyAuthorityEventually(authority);
+    };
+
+    if (existing) {
+      if (existing.dataset.loadState === "failed") {
+        const error = new Error(`${label} previously failed to load`);
+        if (critical) reportAuthorityFailure(label, error);
+        else console.warn(`[config] Optional script unavailable: ${src}`, error);
+        return existing;
+      }
+      if (authority) verifyAuthorityEventually(authority);
+      onLoad?.();
+      return existing;
+    }
+
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = false;
+    script.setAttribute(dataAttribute, "true");
+    script.dataset.loadState = "loading";
+    script.addEventListener("load", () => handleLoaded(script), { once: true });
+    script.addEventListener("error", () => {
+      script.dataset.loadState = "failed";
+      const error = new Error(`${label} failed to load`);
+      if (authority) document.documentElement.dataset[authority.datasetKey] = "failed";
+      if (critical) reportAuthorityFailure(label, error);
+      else console.warn(`[config] Optional script failed to load: ${src}`);
+    }, { once: true });
+    document.body.appendChild(script);
+    return script;
+  };
+
   const installTournamentNewHandGuard = () => {
     if (document.documentElement.dataset.tournamentNewHandGuard === "true") return;
     document.documentElement.dataset.tournamentNewHandGuard = "true";
@@ -138,59 +253,68 @@ document.addEventListener("DOMContentLoaded", () => {
     }, true);
   };
 
-  const loadTournamentGeminiBridge = () => {
-    if (document.querySelector('script[data-tournament-gemini-bridge]')) return;
-    const bridgeScript = document.createElement("script");
-    bridgeScript.src = "js/tournament-gemini-bridge.js?v=secure-final-boss-v1";
-    bridgeScript.async = false;
-    bridgeScript.dataset.tournamentGeminiBridge = "true";
-    document.body.appendChild(bridgeScript);
-  };
+  const loadTournamentGeminiBridge = () => loadTrackedScript({
+    selector: 'script[data-tournament-gemini-bridge]',
+    src: "js/tournament-gemini-bridge.js?v=secure-final-boss-v1",
+    dataAttribute: "data-tournament-gemini-bridge",
+    label: "Tournament Gemini bridge",
+  });
 
-  const loadTournamentVisibleEntry = () => {
-    if (document.querySelector('script[data-tournament-visible-entry]')) return;
-    const visibilityScript = document.createElement("script");
-    visibilityScript.src = "js/tournament-mode-visible-entry.js?v=visible-entry-v1";
-    visibilityScript.async = false;
-    visibilityScript.dataset.tournamentVisibleEntry = "true";
-    document.body.appendChild(visibilityScript);
-  };
+  const loadTournamentVisibleEntry = () => loadTrackedScript({
+    selector: 'script[data-tournament-visible-entry]',
+    src: "js/tournament-mode-visible-entry.js?v=visible-entry-v1",
+    dataAttribute: "data-tournament-visible-entry",
+    label: "Tournament visible entry",
+  });
 
-  const loadReplacementStackBalance = () => {
-    if (document.querySelector('script[data-replacement-stack-balance]')) return;
-    const balanceScript = document.createElement("script");
-    balanceScript.src = "js/replacement-stack-balance.js?v=table-average-v1";
-    balanceScript.async = false;
-    balanceScript.dataset.replacementStackBalance = "true";
-    document.body.appendChild(balanceScript);
-  };
+  const loadReplacementStackBalance = () => loadTrackedScript({
+    selector: 'script[data-replacement-stack-balance]',
+    src: "js/replacement-stack-balance.js?v=table-average-v1",
+    dataAttribute: "data-replacement-stack-balance",
+    label: "Replacement stack authority",
+    critical: true,
+    authority: {
+      label: "Replacement stack authority",
+      datasetKey: "replacementStackAuthority",
+      check: () => Boolean(
+        window.ReplacementStackBalance?.version === "2.1.0"
+        && window.ReplacementStackBalance?.isInstalled?.() === true
+      ),
+    },
+  });
 
-  const loadTableStatusDock = () => {
-    if (document.querySelector('script[data-table-status-dock]')) return;
-    const statusScript = document.createElement("script");
-    statusScript.src = "js/table-status-dock.js?v=board-safe-v1";
-    statusScript.async = false;
-    statusScript.dataset.tableStatusDock = "true";
-    document.body.appendChild(statusScript);
-  };
+  const loadTableStatusDock = () => loadTrackedScript({
+    selector: 'script[data-table-status-dock]',
+    src: "js/table-status-dock.js?v=board-safe-v1",
+    dataAttribute: "data-table-status-dock",
+    label: "Table status dock",
+  });
 
-  const loadEliteCharacterPresentation = () => {
-    if (document.querySelector('script[data-elite-character-presentation]')) return;
-    const characterScript = document.createElement("script");
-    characterScript.src = "js/elite-character-presentation.js?v=tiered-multiway-equity-v2-7";
-    characterScript.async = false;
-    characterScript.dataset.eliteCharacterPresentation = "true";
-    document.body.appendChild(characterScript);
-  };
+  const loadEliteCharacterPresentation = () => loadTrackedScript({
+    selector: 'script[data-elite-character-presentation]',
+    src: "js/elite-character-presentation.js?v=tiered-multiway-equity-v2-7",
+    dataAttribute: "data-elite-character-presentation",
+    label: "AI V2.9.5 authority chain",
+    critical: true,
+    authority: {
+      label: "AI V2.9.5 authority chain",
+      datasetKey: "aiRuntimeAuthority",
+      check: () => Boolean(
+        window.AiOpeningBalanceV295?.version === "2.9.5"
+        && document.documentElement.dataset.aiOpeningBalanceV295 === "ready"
+        && window.AiActionDispatcherV1?.version === "1.0.0"
+        && document.documentElement.dataset.aiActionDispatcherV1 === "ready"
+        && window.continueBetting?.__aiActionDispatcherV1 === true
+      ),
+    },
+  });
 
-  const loadCoachHandReviewIntegration = () => {
-    if (document.querySelector('script[data-coach-hand-review-integration]')) return;
-    const reviewScript = document.createElement("script");
-    reviewScript.src = "js/coach-hand-review-integration.js?v=coach-review-v1";
-    reviewScript.async = false;
-    reviewScript.dataset.coachHandReviewIntegration = "true";
-    document.body.appendChild(reviewScript);
-  };
+  const loadCoachHandReviewIntegration = () => loadTrackedScript({
+    selector: 'script[data-coach-hand-review-integration]',
+    src: "js/coach-hand-review-integration.js?v=coach-review-v1",
+    dataAttribute: "data-coach-hand-review-integration",
+    label: "Coach hand-review integration",
+  });
 
   const installGoogleAuthTopbarPlacement = () => {
     if (document.documentElement.dataset.googleAuthTopbarPlacement === "true") return;
@@ -273,38 +397,35 @@ document.addEventListener("DOMContentLoaded", () => {
     window.setTimeout(() => observer.disconnect(), 15000);
   };
 
-  const loadGoogleAuth = () => {
-    if (document.querySelector('script[data-google-auth]')) {
-      installGoogleAuthTopbarPlacement();
-      return;
-    }
-    const authScript = document.createElement("script");
-    authScript.src = "js/auth-entry-v2.js?v=auth-entry-safari-runtime-v3";
-    authScript.async = false;
-    authScript.dataset.googleAuth = "true";
-    authScript.addEventListener("load", installGoogleAuthTopbarPlacement, { once: true });
-    document.body.appendChild(authScript);
-    installGoogleAuthTopbarPlacement();
-  };
+  const loadGoogleAuth = () => loadTrackedScript({
+    selector: 'script[data-google-auth]',
+    src: "js/auth-entry-v2.js?v=auth-entry-safari-runtime-v3",
+    dataAttribute: "data-google-auth",
+    label: "Google auth entry",
+    onLoad: installGoogleAuthTopbarPlacement,
+  });
 
+  document.documentElement.dataset.configAuthorityState = "loading";
   loadEliteCharacterPresentation();
   loadTableStatusDock();
   loadTournamentVisibleEntry();
   loadCoachHandReviewIntegration();
   loadGoogleAuth();
+  installGoogleAuthTopbarPlacement();
 
   if (!document.querySelector('script[data-tournament-mode]')) {
-    const tournamentScript = document.createElement("script");
-    tournamentScript.src = "js/tournament-mode.js?v=elimination-mode-v1";
-    tournamentScript.async = false;
-    tournamentScript.dataset.tournamentMode = "true";
-    tournamentScript.addEventListener("load", () => {
-      installTournamentNewHandGuard();
-      loadTournamentGeminiBridge();
-      loadReplacementStackBalance();
-      window.TournamentModeVisibleEntry?.refresh?.();
-    }, { once: true });
-    document.body.appendChild(tournamentScript);
+    loadTrackedScript({
+      selector: 'script[data-tournament-mode]',
+      src: "js/tournament-mode.js?v=elimination-mode-v1",
+      dataAttribute: "data-tournament-mode",
+      label: "Tournament mode",
+      onLoad: () => {
+        installTournamentNewHandGuard();
+        loadTournamentGeminiBridge();
+        loadReplacementStackBalance();
+        window.TournamentModeVisibleEntry?.refresh?.();
+      },
+    });
   } else if (window.TournamentMode?.version) {
     installTournamentNewHandGuard();
     loadTournamentGeminiBridge();
@@ -314,19 +435,17 @@ document.addEventListener("DOMContentLoaded", () => {
     loadReplacementStackBalance();
   }
 
-  if (!document.querySelector('script[data-ai-profile-position]')) {
-    const profileScript = document.createElement("script");
-    profileScript.src = "js/ai-profile-position.js?v=nearby-seat-v1";
-    profileScript.async = false;
-    profileScript.dataset.aiProfilePosition = "true";
-    document.body.appendChild(profileScript);
-  }
+  loadTrackedScript({
+    selector: 'script[data-ai-profile-position]',
+    src: "js/ai-profile-position.js?v=nearby-seat-v1",
+    dataAttribute: "data-ai-profile-position",
+    label: "AI profile position",
+  });
 
-  if (!document.querySelector('script[data-accessibility-focus]')) {
-    const accessibilityScript = document.createElement("script");
-    accessibilityScript.src = "js/accessibility-focus.js?v=desktop-a11y-v2";
-    accessibilityScript.async = false;
-    accessibilityScript.dataset.accessibilityFocus = "true";
-    document.body.appendChild(accessibilityScript);
-  }
+  loadTrackedScript({
+    selector: 'script[data-accessibility-focus]',
+    src: "js/accessibility-focus.js?v=desktop-a11y-v2",
+    dataAttribute: "data-accessibility-focus",
+    label: "Accessibility focus",
+  });
 }, { once: true });
