@@ -26,6 +26,23 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/gemini-worker/package-lock.json
+
+      - name: Install pinned Worker toolchain
+        run: npm --prefix backend/gemini-worker ci --ignore-scripts --no-audit --no-fund
+
+      - name: Verify pinned Wrangler version
+        run: |
+          test "$(node -p "require('./backend/gemini-worker/package-lock.json').packages['node_modules/wrangler'].version")" = "4.36.0"
+          test "$(node -p "require('./backend/gemini-worker/node_modules/wrangler/package.json').version")" = "4.36.0"
+          backend/gemini-worker/node_modules/.bin/wrangler --version
+
+      - name: Dry-run Worker bundle with pinned Wrangler
+        working-directory: backend/gemini-worker
+        run: npx --no-install wrangler deploy --dry-run --outdir .wrangler-dry-run
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
