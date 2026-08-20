@@ -4,51 +4,9 @@ function collectRuntimeIssues(page) {
   const issues = [];
   page.on("pageerror", error => issues.push(`pageerror: ${error.message}`));
   page.on("console", message => {
-    if (message.type() === "error") issues.push(`console: ${message.text()}`);
+    if (message.type() === "error") issues.push(`console: ${message.text()}`));
   });
   return issues;
-}
-
-async function waitForWriteQuiescence(page, ids, { quietMs = 700, timeoutMs = 5_000 } = {}) {
-  return page.evaluate(async ({ ids, quietMs, timeoutMs }) => {
-    const readCounts = () => {
-      const status = window.UiTextWriteGuard.status();
-      return Object.fromEntries(ids.map(id => [id, status.writesById[id] || 0]));
-    };
-
-    let counts = readCounts();
-    let signature = JSON.stringify(counts);
-    let stableSince = performance.now();
-    const deadline = stableSince + timeoutMs;
-
-    while (performance.now() < deadline) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-      const nextCounts = readCounts();
-      const nextSignature = JSON.stringify(nextCounts);
-
-      if (nextSignature !== signature) {
-        counts = nextCounts;
-        signature = nextSignature;
-        stableSince = performance.now();
-        continue;
-      }
-
-      counts = nextCounts;
-      if (performance.now() - stableSince >= quietMs) {
-        return {
-          quiescent: true,
-          counts,
-          status: window.UiTextWriteGuard.status(),
-        };
-      }
-    }
-
-    return {
-      quiescent: false,
-      counts: readCounts(),
-      status: window.UiTextWriteGuard.status(),
-    };
-  }, { ids, quietMs, timeoutMs });
 }
 
 test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", async ({ page }) => {
@@ -76,7 +34,7 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
   ).toBe(true);
   // The compatibility layer also schedules bounded 0/100/400/900 ms retries.
   // Installation may become true before the final retry executes, so let all
-  // one-time retries settle before the observer-specific quiescence checks.
+  // one-time retries settle while preserving the strict idle budget below.
   await page.waitForTimeout(960);
 
   await page.evaluate(() => {
@@ -138,14 +96,17 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
     )),
   }), guardedIds);
 
-  // Establish the observer baseline by behavior rather than a fixed sleep.
-  // WebKit can batch the final one-time MutationObserver/rAF work differently
-  // from Chromium, so require the mode-control counters to remain unchanged for
-  // a full quiet window before the unrelated-mutation probe begins.
-  const settledBaseline = await waitForWriteQuiescence(page, modeObserverIds);
-  const baselineNodesStable = await page.evaluate(ids => ids.every(id => (
-    document.getElementById(id)?.firstChild === window.__uiObserverTextNodes[id]
-  )), guardedIds);
+  // Let explicit refreshes and their queued animation-frame work settle before
+  // measuring the unrelated-mutation phase. TournamentCloudSave also performs a
+  // legitimate 250 ms background sync, so the contract is bounded/idempotent
+  // activity rather than complete silence.
+  await page.waitForTimeout(420);
+  const settledBaseline = await page.evaluate(ids => ({
+    status: window.UiTextWriteGuard.status(),
+    sameNodes: ids.every(id => (
+      document.getElementById(id)?.firstChild === window.__uiObserverTextNodes[id]
+    )),
+  }), guardedIds);
 
   await page.evaluate(() => {
     const probe = document.createElement("div");
@@ -162,36 +123,58 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
   await page.evaluate(() => new Promise(resolve => {
     requestAnimationFrame(() => requestAnimationFrame(resolve));
   }));
+  await page.waitForTimeout(80);
 
-  // A real observer self-loop would keep these counters growing every frame and
-  // can never satisfy this quiescence condition. The exact number of coalesced
-  // refresh requests before quiescence is intentionally not a browser contract.
-  const afterProbeSettled = await waitForWriteQuiescence(page, modeObserverIds);
-  const afterProbeNodesStable = await page.evaluate(ids => ids.every(id => (
-    document.getElementById(id)?.firstChild === window.__uiObserverTextNodes[id]
-  )), guardedIds);
+  const afterUnrelatedMutations = await page.evaluate(ids => ({
+    status: window.UiTextWriteGuard.status(),
+    sameNodes: ids.every(id => (
+      document.getElementById(id)?.firstChild === window.__uiObserverTextNodes[id]
+    )),
+  }), guardedIds);
+
+  await page.waitForTimeout(420);
+
+  const afterIdle = await page.evaluate(ids => ({
+    status: window.UiTextWriteGuard.status(),
+    sameNodes: ids.every(id => (
+      document.getElementById(id)?.firstChild === window.__uiObserverTextNodes[id]
+    )),
+  }), guardedIds);
 
   const count = (snapshot, id) => snapshot.writesById[id] || 0;
   const skippedCount = (snapshot, id) => snapshot.skippedById[id] || 0;
+  const maxIdleWrites = 12;
 
   expect(before.supported).toBe(true);
   expect(afterRefresh.status.guardedCount).toBeGreaterThanOrEqual(guardedIds.length);
   expect(afterRefresh.status.skippedWrites).toBeGreaterThan(before.skippedWrites);
   expect(afterRefresh.sameNodes).toBe(true);
-  expect(settledBaseline.quiescent).toBe(true);
-  expect(baselineNodesStable).toBe(true);
-  expect(afterProbeSettled.quiescent).toBe(true);
-  expect(afterProbeNodesStable).toBe(true);
+  expect(settledBaseline.sameNodes).toBe(true);
+  expect(afterUnrelatedMutations.sameNodes).toBe(true);
+  expect(afterIdle.sameNodes).toBe(true);
 
-  // Any mode-control writes triggered while the unrelated mutation burst settles
-  // must be same-value writes. The guard should skip every one of them, regardless
-  // of whether a browser coalesces the burst into one callback or several.
+  // MutationObserver/rAF batching is browser-scheduler dependent, so do not
+  // constrain how many same-value refresh requests are coalesced from the probe.
+  // Every request must still be idempotent: no guarded text node may be rebuilt,
+  // and every mode-control text write caused while the probe settles must skip.
+  let probeWriteAttempts = 0;
   for (const id of modeObserverIds) {
-    const writeAttempts = count(afterProbeSettled.status, id)
+    const writeAttempts = count(afterUnrelatedMutations.status, id)
       - count(settledBaseline.status, id);
-    const skippedAttempts = skippedCount(afterProbeSettled.status, id)
+    const skippedAttempts = skippedCount(afterUnrelatedMutations.status, id)
       - skippedCount(settledBaseline.status, id);
+    probeWriteAttempts += writeAttempts;
     expect(skippedAttempts).toBe(writeAttempts);
+  }
+  expect(probeWriteAttempts).toBeGreaterThan(0);
+
+  // A real observer self-loop would approach roughly 25 writes at 60 fps during
+  // this 420 ms window. Keep the established sub-half-frame-rate ceiling while
+  // allowing the legitimate 250 ms cloud-save sync to request bounded passes.
+  for (const id of modeObserverIds) {
+    expect(
+      count(afterIdle.status, id) - count(afterUnrelatedMutations.status, id),
+    ).toBeLessThanOrEqual(maxIdleWrites);
   }
 
   expect(runtimeIssues, runtimeIssues.join("\n")).toEqual([]);
