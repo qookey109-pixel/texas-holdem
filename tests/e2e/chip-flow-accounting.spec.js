@@ -75,6 +75,10 @@ test("chip inflow uses the actual paid amount when a player is capped all-in", a
     const player = state.players.find(candidate => candidate.position === position);
     if (!player) throw new Error(`No player for rendered seat ${position}`);
 
+    // The freshly opened table may still be animating its posted blinds. This
+    // regression owns the FX layer from here so it can only inspect the payment
+    // created below, not an earlier blind from the same seat.
+    els.fxLayer.innerHTML = "";
     player.stack = 75;
     player.bet = 0;
     player.totalContribution = 0;
