@@ -226,41 +226,145 @@ function pulsePot(amount) {
   }, 850);
 }
 
+function chipMotionElementForPlayer(player) {
+  if (!player) return null;
+  if (player.isHuman) {
+    return els.playerStackChips || els.heroTableStack || els.playerPanel || null;
+  }
+
+  const seat = els.opponents?.querySelector(`.seat[data-profile-position="${player.position}"]`);
+  return seat?.querySelector(".mini-chip-stack") || seat || null;
+}
+
+function chipMotionPoint(element) {
+  if (!els.fxLayer || !element) return null;
+  const layerRect = els.fxLayer.getBoundingClientRect();
+  const rect = element.getBoundingClientRect();
+  if (!layerRect.width || !layerRect.height || (!rect.width && !rect.height)) return null;
+
+  return {
+    x: rect.left - layerRect.left + rect.width / 2,
+    y: rect.top - layerRect.top + rect.height / 2,
+  };
+}
+
+function resolveChipMotionGeometry(player) {
+  const playerPoint = chipMotionPoint(chipMotionElementForPlayer(player));
+  const potPoint = chipMotionPoint(els.potChip);
+  if (!playerPoint || !potPoint) return null;
+  return { player: playerPoint, pot: potPoint };
+}
+
+function playLiveChipMotion(chip, from, to, {
+  duration,
+  delay,
+  revealOffset,
+  fromOffsetX = 0,
+  fromOffsetY = 0,
+  toOffsetX = 0,
+  toOffsetY = 0,
+  startScale = 0.72,
+  endScale = 0.6,
+} = {}) {
+  if (!chip || typeof chip.animate !== "function") return false;
+
+  const travelX = to.x - from.x;
+  const travelY = to.y - from.y;
+  const startTransform = `translate(calc(-50% + ${fromOffsetX}px), calc(-50% + ${fromOffsetY}px)) scale(${startScale})`;
+  const endTransform = `translate(calc(-50% + ${travelX + toOffsetX}px), calc(-50% + ${travelY + toOffsetY}px)) scale(${endScale})`;
+
+  chip.dataset.motionGeometry = "live";
+  chip.style.left = `${from.x}px`;
+  chip.style.top = `${from.y}px`;
+  chip.style.animation = "none";
+  chip.animate([
+    { opacity: 0, transform: startTransform, offset: 0 },
+    { opacity: 1, transform: startTransform, offset: revealOffset },
+    { opacity: 0, transform: endTransform, offset: 1 },
+  ], {
+    duration,
+    delay,
+    easing: "ease",
+    fill: "both",
+  });
+  return true;
+}
+
 function animateChips(player, amount) {
   if (!els.fxLayer || !amount) return;
   const source = player.isHuman ? "from-human" : `from-seat-${Math.max(1, player.position)}`;
+  const geometry = resolveChipMotionGeometry(player);
   const chipCount = Math.min(7, Math.max(2, Math.ceil(amount / 120)));
   const chipColors = ["chip-gold", "chip-red", "chip-cyan", "chip-blue"];
 
   for (let i = 0; i < chipCount; i++) {
     const chip = document.createElement("span");
     const spread = i - (chipCount - 1) / 2;
+    const delay = i * 38;
+    const jitterX = spread * 8;
+    const jitterY = (i % 2 ? -1 : 1) * 7;
+    const potSpreadX = spread * 3;
     chip.className = `flying-chip ${source} ${chipColors[i % chipColors.length]}`;
     chip.textContent = i === 0 ? "+" + amount : "";
-    chip.style.animationDelay = `${i * 38}ms`;
-    chip.style.setProperty("--chip-jitter-x", `${spread * 8}px`);
-    chip.style.setProperty("--chip-jitter-y", `${(i % 2 ? -1 : 1) * 7}px`);
-    chip.style.setProperty("--chip-pot-x", `${spread * 3}px`);
-    els.fxLayer.appendChild(chip);
-    window.setTimeout(() => chip.remove(), 980 + i * 38);
+
+    if (geometry && typeof chip.animate === "function") {
+      els.fxLayer.appendChild(chip);
+      playLiveChipMotion(chip, geometry.player, geometry.pot, {
+        duration: 820,
+        delay,
+        revealOffset: 0.18,
+        fromOffsetX: jitterX,
+        fromOffsetY: jitterY,
+        toOffsetX: potSpreadX,
+        startScale: 0.78,
+        endScale: 0.55,
+      });
+    } else {
+      chip.style.animationDelay = `${delay}ms`;
+      chip.style.setProperty("--chip-jitter-x", `${jitterX}px`);
+      chip.style.setProperty("--chip-jitter-y", `${jitterY}px`);
+      chip.style.setProperty("--chip-pot-x", `${potSpreadX}px`);
+      els.fxLayer.appendChild(chip);
+    }
+
+    window.setTimeout(() => chip.remove(), 980 + delay);
   }
 }
 
 function animateWinChips(player, amount) {
   if (!els.fxLayer || !amount) return;
   const target = player.isHuman ? "to-human" : `to-seat-${Math.max(1, player.position)}`;
+  const geometry = resolveChipMotionGeometry(player);
   const chipCount = Math.min(14, Math.max(7, Math.ceil(amount / 180)));
   const chipColors = ["chip-gold", "chip-red", "chip-cyan", "chip-blue"];
 
   for (let i = 0; i < chipCount; i++) {
     const chip = document.createElement("span");
     const spread = i - (chipCount - 1) / 2;
+    const delay = i * 42;
+    const jitterX = spread * 7;
+    const jitterY = (i % 3 - 1) * 9;
     chip.className = `win-chip ${target} ${chipColors[i % chipColors.length]}`;
-    chip.style.animationDelay = `${i * 42}ms`;
-    chip.style.setProperty("--win-jitter-x", `${spread * 7}px`);
-    chip.style.setProperty("--win-jitter-y", `${(i % 3 - 1) * 9}px`);
-    els.fxLayer.appendChild(chip);
-    window.setTimeout(() => chip.remove(), 1300 + i * 42);
+
+    if (geometry && typeof chip.animate === "function") {
+      els.fxLayer.appendChild(chip);
+      playLiveChipMotion(chip, geometry.pot, geometry.player, {
+        duration: 1050,
+        delay,
+        revealOffset: 0.15,
+        toOffsetX: jitterX,
+        toOffsetY: jitterY,
+        startScale: 0.6,
+        endScale: 0.9,
+      });
+    } else {
+      chip.style.animationDelay = `${delay}ms`;
+      chip.style.setProperty("--win-jitter-x", `${jitterX}px`);
+      chip.style.setProperty("--win-jitter-y", `${jitterY}px`);
+      els.fxLayer.appendChild(chip);
+    }
+
+    window.setTimeout(() => chip.remove(), 1300 + delay);
   }
 }
 
