@@ -46,6 +46,11 @@ test("chip flow follows rendered positions even when the mini stack is hidden", 
     const fallbackAfter = centerInLayer(seatMeta);
     const actualPotCenter = centerInLayer(els.potChip);
 
+    // The initial table can still have blind-chip FX in flight. Remove those before
+    // creating the two animations owned by this regression so querySelector cannot
+    // accidentally inspect an older live-geometry chip from the same seat.
+    els.fxLayer.innerHTML = "";
+
     animateChips(player, 240);
     const flyingChip = els.fxLayer.querySelector('.flying-chip[data-motion-geometry="live"]');
     if (!flyingChip) throw new Error("Expected a live-geometry betting chip");
