@@ -5,26 +5,37 @@ import process from "node:process";
 const ROOT = new URL("../", import.meta.url);
 const FORMAL_SITE = "https://qookey109-pixel.github.io/texas-holdem/";
 const REQUEST_TIMEOUT_MS = 12_000;
-const TARGETS = Object.freeze([
-  "index.html",
-  "js/config.js",
+const MANIFEST_PATH = "build-manifest.json";
+const DEFAULT_FEATURE_ID = "core-game";
+const CONTROL_TARGETS = Object.freeze([
+  MANIFEST_PATH,
   "js/official-layout-preset.js",
   "js/layout-readability-trial.js",
-  "build-manifest.json",
 ]);
 
 function parseArguments(argv) {
   const values = new Map();
+  const flags = new Set();
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
     if (!value.startsWith("--")) continue;
     const [name, inline] = value.split("=", 2);
-    if (inline !== undefined) values.set(name, inline);
-    else if (argv[index + 1] && !argv[index + 1].startsWith("--")) values.set(name, argv[++index]);
+    if (inline !== undefined) {
+      values.set(name, inline);
+      continue;
+    }
+    if (name === "--local-only") {
+      flags.add(name);
+      continue;
+    }
+    if (argv[index + 1] && !argv[index + 1].startsWith("--")) values.set(name, argv[++index]);
+    else flags.add(name);
   }
 
   return {
     baseUrl: values.get("--base-url") || process.env.PRODUCTION_SITE_URL || FORMAL_SITE,
+    featureId: values.get("--feature") || DEFAULT_FEATURE_ID,
+    localOnly: flags.has("--local-only"),
     retries: Math.max(1, Number.parseInt(values.get("--retries") || "1", 10) || 1),
     retryDelayMs: Math.max(0, Number.parseInt(values.get("--retry-delay-ms") || "5000", 10) || 0),
   };
@@ -47,6 +58,27 @@ function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+async function readManifest() {
+  const source = await readFile(new URL(MANIFEST_PATH, ROOT), "utf8");
+  return JSON.parse(source);
+}
+
+function parityTargets(manifest, featureId) {
+  const assets = new Set((manifest.assets || []).map(asset => asset?.path).filter(Boolean));
+  const feature = (manifest.features || []).find(candidate => candidate?.id === featureId);
+  assert(feature, `build-manifest.json is missing feature ${featureId}`);
+  assert(Array.isArray(feature.assets) && feature.assets.length > 0, `feature ${featureId} has no assets`);
+
+  for (const path of feature.assets) {
+    assert(assets.has(path), `feature ${featureId} references untracked asset ${path}`);
+  }
+  for (const path of CONTROL_TARGETS) {
+    assert(assets.has(path) || path === MANIFEST_PATH, `parity control target is not tracked: ${path}`);
+  }
+
+  return [...new Set([...CONTROL_TARGETS, ...feature.assets])];
+}
+
 async function fetchWithTimeout(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -57,7 +89,7 @@ async function fetchWithTimeout(url) {
         accept: "*/*",
         "cache-control": "no-cache",
         pragma: "no-cache",
-        "user-agent": "texas-holdem-static-parity/1.0",
+        "user-agent": "texas-holdem-static-parity/2.0",
       },
       signal: controller.signal,
     });
@@ -66,18 +98,22 @@ async function fetchWithTimeout(url) {
   }
 }
 
-async function expectedHashes() {
-  const entries = await Promise.all(TARGETS.map(async path => {
+async function expectedHashes(targets) {
+  const entries = await Promise.all(targets.map(async path => {
     const bytes = await readFile(new URL(path, ROOT));
     return [path, sha256(bytes)];
   }));
   return new Map(entries);
 }
 
-async function verifyOnce(baseUrl, expected, attempt) {
+function localResults(targets, expected) {
+  return targets.map(path => ({ path, sha256: expected.get(path) }));
+}
+
+async function verifyOnce(baseUrl, targets, expected, attempt) {
   const results = [];
 
-  for (const path of TARGETS) {
+  for (const path of targets) {
     const url = new URL(path, baseUrl);
     url.searchParams.set("__parity", `${attempt}-${Date.now()}`);
 
@@ -114,21 +150,35 @@ async function withRetries(fn, attempts, delayMs) {
 }
 
 const options = parseArguments(process.argv.slice(2));
-const baseUrl = normalizeBaseUrl(options.baseUrl);
 
 try {
-  const expected = await expectedHashes();
-  const files = await withRetries(
-    attempt => verifyOnce(baseUrl, expected, attempt),
-    options.retries,
-    options.retryDelayMs,
-  );
+  const manifest = await readManifest();
+  const targets = parityTargets(manifest, options.featureId);
+  const expected = await expectedHashes(targets);
 
-  console.log(JSON.stringify({
-    ok: true,
-    site: baseUrl.href,
-    files,
-  }, null, 2));
+  if (options.localOnly) {
+    console.log(JSON.stringify({
+      ok: true,
+      mode: "local-contract",
+      feature: options.featureId,
+      files: localResults(targets, expected),
+    }, null, 2));
+  } else {
+    const baseUrl = normalizeBaseUrl(options.baseUrl);
+    const files = await withRetries(
+      attempt => verifyOnce(baseUrl, targets, expected, attempt),
+      options.retries,
+      options.retryDelayMs,
+    );
+
+    console.log(JSON.stringify({
+      ok: true,
+      mode: "deployed-parity",
+      feature: options.featureId,
+      site: baseUrl.href,
+      files,
+    }, null, 2));
+  }
 } catch (error) {
   console.error(`[static-parity] ${error?.stack || error}`);
   process.exitCode = 1;
