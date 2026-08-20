@@ -143,7 +143,7 @@ function finishShowdown(winners, won, messages, {
   updateAiEmotions(winners);
 
   !state.isMuted && Audio.win();
-  showWinBanner(winners, won);
+  showWinBanner(winners, won, awardsByPosition);
   winners.forEach(player => {
     const awarded = awardsByPosition instanceof Map
       ? (awardsByPosition.get(player.position) || 0)
@@ -407,14 +407,20 @@ function animateWinChips(player, amount) {
   }
 }
 
-function showWinBanner(winners, amount) {
+function showWinBanner(winners, amount, awardsByPosition = null) {
   if (!els.showdownBanner || !winners.length) return;
   const label = winners.map(player => `${player.emoji} ${player.name}`).join("、");
-  const hand = getVisibleHandRank(winners[0]);
+  const hasExactBreakdown = winners.length > 1 && awardsByPosition instanceof Map;
+  const detail = hasExactBreakdown
+    ? winners.map(player => {
+      const awarded = awardsByPosition.get(player.position) || 0;
+      return `${player.name}：${getVisibleHandRank(player)} +${awarded}`;
+    }).join(" ｜ ")
+    : `${getVisibleHandRank(winners[0])} · +${amount}`;
   els.showdownBanner.innerHTML = `
-    <span>WINNER</span>
+    <span>${hasExactBreakdown ? "WINNERS" : "WINNER"}</span>
     <strong>${label}</strong>
-    <em>${hand} · +${amount}</em>
+    <em>${detail}</em>
   `;
   els.showdownBanner.classList.remove("is-visible");
   void els.showdownBanner.offsetWidth;
