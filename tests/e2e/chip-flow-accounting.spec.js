@@ -6,6 +6,65 @@ async function openFreshTable(page) {
   await expect(page.locator("#opponents .seat")).toHaveCount(6);
 }
 
+test("new-hand blinds enter the pot from the current rendered seats", async ({ page }) => {
+  await openFreshTable(page);
+
+  const result = await page.evaluate(() => {
+    Audio.cleanup();
+    clearAutoNewHandTimer();
+    clearDialogueTimers();
+    els.fxLayer.innerHTML = "";
+
+    state.players.forEach(player => {
+      player.stack = Math.max(player.stack, 1000);
+    });
+
+    // startHand increments first. Hand 5 makes seat 4 the dealer and Hero the
+    // first preflop actor, so no AI action can add extra chip effects here.
+    state.handNumber = 4;
+    startHand();
+
+    const smallBlind = currentSmallBlind();
+    const bigBlind = currentBigBlind();
+    const smallBlindPlayer = state.players[(state.dealerIndex + 1) % state.players.length];
+    const bigBlindPlayer = state.players[(state.dealerIndex + 2) % state.players.length];
+    const chipFor = player => els.fxLayer.querySelector(
+      `.flying-chip[data-player-position="${player.position}"]`,
+    );
+    const smallChip = chipFor(smallBlindPlayer);
+    const bigChip = chipFor(bigBlindPlayer);
+
+    return {
+      smallBlind,
+      bigBlind,
+      pot: state.pot,
+      currentActorIndex: state.currentActorIndex,
+      waitingForHuman: state.waitingForHuman,
+      small: {
+        position: smallBlindPlayer.position,
+        amount: Number(smallChip?.dataset.amount || 0),
+        geometry: smallChip?.dataset.motionGeometry || null,
+      },
+      big: {
+        position: bigBlindPlayer.position,
+        amount: Number(bigChip?.dataset.amount || 0),
+        geometry: bigChip?.dataset.motionGeometry || null,
+      },
+    };
+  });
+
+  expect(result.currentActorIndex).toBe(0);
+  expect(result.waitingForHuman).toBe(true);
+  expect(result.pot).toBe(result.smallBlind + result.bigBlind);
+  expect(result.small.amount).toBe(result.smallBlind);
+  expect(result.big.amount).toBe(result.bigBlind);
+  expect(result.small.geometry).toBe("live");
+  expect(result.big.geometry).toBe("live");
+
+  await page.waitForTimeout(1_400);
+  await expect(page.locator("#fxLayer .flying-chip")).toHaveCount(0);
+});
+
 test("chip inflow uses the actual paid amount when a player is capped all-in", async ({ page }) => {
   await openFreshTable(page);
 
