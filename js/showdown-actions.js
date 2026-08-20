@@ -417,11 +417,13 @@ function showWinBanner(winners, amount, awardsByPosition = null) {
       return `${player.name}：${getVisibleHandRank(player)} +${awarded}`;
     }).join(" ｜ ")
     : `${getVisibleHandRank(winners[0])} · +${amount}`;
-  els.showdownBanner.innerHTML = `
-    <span>${hasExactBreakdown ? "WINNERS" : "WINNER"}</span>
-    <strong>${label}</strong>
-    <em>${detail}</em>
-  `;
+  const titleNode = document.createElement("span");
+  const labelNode = document.createElement("strong");
+  const detailNode = document.createElement("em");
+  titleNode.textContent = hasExactBreakdown ? "WINNERS" : "WINNER";
+  labelNode.textContent = label;
+  detailNode.textContent = detail;
+  els.showdownBanner.replaceChildren(titleNode, labelNode, detailNode);
   els.showdownBanner.classList.remove("is-visible");
   void els.showdownBanner.offsetWidth;
   els.showdownBanner.classList.add("is-visible");
