@@ -3,6 +3,7 @@
 function showdown() {
   const pots = buildPots();
   const winningPlayers = new Map();
+  const awardsByPosition = new Map();
   const messages = [];
   let totalAwarded = 0;
   let heroAwarded = 0;
@@ -28,6 +29,10 @@ function showdown() {
       const amount = share + (winnerIndex < remainder ? 1 : 0);
       entry.player.stack += amount;
       winningPlayers.set(entry.player.position, entry.player);
+      awardsByPosition.set(
+        entry.player.position,
+        (awardsByPosition.get(entry.player.position) || 0) + amount,
+      );
       totalAwarded += amount;
       if (entry.player.isHuman) heroAwarded += amount;
     });
@@ -36,7 +41,11 @@ function showdown() {
     messages.push(`${names} 以${best.result.name}${winners.length > 1 ? "平分" : "贏得"}${potLabel} ${pot.amount}。`);
   });
 
-  finishShowdown([...winningPlayers.values()], totalAwarded, messages, { heroAwarded, potSize: totalPot });
+  finishShowdown([...winningPlayers.values()], totalAwarded, messages, {
+    heroAwarded,
+    potSize: totalPot,
+    awardsByPosition,
+  });
 }
 
 function awardPot(winners, message) {
@@ -103,7 +112,11 @@ function buildPots() {
   return pots;
 }
 
-function finishShowdown(winners, won, messages, { heroAwarded = 0, potSize = won } = {}) {
+function finishShowdown(winners, won, messages, {
+  heroAwarded = 0,
+  potSize = won,
+  awardsByPosition = null,
+} = {}) {
   winners.forEach(player => {
     player.wins = (player.wins || 0) + 1;
   });
@@ -131,7 +144,12 @@ function finishShowdown(winners, won, messages, { heroAwarded = 0, potSize = won
 
   !state.isMuted && Audio.win();
   showWinBanner(winners, won);
-  winners.forEach(player => animateWinChips(player, Math.floor(won / Math.max(1, winners.length))));
+  winners.forEach(player => {
+    const awarded = awardsByPosition instanceof Map
+      ? (awardsByPosition.get(player.position) || 0)
+      : Math.floor(won / Math.max(1, winners.length));
+    if (awarded > 0) animateWinChips(player, awarded);
+  });
   messages.forEach(message => log(message));
   logScoreboard();
   render();
@@ -226,16 +244,6 @@ function pulsePot(amount) {
   }, 850);
 }
 
-function chipMotionElementForPlayer(player) {
-  if (!player) return null;
-  if (player.isHuman) {
-    return els.playerStackChips || els.heroTableStack || els.playerPanel || null;
-  }
-
-  const seat = els.opponents?.querySelector(`.seat[data-profile-position="${player.position}"]`);
-  return seat?.querySelector(".mini-chip-stack") || seat || null;
-}
-
 function chipMotionPoint(element) {
   if (!els.fxLayer || !element) return null;
   const layerRect = els.fxLayer.getBoundingClientRect();
@@ -248,8 +256,35 @@ function chipMotionPoint(element) {
   };
 }
 
+function firstChipMotionPoint(candidates) {
+  for (const element of candidates) {
+    const point = chipMotionPoint(element);
+    if (point) return point;
+  }
+  return null;
+}
+
+function chipMotionPointForPlayer(player) {
+  if (!player) return null;
+  if (player.isHuman) {
+    return firstChipMotionPoint([
+      els.playerStackChips,
+      els.heroTableStack,
+      els.playerPanel,
+    ]);
+  }
+
+  const seat = els.opponents?.querySelector(`.seat[data-profile-position="${player.position}"]`);
+  return firstChipMotionPoint([
+    seat?.querySelector(".mini-chip-stack"),
+    seat?.querySelector(".seat-meta"),
+    seat?.querySelector(".seat-identity"),
+    seat,
+  ]);
+}
+
 function resolveChipMotionGeometry(player) {
-  const playerPoint = chipMotionPoint(chipMotionElementForPlayer(player));
+  const playerPoint = chipMotionPointForPlayer(player);
   const potPoint = chipMotionPoint(els.potChip);
   if (!playerPoint || !potPoint) return null;
   return { player: playerPoint, pot: potPoint };
@@ -305,6 +340,8 @@ function animateChips(player, amount) {
     const jitterY = (i % 2 ? -1 : 1) * 7;
     const potSpreadX = spread * 3;
     chip.className = `flying-chip ${source} ${chipColors[i % chipColors.length]}`;
+    chip.dataset.amount = String(amount);
+    chip.dataset.playerPosition = String(player.position);
     chip.textContent = i === 0 ? "+" + amount : "";
 
     if (geometry && typeof chip.animate === "function") {
@@ -345,6 +382,8 @@ function animateWinChips(player, amount) {
     const jitterX = spread * 7;
     const jitterY = (i % 3 - 1) * 9;
     chip.className = `win-chip ${target} ${chipColors[i % chipColors.length]}`;
+    chip.dataset.amount = String(amount);
+    chip.dataset.playerPosition = String(player.position);
 
     if (geometry && typeof chip.animate === "function") {
       els.fxLayer.appendChild(chip);
