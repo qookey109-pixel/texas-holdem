@@ -36,6 +36,7 @@ test("玩家籌碼歸零後顯示本輪結算並可回到第 1 局", async ({ pa
     clearAutoNewHandTimer();
     clearDialogueTimers();
 
+    state.players[0].name = "測試玩家";
     state.players[0].stack = 0;
     state.handOver = true;
     state.sessionEnded = false;
@@ -64,7 +65,8 @@ test("玩家籌碼歸零後顯示本輪結算並可回到第 1 局", async ({ pa
   const heroStats = overlay.locator(".session-hero-stats");
   await expect(overlay).toBeVisible();
   await expect(overlay.locator(".session-hero h2")).toHaveText("本輪結算");
-  await expect(overlay).toContainText("Owl 籌碼歸零");
+  await expect(overlay).toContainText("測試玩家 籌碼歸零");
+  await expect(overlay).not.toContainText("Owl 籌碼歸零");
   await expect(heroStats).toContainText(/完成\s*4\s*手/);
   await expect(heroStats).toContainText(/入池率\s*75\s*%/);
   await expect(overlay).toContainText("七邊形風格輪廓");

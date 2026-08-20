@@ -25,6 +25,14 @@
     return String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength);
   }
 
+  function cleanPlayerName(value) {
+    return cleanText(value, 160)
+      .replace(/<[^>]*>/g, "")
+      .replace(/[<>]/g, "")
+      .trim()
+      .slice(0, MAX_NAME_LENGTH);
+  }
+
   function safeAvatarUrl(value) {
     const raw = cleanText(value, 500);
     if (!raw) return "";
@@ -39,7 +47,7 @@
   function readCachedIdentity() {
     try {
       const value = JSON.parse(localStorage.getItem(CONFIG.identityStorageKey) || "null");
-      const name = cleanText(value?.name, MAX_NAME_LENGTH);
+      const name = cleanPlayerName(value?.name);
       if (!name) return null;
       return {
         userId: cleanText(value.userId, 80),
@@ -94,9 +102,8 @@
     const emailName = email.includes("@") ? email.split("@")[0] : DEFAULT_PLAYER_NAME;
     return {
       userId: cleanText(user.id, 80),
-      name: cleanText(
+      name: cleanPlayerName(
         metadata.full_name || metadata.name || metadata.preferred_username || emailName,
-        MAX_NAME_LENGTH,
       ) || DEFAULT_PLAYER_NAME,
       email,
       avatarUrl: safeAvatarUrl(metadata.avatar_url || metadata.picture),

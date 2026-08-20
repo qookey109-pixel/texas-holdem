@@ -154,3 +154,36 @@ test("Google 工作階段更新玩家名稱並只登出目前裝置", async ({ p
   expect(await page.evaluate(() => window.__AUTH_TEST__.signOutCalls[0])).toEqual({ scope: "local" });
   expect(await page.evaluate(() => localStorage.getItem("texasHoldemPlayerIdentityV1"))).toBeNull();
 });
+
+test("Google 與快取玩家名稱只能以純文字進入牌桌", async ({ page }) => {
+  const session = {
+    access_token: "identity-text-safety-access-token",
+    refresh_token: "identity-text-safety-refresh-token",
+    user: {
+      id: "99999999-2222-3333-4444-555555555555",
+      email: "identity-safety@example.com",
+      user_metadata: {
+        full_name: "<b>Injected</b> Player",
+      },
+    },
+  };
+
+  await installAuthMock(page, session);
+  await page.goto("/", { waitUntil: "networkidle" });
+
+  await expect.poll(
+    () => page.evaluate(() => window.TexasHoldemAuth?.status().signedIn || false),
+    { timeout: 10_000 },
+  ).toBe(true);
+
+  await expect(page.locator("#authAccountButton")).toContainText("Injected Player");
+  await expect(page.locator("#playerName")).toContainText("Injected Player");
+  await expect(page.locator("#playerName b")).toHaveCount(0);
+  expect(await page.evaluate(() => state.players[0].name)).toBe("Injected Player");
+
+  const storedName = await page.evaluate(() => {
+    const cached = JSON.parse(localStorage.getItem("texasHoldemPlayerIdentityV1") || "null");
+    return cached?.name || "";
+  });
+  expect(storedName).toBe("Injected Player");
+});

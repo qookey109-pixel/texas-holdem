@@ -26,6 +26,7 @@ function renderSessionSummary() {
   const styleMetrics = heroStyleShapeMetrics(stats);
   const achievements = buildHeroAchievements(stats, profile);
   const analysis = buildHeroAnalysis(stats, profile);
+  const heroName = escapeHtml(human()?.name || "Owl");
   const totalActions = Math.max(1, (stats.calls || 0) + (stats.raises || 0) + (stats.folds || 0) + (stats.allIns || 0) + (stats.checks || 0));
   const vpipRate = Math.round(((stats.vpip || 0) / Math.max(1, stats.hands || 0)) * 100);
   const sampleNote = stats.hands < 5
@@ -37,7 +38,7 @@ function renderSessionSummary() {
       <div>
         <p class="eyebrow">Session Report</p>
         <h2>本輪結算</h2>
-        <span>Owl 籌碼歸零，這場先收工。看完重點後會重新從第 1 局開始。</span>
+        <span>${heroName} 籌碼歸零，這場先收工。看完重點後會重新從第 1 局開始。</span>
         ${sampleNote}
       </div>
       <div class="session-hero-stats">
