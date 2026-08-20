@@ -121,8 +121,8 @@ function startHand() {
   state.players.forEach((_, i) => setTimeout(() => !state.isMuted && Audio.deal(), i * 120));
   const smallBlindPlayer = state.players[(state.dealerIndex + 1) % state.players.length];
   const bigBlindPlayer = state.players[(state.dealerIndex + 2) % state.players.length];
-  postBlind(smallBlindPlayer, smallBlind, "小盲");
-  postBlind(bigBlindPlayer, bigBlind, "大盲");
+  const smallBlindPaid = postBlind(smallBlindPlayer, smallBlind, "小盲");
+  const bigBlindPaid = postBlind(bigBlindPlayer, bigBlind, "大盲");
   state.currentBet = Math.max(smallBlindPlayer.bet, bigBlindPlayer.bet);
   state.lastRaiseSize = bigBlind;
   state.lastAggressor = bigBlindPlayer.position;
@@ -142,6 +142,14 @@ function startHand() {
   if (replacements[0]) say(replacements[0].player, "join", { force: true });
   log(`🃏 新牌局開始，盲注 ${smallBlind} / ${bigBlind}。`);
   if (!previousBlindLevel || previousBlindLevel.level === state.blindLevel.level) announce("新牌局開始");
+
+  // Materialize the new hand's seats and pot before any synchronous AI action.
+  // This gives blind and preflop chip effects the current Layout V4 geometry
+  // instead of stale/absent DOM from the previous hand.
+  render();
+  if (smallBlindPaid > 0) animateChips(smallBlindPlayer, smallBlindPaid);
+  if (bigBlindPaid > 0) animateChips(bigBlindPlayer, bigBlindPaid);
+
   beginBettingRound((state.dealerIndex + 3) % state.players.length);
   continueBetting();
 }
@@ -156,6 +164,7 @@ function postBlind(player, amount, label) {
   if (player.stack === 0) player.allIn = true;
   player.status = label + " " + paid;
   player.lastAction = label;
+  return paid;
 }
 
 function activePlayers() { return state.players.filter(p => !p.folded); }
