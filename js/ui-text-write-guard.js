@@ -194,6 +194,7 @@
   const RETRY_LIMIT = 400;
   let retryCount = 0;
   let bodyObserver = null;
+  let lastLongSessionBodyState = null;
 
   function longSessionOwnsGeminiControl() {
     const snapshot = window.LongSessionModeV1?.snapshot?.();
@@ -230,6 +231,19 @@
     return true;
   }
 
+  function longSessionBodyState() {
+    return Boolean(document.body?.classList.contains("is-long-session-mode"));
+  }
+
+  function syncOnLongSessionBodyTransition() {
+    const nextState = longSessionBodyState();
+    if (nextState === lastLongSessionBodyState) return false;
+    lastLongSessionBodyState = nextState;
+    preserveWrapperMetadata();
+    restoreGeminiControlOwnership();
+    return true;
+  }
+
   function installBridge() {
     if (!window.LongSessionModeV1?.isInstalled?.()) {
       if (retryCount < RETRY_LIMIT) {
@@ -241,12 +255,10 @@
 
     preserveWrapperMetadata();
     restoreGeminiControlOwnership();
+    lastLongSessionBodyState = longSessionBodyState();
 
     if (!bodyObserver) {
-      bodyObserver = new MutationObserver(() => {
-        preserveWrapperMetadata();
-        restoreGeminiControlOwnership();
-      });
+      bodyObserver = new MutationObserver(syncOnLongSessionBodyTransition);
       bodyObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
     }
 
@@ -256,7 +268,7 @@
       )) return;
       window.setTimeout(() => {
         preserveWrapperMetadata();
-        restoreGeminiControlOwnership();
+        syncOnLongSessionBodyTransition();
       }, 0);
     });
 
