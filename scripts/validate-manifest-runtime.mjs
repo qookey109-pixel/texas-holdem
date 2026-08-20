@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { posix } from "node:path";
 
 const ROOT = new URL("../", import.meta.url);
 
@@ -9,6 +10,33 @@ async function read(path) {
 function fail(message) {
   console.error(`[manifest-runtime] ${message}`);
   process.exitCode = 1;
+}
+
+function cleanReference(value) {
+  return String(value || "").trim().split(/[?#]/, 1)[0];
+}
+
+function resolveLocalReference(value, sourcePath) {
+  const reference = cleanReference(value);
+  if (!reference || reference.startsWith("#")) return null;
+  if (/^(?:https?:|data:|blob:|mailto:|tel:|javascript:)/i.test(reference)) return null;
+  if (reference.startsWith("//") || reference.startsWith("/")) return null;
+
+  const resolved = posix.normalize(posix.join(posix.dirname(sourcePath), reference));
+  if (!resolved || resolved === "." || resolved.startsWith("../")) return null;
+  return resolved;
+}
+
+function cssImports(source, sourcePath) {
+  const imports = new Set();
+  const pattern = /@import\s+(?:url\(\s*)?["']?([^"')\s;]+)["']?\s*\)?/gi;
+
+  for (const match of source.matchAll(pattern)) {
+    const resolved = resolveLocalReference(match[1], sourcePath);
+    if (resolved?.endsWith(".css")) imports.add(resolved);
+  }
+
+  return imports;
 }
 
 const [loaderSource, manifestSource] = await Promise.all([
@@ -24,11 +52,27 @@ const featureAssets = new Set(
   ),
 );
 
-const runtimePaths = new Set(["js/elite-character-presentation.js"]);
+const loaderRuntimePaths = new Set(["js/elite-character-presentation.js"]);
 for (const match of loaderSource.matchAll(/["'](js\/[^"'?]+\.js)(?:\?[^"']*)?["']/g)) {
-  runtimePaths.add(match[1]);
+  loaderRuntimePaths.add(match[1]);
 }
 
+const cssRuntimePaths = new Set();
+for (const cssPath of [...assetPaths].filter(path => path.endsWith(".css"))) {
+  let source = "";
+  try {
+    source = await read(cssPath);
+  } catch (error) {
+    fail(`unable to inspect manifest CSS ${cssPath}: ${error instanceof Error ? error.message : String(error)}`);
+    continue;
+  }
+
+  for (const importedPath of cssImports(source, cssPath)) {
+    cssRuntimePaths.add(importedPath);
+  }
+}
+
+const runtimePaths = new Set([...loaderRuntimePaths, ...cssRuntimePaths]);
 const missingAssets = [...runtimePaths].filter(path => !assetPaths.has(path));
 const missingFeatureAssets = [...runtimePaths].filter(path => !featureAssets.has(path));
 
@@ -63,6 +107,7 @@ if (latestVersion && !String(manifest.buildId || "").includes(latestVersion)) {
 
 if (!process.exitCode) {
   console.log(
-    `Manifest runtime validation passed. ${runtimePaths.size} loader/runtime scripts covered; latest runtime ${latestVersion}.`,
+    `Manifest runtime validation passed. ${loaderRuntimePaths.size} loader/runtime scripts and ` +
+      `${cssRuntimePaths.size} transitive CSS import(s) covered; latest runtime ${latestVersion}.`,
   );
 }
