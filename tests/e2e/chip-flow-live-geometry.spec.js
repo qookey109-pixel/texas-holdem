@@ -4,12 +4,11 @@ function closeTo(actual, expected, tolerance = 2) {
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(tolerance);
 }
 
-test("chip flow follows the rendered player and pot positions", async ({ page }) => {
+test("chip flow follows rendered positions even when the mini stack is hidden", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
 
   const renderedSeat = page.locator('#opponents .seat[data-profile-position]').first();
   await expect(renderedSeat).toBeVisible({ timeout: 10_000 });
-  await expect(renderedSeat.locator(".mini-chip-stack")).toBeVisible();
 
   const result = await page.evaluate(() => {
     const seat = els.opponents.querySelector('.seat[data-profile-position]');
@@ -20,7 +19,8 @@ test("chip flow follows the rendered player and pot positions", async ({ page })
     if (!player) throw new Error(`No player matches rendered seat position ${position}`);
 
     const playerStack = seat.querySelector(".mini-chip-stack");
-    if (!playerStack) throw new Error(`Rendered seat ${position} has no chip stack`);
+    const seatMeta = seat.querySelector(".seat-meta");
+    if (!playerStack || !seatMeta) throw new Error(`Rendered seat ${position} is missing stack anchors`);
 
     const layer = els.fxLayer;
     const centerInLayer = element => {
@@ -32,14 +32,18 @@ test("chip flow follows the rendered player and pot positions", async ({ page })
       };
     };
 
+    // Responsive layouts are allowed to hide the decorative mini stack. Force that
+    // state here and prove the runtime falls through to a measurable live anchor.
+    playerStack.style.display = "none";
     const before = resolveChipMotionGeometry(player);
-    if (!before) throw new Error("Expected live chip geometry before moving the seat");
+    if (!before) throw new Error("Expected live chip geometry with hidden mini stack");
 
+    const fallbackBefore = centerInLayer(seatMeta);
     seat.style.translate = "140px 72px";
     const after = resolveChipMotionGeometry(player);
     if (!after) throw new Error("Expected live chip geometry after moving the seat");
 
-    const actualPlayerCenter = centerInLayer(playerStack);
+    const fallbackAfter = centerInLayer(seatMeta);
     const actualPotCenter = centerInLayer(els.potChip);
 
     animateChips(player, 240);
@@ -69,21 +73,29 @@ test("chip flow follows the rendered player and pot positions", async ({ page })
     const winEnd = centerInLayer(winChip);
 
     return {
+      position,
       before,
       after,
-      actualPlayerCenter,
+      fallbackBefore,
+      fallbackAfter,
       actualPotCenter,
       flyingAnchor,
       flyingEnd,
+      flyingAmount: flyingChip.dataset.amount,
+      flyingPosition: flyingChip.dataset.playerPosition,
       winAnchor,
       winEnd,
+      winAmount: winChip.dataset.amount,
+      winPosition: winChip.dataset.playerPosition,
     };
   });
 
+  closeTo(result.before.player.x, result.fallbackBefore.x);
+  closeTo(result.before.player.y, result.fallbackBefore.y);
   closeTo(result.after.player.x - result.before.player.x, 140);
   closeTo(result.after.player.y - result.before.player.y, 72);
-  closeTo(result.after.player.x, result.actualPlayerCenter.x);
-  closeTo(result.after.player.y, result.actualPlayerCenter.y);
+  closeTo(result.after.player.x, result.fallbackAfter.x);
+  closeTo(result.after.player.y, result.fallbackAfter.y);
   closeTo(result.after.pot.x, result.actualPotCenter.x);
   closeTo(result.after.pot.y, result.actualPotCenter.y);
 
@@ -91,6 +103,8 @@ test("chip flow follows the rendered player and pot positions", async ({ page })
   closeTo(result.flyingAnchor.y, result.after.player.y);
   closeTo(result.flyingEnd.x, result.after.pot.x, 5);
   closeTo(result.flyingEnd.y, result.after.pot.y, 5);
+  expect(result.flyingAmount).toBe("240");
+  expect(result.flyingPosition).toBe(String(result.position));
 
   closeTo(result.winAnchor.x, result.after.pot.x);
   closeTo(result.winAnchor.y, result.after.pot.y);
@@ -98,4 +112,9 @@ test("chip flow follows the rendered player and pot positions", async ({ page })
     result.winEnd.x - result.after.player.x,
     result.winEnd.y - result.after.player.y,
   )).toBeLessThanOrEqual(30);
+  expect(result.winAmount).toBe("360");
+  expect(result.winPosition).toBe(String(result.position));
+
+  await page.waitForTimeout(1_900);
+  await expect(page.locator("#fxLayer .flying-chip, #fxLayer .win-chip")).toHaveCount(0);
 });
