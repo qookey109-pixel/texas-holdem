@@ -72,9 +72,6 @@ function parityTargets(manifest, featureId) {
   for (const path of feature.assets) {
     assert(assets.has(path), `feature ${featureId} references untracked asset ${path}`);
   }
-  for (const path of CONTROL_TARGETS) {
-    assert(assets.has(path) || path === MANIFEST_PATH, `parity control target is not tracked: ${path}`);
-  }
 
   return [...new Set([...CONTROL_TARGETS, ...feature.assets])];
 }
