@@ -10,6 +10,7 @@
     { "path": "styles.css", "label": "主樣式" },
     { "path": "topbar-control-alignment-v2.css", "label": "頂部控制列排列樣式" },
     { "path": "session-summary-layout-fix.css", "label": "淘汰賽結算版面修正" },
+    { "path": "desktop-responsive-layout-v1.css", "label": "桌機 Responsive 版面樣式" },
     { "path": "app.js", "label": "主程式" },
     { "path": "README.md", "label": "專案說明" },
     { "path": "PROJECT_STATUS.md", "label": "專案正式狀態" },
@@ -154,7 +155,7 @@
     {
       "id": "ui-layout-accessibility",
       "label": "Safari 轉場、DOM 穩定、官方版面、鍵盤焦點與 AI 資訊卡",
-      "assets": ["js/street-transition-performance.js", "js/hero-card-render-stability.js", "js/hole-card-motion-scope.js", "js/ui-text-write-guard.js", "js/table-status-dock.js", "js/official-layout-preset.js", "js/layout-ui.js", "js/layout-size-controls.js", "js/accessibility-focus.js", "js/ai-profile-position.js", "topbar-control-alignment-v2.css"]
+      "assets": ["js/street-transition-performance.js", "js/hero-card-render-stability.js", "js/hole-card-motion-scope.js", "js/ui-text-write-guard.js", "js/table-status-dock.js", "js/official-layout-preset.js", "js/layout-ui.js", "js/layout-size-controls.js", "js/accessibility-focus.js", "js/ai-profile-position.js", "topbar-control-alignment-v2.css", "desktop-responsive-layout-v1.css"]
     },
     {
       "id": "coach-review-audio",
