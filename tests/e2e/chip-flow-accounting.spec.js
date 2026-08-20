@@ -237,3 +237,31 @@ test("side-pot payout animation and banner match each player's exact settlement 
   await page.waitForTimeout(2_000);
   await expect(page.locator("#fxLayer .win-chip")).toHaveCount(0);
 });
+
+test("winner banner renders player names as text instead of HTML", async ({ page }) => {
+  await openFreshTable(page);
+
+  const result = await page.evaluate(() => {
+    clearAutoNewHandTimer();
+    clearDialogueTimers();
+    const winner = state.players[0];
+    const originalName = winner.name;
+    winner.name = "<b>Injected</b>";
+    state.board = [];
+
+    showWinBanner([winner], 120);
+    const label = els.showdownBanner.querySelector("strong");
+    const snapshot = {
+      text: label?.textContent || "",
+      html: label?.innerHTML || "",
+      nestedBold: label?.querySelectorAll("b").length || 0,
+    };
+
+    winner.name = originalName;
+    return snapshot;
+  });
+
+  expect(result.text).toContain("<b>Injected</b>");
+  expect(result.nestedBold).toBe(0);
+  expect(result.html).toContain("&lt;b&gt;Injected&lt;/b&gt;");
+});
