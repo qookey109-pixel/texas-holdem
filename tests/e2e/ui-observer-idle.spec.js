@@ -67,9 +67,6 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
     { timeout: 5_000 },
   ).toBe(true);
 
-  // Diagnostic-only probes: count public refresh calls and capture the first
-  // same-text write stacks during the final idle phase. These do not alter the
-  // runtime contract; they only make a WebKit failure identify its source.
   await page.evaluate(ids => {
     window.__observerRefreshProbe = { gameMode: 0, cloudSave: 0, visibleEntry: 0 };
     window.__observerWriteStacks = Object.fromEntries(ids.map(id => [id, []]));
@@ -187,6 +184,16 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
   const count = (snapshot, id) => snapshot.writesById[id] || 0;
   const skippedCount = (snapshot, id) => snapshot.skippedById[id] || 0;
   const maxIdleWrites = 12;
+  const diagnosticRows = modeObserverIds.map(id => ({
+    id,
+    idleWrites: count(afterIdle.status, id) - count(afterUnrelatedMutations.status, id),
+    refreshDelta: Object.fromEntries(Object.keys(afterIdle.refreshProbe).map(key => [
+      key,
+      afterIdle.refreshProbe[key] - afterUnrelatedMutations.refreshProbe[key],
+    ])),
+    stacks: afterIdle.writeStacks[id],
+  }));
+  console.log(`[observer-idle-diagnostics] ${JSON.stringify(diagnosticRows)}`);
 
   expect(before.supported).toBe(true);
   expect(afterRefresh.status.guardedCount).toBeGreaterThanOrEqual(guardedIds.length);
@@ -207,18 +214,8 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
   }
   expect(probeWriteAttempts).toBeGreaterThan(0);
 
-  for (const id of modeObserverIds) {
-    const idleWrites = count(afterIdle.status, id) - count(afterUnrelatedMutations.status, id);
-    const diagnostics = JSON.stringify({
-      id,
-      idleWrites,
-      refreshDelta: Object.fromEntries(Object.keys(afterIdle.refreshProbe).map(key => [
-        key,
-        afterIdle.refreshProbe[key] - afterUnrelatedMutations.refreshProbe[key],
-      ])),
-      stacks: afterIdle.writeStacks[id],
-    }, null, 2);
-    expect(idleWrites, diagnostics).toBeLessThanOrEqual(maxIdleWrites);
+  for (const row of diagnosticRows) {
+    expect(row.idleWrites, JSON.stringify(row, null, 2)).toBeLessThanOrEqual(maxIdleWrites);
   }
 
   expect(runtimeIssues, runtimeIssues.join("\n")).toEqual([]);
