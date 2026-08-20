@@ -25,16 +25,10 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
     () => page.evaluate(() => Boolean(window.TournamentCloudSave?.version)),
     { timeout: 12_000 },
   ).toBe(true);
-  // EconomyFoldDefenseV1 is a dynamically loaded compatibility layer. Wait for
-  // its final wrapper installation before establishing the observer baseline,
-  // so legitimate one-time module setup is never counted as idle UI churn.
   await expect.poll(
     () => page.evaluate(() => window.EconomyFoldDefenseV1?.status?.().installed === true),
     { timeout: 12_000 },
   ).toBe(true);
-  // The compatibility layer also schedules bounded 0/100/400/900 ms retries.
-  // Installation may become true before the final retry executes, so let all
-  // one-time retries settle while preserving the strict idle budget below.
   await page.waitForTimeout(960);
 
   await page.evaluate(() => {
@@ -73,6 +67,49 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
     { timeout: 5_000 },
   ).toBe(true);
 
+  // Diagnostic-only probes: count public refresh calls and capture the first
+  // same-text write stacks during the final idle phase. These do not alter the
+  // runtime contract; they only make a WebKit failure identify its source.
+  await page.evaluate(ids => {
+    window.__observerRefreshProbe = { gameMode: 0, cloudSave: 0, visibleEntry: 0 };
+    window.__observerWriteStacks = Object.fromEntries(ids.map(id => [id, []]));
+    window.__observerProbePhase = "setup";
+
+    const wrapRefresh = (target, key, counter) => {
+      const original = target?.[key];
+      if (typeof original !== "function" || original.__observerIdleProbeWrapped) return;
+      const wrapped = function (...args) {
+        window.__observerRefreshProbe[counter] += 1;
+        return original.apply(this, args);
+      };
+      wrapped.__observerIdleProbeWrapped = true;
+      target[key] = wrapped;
+    };
+
+    wrapRefresh(window.GameModeControlsV2, "refresh", "gameMode");
+    wrapRefresh(window.TournamentCloudSave, "refresh", "cloudSave");
+    wrapRefresh(window.TournamentModeVisibleEntry, "refresh", "visibleEntry");
+
+    for (const id of ids) {
+      const element = document.getElementById(id);
+      const descriptor = element && Object.getOwnPropertyDescriptor(element, "textContent");
+      if (!descriptor?.get || !descriptor?.set || descriptor.set.__observerIdleProbeWrapped) continue;
+      const originalSet = descriptor.set;
+      const wrappedSet = function (value) {
+        if (window.__observerProbePhase === "idle") {
+          const stacks = window.__observerWriteStacks[id];
+          if (stacks.length < 6) stacks.push(new Error(`observer-write:${id}`).stack || "");
+        }
+        return originalSet.call(this, value);
+      };
+      wrappedSet.__observerIdleProbeWrapped = true;
+      Object.defineProperty(element, "textContent", {
+        ...descriptor,
+        set: wrappedSet,
+      });
+    }
+  }, modeObserverIds);
+
   await page.waitForTimeout(180);
 
   const before = await page.evaluate(ids => {
@@ -96,16 +133,13 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
     )),
   }), guardedIds);
 
-  // Let explicit refreshes and their queued animation-frame work settle before
-  // measuring the unrelated-mutation phase. TournamentCloudSave also performs a
-  // legitimate 250 ms background sync, so the contract is bounded/idempotent
-  // activity rather than complete silence.
   await page.waitForTimeout(420);
   const settledBaseline = await page.evaluate(ids => ({
     status: window.UiTextWriteGuard.status(),
     sameNodes: ids.every(id => (
       document.getElementById(id)?.firstChild === window.__uiObserverTextNodes[id]
     )),
+    refreshProbe: { ...window.__observerRefreshProbe },
   }), guardedIds);
 
   await page.evaluate(() => {
@@ -130,8 +164,15 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
     sameNodes: ids.every(id => (
       document.getElementById(id)?.firstChild === window.__uiObserverTextNodes[id]
     )),
+    refreshProbe: { ...window.__observerRefreshProbe },
   }), guardedIds);
 
+  await page.evaluate(() => {
+    window.__observerProbePhase = "idle";
+    for (const key of Object.keys(window.__observerWriteStacks)) {
+      window.__observerWriteStacks[key] = [];
+    }
+  });
   await page.waitForTimeout(420);
 
   const afterIdle = await page.evaluate(ids => ({
@@ -139,6 +180,8 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
     sameNodes: ids.every(id => (
       document.getElementById(id)?.firstChild === window.__uiObserverTextNodes[id]
     )),
+    refreshProbe: { ...window.__observerRefreshProbe },
+    writeStacks: structuredClone(window.__observerWriteStacks),
   }), guardedIds);
 
   const count = (snapshot, id) => snapshot.writesById[id] || 0;
@@ -153,10 +196,6 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
   expect(afterUnrelatedMutations.sameNodes).toBe(true);
   expect(afterIdle.sameNodes).toBe(true);
 
-  // MutationObserver/rAF batching is browser-scheduler dependent, so do not
-  // constrain how many same-value refresh requests are coalesced from the probe.
-  // Every request must still be idempotent: no guarded text node may be rebuilt,
-  // and every mode-control text write caused while the probe settles must skip.
   let probeWriteAttempts = 0;
   for (const id of modeObserverIds) {
     const writeAttempts = count(afterUnrelatedMutations.status, id)
@@ -168,13 +207,18 @@ test("模式與雲端存檔 observer 閒置後不再每幀重建相同文字", a
   }
   expect(probeWriteAttempts).toBeGreaterThan(0);
 
-  // A real observer self-loop would approach roughly 25 writes at 60 fps during
-  // this 420 ms window. Keep the established sub-half-frame-rate ceiling while
-  // allowing the legitimate 250 ms cloud-save sync to request bounded passes.
   for (const id of modeObserverIds) {
-    expect(
-      count(afterIdle.status, id) - count(afterUnrelatedMutations.status, id),
-    ).toBeLessThanOrEqual(maxIdleWrites);
+    const idleWrites = count(afterIdle.status, id) - count(afterUnrelatedMutations.status, id);
+    const diagnostics = JSON.stringify({
+      id,
+      idleWrites,
+      refreshDelta: Object.fromEntries(Object.keys(afterIdle.refreshProbe).map(key => [
+        key,
+        afterIdle.refreshProbe[key] - afterUnrelatedMutations.refreshProbe[key],
+      ])),
+      stacks: afterIdle.writeStacks[id],
+    }, null, 2);
+    expect(idleWrites, diagnostics).toBeLessThanOrEqual(maxIdleWrites);
   }
 
   expect(runtimeIssues, runtimeIssues.join("\n")).toEqual([]);
