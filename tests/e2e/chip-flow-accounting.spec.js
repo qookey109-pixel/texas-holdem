@@ -119,7 +119,7 @@ test("chip inflow uses the actual paid amount when a player is capped all-in", a
   await expect(page.locator("#fxLayer .flying-chip")).toHaveCount(0);
 });
 
-test("side-pot payout animation matches each player's exact settlement award", async ({ page }) => {
+test("side-pot payout animation and banner match each player's exact settlement award", async ({ page }) => {
   await openFreshTable(page);
 
   const result = await page.evaluate(() => {
@@ -194,6 +194,10 @@ test("side-pot payout animation matches each player's exact settlement award", a
       heroPosition: hero.position,
       sideWinnerPosition: sideWinner.position,
       sideLoserPosition: sideLoser.position,
+      heroName: hero.name,
+      sideWinnerName: sideWinner.name,
+      heroRank: getVisibleHandRank(hero),
+      sideWinnerRank: getVisibleHandRank(sideWinner),
       heroStack: hero.stack,
       sideWinnerStack: sideWinner.stack,
       sideLoserStack: sideLoser.stack,
@@ -202,6 +206,11 @@ test("side-pot payout animation matches each player's exact settlement award", a
       wealthBefore,
       wealthAfter,
       payouts: [...payoutAnimations.entries()],
+      banner: {
+        title: els.showdownBanner.querySelector("span")?.textContent?.trim() || "",
+        names: els.showdownBanner.querySelector("strong")?.textContent?.trim() || "",
+        detail: els.showdownBanner.querySelector("em")?.textContent?.trim() || "",
+      },
     };
   });
 
@@ -217,6 +226,13 @@ test("side-pot payout animation matches each player's exact settlement award", a
   expect(payouts.get(result.sideWinnerPosition)).toEqual({ amount: 200, geometry: "live" });
   expect(payouts.has(result.sideLoserPosition)).toBe(false);
   expect([...payouts.values()].reduce((sum, payout) => sum + payout.amount, 0)).toBe(500);
+
+  expect(result.banner.title).toBe("WINNERS");
+  expect(result.banner.names).toContain(result.heroName);
+  expect(result.banner.names).toContain(result.sideWinnerName);
+  expect(result.banner.detail).toContain(`${result.heroName}：${result.heroRank} +300`);
+  expect(result.banner.detail).toContain(`${result.sideWinnerName}：${result.sideWinnerRank} +200`);
+  expect(result.banner.detail).not.toContain("+500");
 
   await page.waitForTimeout(2_000);
   await expect(page.locator("#fxLayer .win-chip")).toHaveCount(0);
