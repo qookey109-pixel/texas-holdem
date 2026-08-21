@@ -343,7 +343,7 @@ function reportBootFailure(error) {
 function loadCardThemeUi() {
   if (document.querySelector('script[data-card-theme-ui]')) return;
   const script = document.createElement("script");
-  script.src = "js/card-theme-ui.js?v=two-decks-static-glow-v81";
+  script.src = "js/card-theme-ui.js?v=runtime-20260821-r1";
   script.async = false;
   script.dataset.cardThemeUi = "true";
   document.body.appendChild(script);
@@ -371,7 +371,7 @@ async function bootGame() {
   document.documentElement.dataset.gameBootState = "loading";
   await loadScriptOnce(
     'script[data-layout-size-controls]',
-    "js/layout-size-controls.js?v=side-rail-layout-v4",
+    "js/layout-size-controls.js?v=runtime-20260821-r1",
     "data-layout-size-controls",
     { critical: true, label: "必要版面模組" },
   );
@@ -385,37 +385,37 @@ async function bootGame() {
 
   await loadScriptOnce(
     'script[data-continuous-bgm]',
-    "js/bgm-light-continuous.js?v=upbeat-loop-v2",
+    "js/bgm-light-continuous.js?v=runtime-20260821-r1",
     "data-continuous-bgm",
   );
   await loadScriptOnce(
     'script[data-sfx-volume-engine]',
-    "js/sfx-volume-engine.js?v=volume-100-v1",
+    "js/sfx-volume-engine.js?v=runtime-20260821-r1",
     "data-sfx-volume-engine",
   );
   await loadScriptOnce(
     'script[data-split-audio-controls]',
-    "js/audio-controls-split.js?v=button-popover-v4",
+    "js/audio-controls-split.js?v=runtime-20260821-r1",
     "data-split-audio-controls",
   );
   await loadScriptOnce(
     'script[data-audio-recovery]',
-    "js/audio-recovery.js?v=safari-sound-fix-v1",
+    "js/audio-recovery.js?v=runtime-20260821-r1",
     "data-audio-recovery",
   );
   await loadScriptOnce(
     'script[data-ai-emotion-face-ui]',
-    "js/ai-emotion-face-ui.js?v=reaction-corner-badges-v85",
+    "js/ai-emotion-face-ui.js?v=runtime-20260821-r1",
     "data-ai-emotion-face-ui",
   );
   await loadScriptOnce(
     'script[data-ai-timing]',
-    "js/ai-timing.js?v=personality-experience-v3",
+    "js/ai-timing.js?v=runtime-20260821-r1",
     "data-ai-timing",
   );
   await loadScriptOnce(
     'script[data-ai-turn-indicator]',
-    "js/ai-turn-indicator.js?v=single-mood-top-layer-v83",
+    "js/ai-turn-indicator.js?v=runtime-20260821-r1",
     "data-ai-turn-indicator",
   );
 

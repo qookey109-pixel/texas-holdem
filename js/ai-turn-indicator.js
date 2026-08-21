@@ -223,7 +223,7 @@
 (() => {
   if (document.querySelector('script[data-bet-info-ui]')) return;
   const script = document.createElement("script");
-  script.src = "js/bet-info-ui.js?v=bet-info-v2";
+  script.src = "js/bet-info-ui.js?v=runtime-20260821-r1";
   script.async = false;
   script.dataset.betInfoUi = "true";
   document.body.appendChild(script);
@@ -232,7 +232,7 @@
 (() => {
   if (document.querySelector('script[data-layout-corner-resize]')) return;
   const script = document.createElement("script");
-  script.src = "js/layout-corner-resize.js?v=corner-resize-v1";
+  script.src = "js/layout-corner-resize.js?v=runtime-20260821-r1";
   script.async = false;
   script.dataset.layoutCornerResize = "true";
   document.body.appendChild(script);
@@ -241,7 +241,7 @@
 (() => {
   if (document.querySelector('script[data-layout-readability-trial]')) return;
   const script = document.createElement("script");
-  script.src = "js/layout-readability-trial.js?v=readability-v1";
+  script.src = "js/layout-readability-trial.js?v=runtime-20260821-r1";
   script.async = false;
   script.dataset.layoutReadabilityTrial = "true";
   document.body.appendChild(script);
@@ -250,7 +250,7 @@
 (() => {
   if (document.querySelector('script[data-coach-review-placement]')) return;
   const script = document.createElement("script");
-  script.src = "js/coach-review-placement.js?v=coach-review-v1";
+  script.src = "js/coach-review-placement.js?v=runtime-20260821-r1";
   script.async = false;
   script.dataset.coachReviewPlacement = "true";
   document.body.appendChild(script);

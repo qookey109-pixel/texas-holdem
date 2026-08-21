@@ -122,7 +122,7 @@
     if (document.querySelector('link[data-google-auth-style]')) return;
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = "js/google-auth.css?v=google-auth-v1.1";
+    link.href = "js/google-auth.css?v=runtime-20260821-r1";
     link.dataset.googleAuthStyle = "true";
     document.head.appendChild(link);
   }

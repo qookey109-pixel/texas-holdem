@@ -6,13 +6,13 @@ function ensureAiTextureDecisionModules() {
     {
       ready: () => window.AiBoardTextureEngineV1?.version,
       selector: 'script[data-ai-board-texture-engine]',
-      src: 'js/ai-board-texture-engine-v1.js?v=board-texture-v1-0-1',
+      src: 'js/ai-board-texture-engine-v1.js?v=runtime-20260821-r1',
       dataset: 'aiBoardTextureEngine',
     },
     {
       ready: () => window.AiPostflopTexturePolicyV1?.version,
       selector: 'script[data-ai-postflop-texture-policy]',
-      src: 'js/ai-postflop-texture-policy-v1.js?v=postflop-texture-policy-v1',
+      src: 'js/ai-postflop-texture-policy-v1.js?v=runtime-20260821-r1',
       dataset: 'aiPostflopTexturePolicy',
     },
   ];
