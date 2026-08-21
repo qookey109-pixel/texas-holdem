@@ -1,0 +1,74 @@
+name: Cache generation migrate once
+
+on:
+  push:
+    branches:
+      - chore/cache-generation-authority-v1-20260821
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cache-generation-migrate-once
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: chore/cache-generation-authority-v1-20260821
+          fetch-depth: 0
+      - name: Rewrite only discovered runtime cache queries
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import re
+
+          authority = json.loads(Path('cache-generation.json').read_text())
+          generation = authority['generation']
+          targets = [
+              'index.html',
+              'js/ai-logic.js',
+              'js/ai-turn-indicator.js',
+              'js/auth-entry-v2.js',
+              'js/coach-review-placement.js',
+              'js/config.js',
+              'js/elite-character-presentation.js',
+              'js/events-boot.js',
+              'js/google-auth.js',
+              'js/official-layout-preset.js',
+              'js/tournament-cloud-save.js',
+              'js/tournament-mode-visible-entry.js',
+              'js/ui-text-write-guard.js',
+              'session-summary-layout-fix.css',
+          ]
+          pattern = re.compile(r'(?<=\?v=)[A-Za-z0-9._-]+')
+          changed = 0
+          replacements = 0
+          for name in targets:
+              path = Path(name)
+              source = path.read_text()
+              updated, count = pattern.subn(generation, source)
+              if count:
+                  path.write_text(updated)
+                  changed += 1
+                  replacements += count
+                  print(f'{name}: {count}')
+          print(f'changed_files={changed} replacements={replacements}')
+          if replacements != 117:
+              raise SystemExit(f'expected exactly 117 replacements, got {replacements}')
+          PY
+      - name: Remove one-time workflow from final branch tree
+        run: rm .github/workflows/cache-generation-migrate-once.yml
+      - name: Commit migration
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add index.html js session-summary-layout-fix.css .github/workflows/cache-generation-migrate-once.yml
+          git diff --cached --check
+          git commit -m "Use formal cache generation across runtime loaders"
+          git push origin HEAD:chore/cache-generation-authority-v1-20260821
