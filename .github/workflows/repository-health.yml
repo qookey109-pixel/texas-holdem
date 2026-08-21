@@ -54,6 +54,9 @@ jobs:
       - name: Check deployment parity script syntax
         run: node --check scripts/verify-live-static-parity.mjs
 
+      - name: Verify core-game parity target contract
+        run: node scripts/verify-live-static-parity.mjs --local-only
+
       - name: Install pinned OCI Gemini dependencies
         run: python -m pip install --disable-pip-version-check -r backend/oci-gemini-function/requirements.txt
 
