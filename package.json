@@ -7,7 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "validate": "node scripts/validate-static-site.mjs && node scripts/validate-manifest-runtime.mjs && node scripts/validate-deployment-contracts.mjs && node scripts/production-backend-smoke.mjs --contract-only",
+    "validate": "node scripts/validate-static-site.mjs && node scripts/validate-manifest-runtime.mjs && node scripts/validate-cache-generation.mjs && node scripts/validate-deployment-contracts.mjs && node scripts/production-backend-smoke.mjs --contract-only",
     "validate:deployment": "node scripts/validate-deployment-contracts.mjs",
     "validate:production-contract": "node scripts/production-backend-smoke.mjs --contract-only",
     "test:e2e": "playwright test",
