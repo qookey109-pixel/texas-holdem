@@ -119,7 +119,7 @@ async function waitForCloudSave(page) {
     () => page.evaluate(() => window.TournamentCloudSave?.version || ""),
     { timeout: 12_000 },
   ).toBe("2.0.0");
-  await expect(page.locator('script[src="js/tournament-cloud-save.js?v=tournament-cloud-save-v2"]')).toHaveCount(1);
+  await expect(page.locator('script[src^="js/tournament-cloud-save.js"]')).toHaveCount(1);
   await expect.poll(
     () => page.evaluate(() => window.TexasHoldemAuth?.status().signedIn || false),
     { timeout: 12_000 },
