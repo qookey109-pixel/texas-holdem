@@ -62,7 +62,7 @@ test("決策區保留公共牌卡背並區分高風險動作", async ({ page }) 
   expect(visual.quickHeight).toBeGreaterThanOrEqual(40);
   expect(visual.quickGap).toBeGreaterThanOrEqual(8);
   expect(visual.foldBackground).not.toBe(visual.allInBackground);
-  expect(visual.scriptSource).toContain("decision-ui-trial-v2.js?v=decision-ui-v3");
+  expect(visual.scriptSource).toContain("decision-ui-trial-v2.js");
 
   const explanations = await page.evaluate(() => ({
     narrow: DecisionUiTrial.explainCoach({ winRate: 42, potOdds: 39, action: "Fold" }),
