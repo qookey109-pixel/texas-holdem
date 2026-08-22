@@ -598,7 +598,7 @@
     if (document.querySelector('link[data-tournament-cloud-save-style]')) return;
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = "js/tournament-cloud-save.css?v=tournament-cloud-save-v1";
+    link.href = "js/tournament-cloud-save.css?v=runtime-20260821-r1";
     link.dataset.tournamentCloudSaveStyle = "true";
     document.head.appendChild(link);
   }

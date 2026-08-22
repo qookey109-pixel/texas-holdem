@@ -37,7 +37,7 @@ test("Layout V4 一次退役舊 layout generation 並從官方基線啟動", asy
 
   await page.goto("/", { waitUntil: "networkidle" });
 
-  await expect(page.locator('script[src="js/official-layout-preset.js?v=official-layout-runtime-authority-v1"]')).toHaveCount(1);
+  await expect(page.locator('script[src^="js/official-layout-preset.js"]')).toHaveCount(1);
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset?.version)).toBe("4.0.1");
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset?.runtimeAuthorityVersion)).toBe("1.0.0");
   await expect.poll(() => page.evaluate(() => window.OfficialLayoutPreset?.storageGeneration)).toBe("V4");

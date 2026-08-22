@@ -89,7 +89,7 @@
 (() => {
   if (document.querySelector('script[data-decision-ui-trial]')) return;
   const script = document.createElement("script");
-  script.src = "js/decision-ui-trial-v2.js?v=decision-ui-v3";
+  script.src = "js/decision-ui-trial-v2.js?v=runtime-20260821-r1";
   script.async = false;
   script.dataset.decisionUiTrial = "true";
   document.body.appendChild(script);
@@ -98,7 +98,7 @@
 (() => {
   if (document.querySelector('script[data-topbar-seat-polish]')) return;
   const script = document.createElement("script");
-  script.src = "js/topbar-seat-polish.js?v=topbar-seat-v1";
+  script.src = "js/topbar-seat-polish.js?v=runtime-20260821-r1";
   script.async = false;
   script.dataset.topbarSeatPolish = "true";
   document.body.appendChild(script);
