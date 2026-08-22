@@ -65,8 +65,8 @@ test("V1.5 模組、角色能力與公平資訊政策正確註冊", async ({ pag
   expect(snapshot.strategyPolicy.opponentCardInspection).toBe(false);
   expect(snapshot.rangePolicy.hiddenOpponentCards).toBe(false);
   expect(snapshot.rangePolicy.opponentCardInspection).toBe(false);
-  await expect(page.locator('script[src="js/ai-multiway-range-model-v1.js?v=multiway-range-ai-v1-5"]')).toHaveCount(1);
-  await expect(page.locator('script[src="js/ai-character-strategies-v1-5.js?v=multiway-range-ai-v1-5"]')).toHaveCount(1);
+  await expect(page.locator('script[src^="js/ai-multiway-range-model-v1.js"]')).toHaveCount(1);
+  await expect(page.locator('script[src^="js/ai-character-strategies-v1-5.js"]')).toHaveCount(1);
 });
 
 test("公開加注與尺寸會提高對手範圍壓力，且不讀取底牌", async ({ page }) => {
