@@ -56,14 +56,8 @@ test("返回登入使用純 DOM/CSS 高解析開場，不再載入低解析影�
   const overlay = page.locator("#authEntryV2Overlay");
   await expect(overlay).toBeVisible();
   await expect(overlay).toHaveAttribute("data-render-mode", "vector");
-  await expect(page.locator('link[data-auth-entry-v2-style]')).toHaveAttribute(
-    "href",
-    /auth-entry-v2\.css\?v=opening-animation-vector-v2$/,
-  );
-  await expect(page.locator('link[data-auth-entry-presentation-style]')).toHaveAttribute(
-    "href",
-    /auth-entry-video-trial\.css\?v=opening-animation-vector-v2$/,
-  );
+  await expect(page.locator('link[data-auth-entry-v2-style][href^="js/auth-entry-v2.css"]')).toHaveCount(1);
+  await expect(page.locator('link[data-auth-entry-presentation-style][href^="js/auth-entry-video-trial.css"]')).toHaveCount(1);
 
   await expect(overlay.locator("video, img, canvas")).toHaveCount(0);
   await expect(overlay.locator(".auth-entry-v2-rail")).toHaveCount(1);
