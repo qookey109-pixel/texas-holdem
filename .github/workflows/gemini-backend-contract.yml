@@ -1,0 +1,48 @@
+name: Gemini backend shared contract
+
+on:
+  push:
+    paths:
+      - "backend/gemini-worker/src/index.js"
+      - "backend/oci-gemini-function/func.py"
+      - "tests/contracts/gemini-backend-contract.mjs"
+      - "tests/contracts/oci-gemini-contract-probe.py"
+      - "tests/fixtures/gemini-backend-contract-v1.json"
+      - ".github/workflows/gemini-backend-contract.yml"
+  pull_request:
+    paths:
+      - "backend/gemini-worker/src/index.js"
+      - "backend/oci-gemini-function/func.py"
+      - "tests/contracts/gemini-backend-contract.mjs"
+      - "tests/contracts/oci-gemini-contract-probe.py"
+      - "tests/fixtures/gemini-backend-contract-v1.json"
+      - ".github/workflows/gemini-backend-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Check contract harness syntax
+        run: |
+          node --check tests/contracts/gemini-backend-contract.mjs
+          python -m py_compile tests/contracts/oci-gemini-contract-probe.py
+
+      - name: Enforce Worker and OCI shared contract
+        run: node tests/contracts/gemini-backend-contract.mjs
