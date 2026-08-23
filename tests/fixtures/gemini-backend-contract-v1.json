@@ -1,0 +1,342 @@
+{
+  "schemaVersion": 1,
+  "canonicalRequest": {
+    "requestId": "shared-contract-v1",
+    "handNumber": 42,
+    "street": "turn",
+    "position": "BTN",
+    "holeCards": [
+      {
+        "rank": "A",
+        "suit": "spades"
+      },
+      {
+        "rank": "K",
+        "suit": "hearts"
+      }
+    ],
+    "board": [
+      {
+        "rank": "Q",
+        "suit": "clubs"
+      },
+      {
+        "rank": "7",
+        "suit": "diamonds"
+      },
+      {
+        "rank": "2",
+        "suit": "hearts"
+      },
+      {
+        "rank": "J",
+        "suit": "clubs"
+      }
+    ],
+    "pot": 240,
+    "currentBet": 40,
+    "callAmount": 40,
+    "minRaiseTo": 80,
+    "maxRaiseTo": 600,
+    "stack": 920,
+    "playerBet": 0,
+    "legalActions": [
+      "fold",
+      "call",
+      "raise",
+      "raise"
+    ],
+    "players": [
+      {
+        "name": "Gemini",
+        "position": "BTN",
+        "stack": 920,
+        "bet": 0,
+        "folded": false,
+        "allIn": false,
+        "lastAction": "",
+        "isHuman": false
+      },
+      {
+        "name": "Hero",
+        "position": "BB",
+        "stack": 800,
+        "bet": 40,
+        "folded": false,
+        "allIn": false,
+        "lastAction": "raise",
+        "isHuman": true
+      }
+    ],
+    "tournamentObservation": {
+      "schemaVersion": 3,
+      "scope": "client-supplied-value",
+      "actor": "Gemini",
+      "actorArrival": {
+        "arrivalHand": 30,
+        "observedHandsBeforeArrival": 29,
+        "tier": "gemini",
+        "hiddenCards": [
+          "AA"
+        ]
+      },
+      "tournament": {
+        "mode": "tournament",
+        "handNumber": 42,
+        "blindLevel": 5,
+        "appeared": [
+          "Nova",
+          "Viper",
+          "Gemini"
+        ],
+        "eliminated": [
+          "Nova"
+        ],
+        "queueRemaining": 2,
+        "finished": false,
+        "futureBoard": [
+          "As"
+        ]
+      },
+      "playerModel": {
+        "handsObserved": 38,
+        "actionsObserved": 91,
+        "byStreet": {
+          "preflop": {
+            "actions": 20,
+            "pressureSamples": 8,
+            "aggressionRate": 0.42,
+            "foldToPressure": 0.37
+          },
+          "turn": {
+            "actions": 11,
+            "checkedPressureSamples": 4,
+            "checkRaiseRate": 0.18
+          }
+        },
+        "byPosition": [
+          {
+            "position": "BTN",
+            "actions": 12,
+            "openRate": 0.31,
+            "threeBetRate": 0.09
+          },
+          {
+            "position": "BB",
+            "actions": 10,
+            "foldToPressure": 0.44,
+            "callVsPressure": 0.33
+          }
+        ],
+        "recentPublicEvents": [
+          {
+            "handNumber": 40,
+            "street": "flop",
+            "position": "BB",
+            "action": "call",
+            "sizeFraction": 0.5,
+            "facedAggression": true,
+            "checkedBefore": false,
+            "priorRaises": 1,
+            "opponentHoleCards": [
+              "AA"
+            ]
+          },
+          {
+            "handNumber": 41,
+            "street": "turn",
+            "position": "BTN",
+            "action": "raise",
+            "sizeFraction": 0.75,
+            "facedAggression": false,
+            "checkedBefore": true,
+            "priorRaises": 0
+          }
+        ],
+        "hiddenCards": [
+          "QQ"
+        ]
+      },
+      "heroSession": {
+        "hands": 42,
+        "vpipRate": 0.29,
+        "foldRate": 0.41,
+        "callRate": 0.27,
+        "raiseRate": 0.21,
+        "checkRate": 0.32,
+        "allInRate": 0.03,
+        "showdownRate": 0.24,
+        "winRate": 0.52,
+        "currentCards": [
+          "AK"
+        ]
+      },
+      "repeatedPreflopAllIn": {
+        "windowHands": 20,
+        "observedHands": 20,
+        "jamHands": 2,
+        "weightedJamRate": 0.1,
+        "consecutiveJams": 0
+      },
+      "revealedShowdowns": {
+        "samples": 4,
+        "bucketCounts": {
+          "top-pair": 2,
+          "draw": 1
+        },
+        "currentHiddenCards": [
+          "72o"
+        ]
+      },
+      "futureBoard": [
+        "As",
+        "Ks"
+      ],
+      "opponentHoleCards": [
+        "AA"
+      ]
+    }
+  },
+  "invalidRequestCases": [
+    {
+      "name": "illegal legal action",
+      "overrides": {
+        "legalActions": [
+          "fold",
+          "peek"
+        ]
+      },
+      "status": 400,
+      "error": "legalActions is invalid."
+    },
+    {
+      "name": "requires two private cards",
+      "overrides": {
+        "holeCards": [
+          {
+            "rank": "A",
+            "suit": "spades"
+          }
+        ]
+      },
+      "status": 400,
+      "error": "Exactly two private cards are required."
+    },
+    {
+      "name": "rejects oversized board",
+      "overrides": {
+        "board": [
+          {
+            "rank": "2",
+            "suit": "clubs"
+          },
+          {
+            "rank": "3",
+            "suit": "clubs"
+          },
+          {
+            "rank": "4",
+            "suit": "clubs"
+          },
+          {
+            "rank": "5",
+            "suit": "clubs"
+          },
+          {
+            "rank": "6",
+            "suit": "clubs"
+          },
+          {
+            "rank": "7",
+            "suit": "clubs"
+          }
+        ]
+      },
+      "status": 400,
+      "error": "Board contains too many cards."
+    },
+    {
+      "name": "rejects invalid raise bounds",
+      "overrides": {
+        "minRaiseTo": 0
+      },
+      "status": 400,
+      "error": "Raise bounds are invalid."
+    }
+  ],
+  "decisionCases": [
+    {
+      "name": "valid raise",
+      "input": {
+        "action": "raise",
+        "raiseTo": 160,
+        "dialogue": "  壓力   測試  ",
+        "emotion": "confident",
+        "reason": "  公開資訊   支持加注  "
+      },
+      "expected": {
+        "action": "raise",
+        "raiseTo": 160,
+        "dialogue": "壓力 測試",
+        "emotion": "confident",
+        "reason": "公開資訊 支持加注"
+      }
+    },
+    {
+      "name": "non-raise clears raiseTo and normalizes emotion",
+      "input": {
+        "action": "call",
+        "raiseTo": 500,
+        "dialogue": "跟注",
+        "emotion": "unknown",
+        "reason": "控池"
+      },
+      "expected": {
+        "action": "call",
+        "raiseTo": 0,
+        "dialogue": "跟注",
+        "emotion": "calm",
+        "reason": "控池"
+      }
+    }
+  ],
+  "invalidDecisionCases": [
+    {
+      "name": "rejects illegal action",
+      "input": {
+        "action": "check",
+        "raiseTo": 0,
+        "dialogue": "",
+        "emotion": "calm",
+        "reason": ""
+      },
+      "error": "Gemini returned an illegal action."
+    },
+    {
+      "name": "rejects out-of-range raise",
+      "input": {
+        "action": "raise",
+        "raiseTo": 700,
+        "dialogue": "",
+        "emotion": "calm",
+        "reason": ""
+      },
+      "error": "Gemini returned an out-of-range raise size."
+    }
+  ],
+  "forbiddenObservationKeys": [
+    "hiddenCards",
+    "futureBoard",
+    "opponentHoleCards",
+    "currentCards",
+    "currentHiddenCards"
+  ],
+  "requiredObservationAssertions": {
+    "scope": "shared-public-tournament-observation",
+    "schemaVersion": 3,
+    "actor": "Gemini",
+    "appearedCount": 3,
+    "eliminatedCount": 1,
+    "queueRemaining": 2
+  }
+}
