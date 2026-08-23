@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { posix } from "node:path";
 
 const ROOT = new URL("../", import.meta.url);
+const RESPONSIVE_ENTRY = "desktop-responsive-layout-v1.css";
 
 async function read(path) {
   return readFile(new URL(path, ROOT), "utf8");
@@ -39,8 +40,22 @@ function cssImports(source, sourcePath) {
   return imports;
 }
 
-const [loaderSource, manifestSource] = await Promise.all([
+function htmlStylesheets(source, sourcePath) {
+  const stylesheets = new Set();
+  for (const match of source.matchAll(/<link\b[^>]*>/gi)) {
+    const tag = match[0];
+    const rel = tag.match(/\brel=["']([^"']+)["']/i)?.[1] || "";
+    if (!rel.split(/\s+/).some(value => value.toLowerCase() === "stylesheet")) continue;
+    const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1] || "";
+    const resolved = resolveLocalReference(href, sourcePath);
+    if (resolved?.endsWith(".css")) stylesheets.add(resolved);
+  }
+  return stylesheets;
+}
+
+const [loaderSource, indexSource, manifestSource] = await Promise.all([
   read("js/elite-character-presentation.js"),
+  read("index.html"),
   read("build-manifest.json"),
 ]);
 
@@ -57,6 +72,7 @@ for (const match of loaderSource.matchAll(/["'](js\/[^"'?]+\.js)(?:\?[^"']*)?["'
   loaderRuntimePaths.add(match[1]);
 }
 
+const entryStylesheetPaths = htmlStylesheets(indexSource, "index.html");
 const cssRuntimePaths = new Set();
 for (const cssPath of [...assetPaths].filter(path => path.endsWith(".css"))) {
   let source = "";
@@ -72,9 +88,20 @@ for (const cssPath of [...assetPaths].filter(path => path.endsWith(".css"))) {
   }
 }
 
-const runtimePaths = new Set([...loaderRuntimePaths, ...cssRuntimePaths]);
+if (!entryStylesheetPaths.has(RESPONSIVE_ENTRY)) {
+  fail(`index.html must directly load ${RESPONSIVE_ENTRY}; do not hide the responsive entry behind another stylesheet import.`);
+}
+if (cssRuntimePaths.has(RESPONSIVE_ENTRY)) {
+  fail(`${RESPONSIVE_ENTRY} must be a direct index.html stylesheet entry, not a transitive CSS import.`);
+}
+if (!featureAssets.has(RESPONSIVE_ENTRY)) {
+  fail(`build-manifest.json feature map must retain ${RESPONSIVE_ENTRY}.`);
+}
+
+const runtimePaths = new Set([...loaderRuntimePaths, ...entryStylesheetPaths, ...cssRuntimePaths]);
 const missingAssets = [...runtimePaths].filter(path => !assetPaths.has(path));
-const missingFeatureAssets = [...runtimePaths].filter(path => !featureAssets.has(path));
+const missingFeatureAssets = [...new Set([...loaderRuntimePaths, ...cssRuntimePaths])]
+  .filter(path => !featureAssets.has(path));
 
 const runtimeVersions = [...runtimePaths]
   .flatMap(path => [...path.matchAll(/v(\d+)-(\d+)(?:-(\d+))?/g)])
@@ -107,7 +134,8 @@ if (latestVersion && !String(manifest.buildId || "").includes(latestVersion)) {
 
 if (!process.exitCode) {
   console.log(
-    `Manifest runtime validation passed. ${loaderRuntimePaths.size} loader/runtime scripts and ` +
-      `${cssRuntimePaths.size} transitive CSS import(s) covered; latest runtime ${latestVersion}.`,
+    `Manifest runtime validation passed. ${loaderRuntimePaths.size} loader/runtime scripts, ` +
+      `${entryStylesheetPaths.size} direct stylesheet entry/entries, and ${cssRuntimePaths.size} transitive CSS import(s) covered; ` +
+      `latest runtime ${latestVersion}.`,
   );
 }
