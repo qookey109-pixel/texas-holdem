@@ -1,5 +1,3 @@
-@import url("./desktop-responsive-layout-v1.css?v=runtime-20260821-r1");
-
 /* Keep normal and tournament session reports in document flow at short desktop heights. */
 .session-summary-modal {
   width: min(1120px, calc(100vw - 24px));
