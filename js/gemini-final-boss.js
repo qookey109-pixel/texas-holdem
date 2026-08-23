@@ -282,8 +282,14 @@
       settingsPanel.appendChild(button);
     }
 
-    button.setAttribute("aria-pressed", String(isBossMode()));
-    button.textContent = isBossMode() ? "👑 Gemini 挑戰中" : "👑 挑戰 Gemini";
+    const pressed = String(isBossMode());
+    if (button.getAttribute("aria-pressed") !== pressed) {
+      button.setAttribute("aria-pressed", pressed);
+    }
+    const label = isBossMode() ? "👑 Gemini 挑戰中" : "👑 挑戰 Gemini";
+    if (button.textContent !== label) {
+      button.textContent = label;
+    }
     return true;
   }
 
