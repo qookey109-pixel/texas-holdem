@@ -187,7 +187,7 @@ test("V1.4 載入長期玩家記憶且只允許聚合公開資訊", async ({ pag
     actualDeckOrderPersisted: false,
     futureBoardPersisted: false,
   });
-  await expect(page.locator('script[src="js/ai-player-model-memory-v1.js?v=long-term-ai-memory-v1-4"]')).toHaveCount(1);
+  await expect(page.locator('script[src^="js/ai-player-model-memory-v1.js"]')).toHaveCount(1);
 });
 
 test("聚合玩家模型在重新整理後保留，逐步行動不會被保存", async ({ page }) => {

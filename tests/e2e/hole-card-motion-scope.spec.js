@@ -17,8 +17,8 @@ test("翻牌轉牌河牌只發公共牌，所有玩家底牌不再重播動畫",
     () => page.evaluate(() => window.HoleCardMotionScope?.version || ""),
     { timeout: 12_000 },
   ).toBe("1.1.0");
-  await expect(page.locator('script[src="js/hero-card-render-stability.js?v=hero-cards-v3"]')).toHaveCount(1);
-  await expect(page.locator('script[src="js/hole-card-motion-scope.js?v=hole-card-motion-v1"]')).toHaveCount(1);
+  await expect(page.locator('script[src^="js/hero-card-render-stability.js"]')).toHaveCount(1);
+  await expect(page.locator('script[src^="js/hole-card-motion-scope.js"]')).toHaveCount(1);
 
   const result = await page.evaluate(async () => {
     window.AiTimingController?.clear?.();

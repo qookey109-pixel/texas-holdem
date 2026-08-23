@@ -7,9 +7,9 @@
 
   const CONFIG = Object.freeze({
     identityStorageKey: "texasHoldemPlayerIdentityV1",
-    coreScriptUrl: "js/google-auth.js?v=google-auth-v1.1",
-    styleUrl: "js/auth-entry-v2.css?v=opening-animation-vector-v2",
-    presentationStyleUrl: "js/auth-entry-video-trial.css?v=opening-animation-vector-v2",
+    coreScriptUrl: "js/google-auth.js?v=runtime-20260821-r1",
+    styleUrl: "js/auth-entry-v2.css?v=runtime-20260821-r1",
+    presentationStyleUrl: "js/auth-entry-video-trial.css?v=runtime-20260821-r1",
     minimumDurationMs: 6500,
     authSettleTimeoutMs: 18000,
   });

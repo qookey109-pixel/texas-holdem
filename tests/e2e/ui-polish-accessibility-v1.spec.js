@@ -22,15 +22,24 @@ test("UI polish adds control semantics, selected quick bets, and modal motion", 
     await expect(button).toHaveAttribute("aria-pressed", "false");
   }
 
-  const halfPot = page.locator('.quick-bets button[data-bet="half"]');
-  await page.evaluate(() => {
-    const button = document.querySelector('.quick-bets button[data-bet="half"]');
-    window.UiPolishAccessibilityV1.setQuickBetSelection(button);
+  const quickBetSelection = await page.evaluate(() => {
+    const half = document.querySelector('.quick-bets button[data-bet="half"]');
+    const third = document.querySelector('.quick-bets button[data-bet="third"]');
+    const pot = document.querySelector('.quick-bets button[data-bet="pot"]');
+    window.UiPolishAccessibilityV1.setQuickBetSelection(half);
+    return {
+      halfPressed: half?.getAttribute("aria-pressed"),
+      halfSelected: half?.classList.contains("is-selected"),
+      thirdPressed: third?.getAttribute("aria-pressed"),
+      potPressed: pot?.getAttribute("aria-pressed"),
+    };
   });
-  await expect(halfPot).toHaveAttribute("aria-pressed", "true");
-  await expect(halfPot).toHaveClass(/is-selected/);
-  await expect(page.locator('.quick-bets button[data-bet="third"]')).toHaveAttribute("aria-pressed", "false");
-  await expect(page.locator('.quick-bets button[data-bet="pot"]')).toHaveAttribute("aria-pressed", "false");
+  expect(quickBetSelection).toEqual({
+    halfPressed: "true",
+    halfSelected: true,
+    thirdPressed: "false",
+    potPressed: "false",
+  });
 
   await page.locator("#raiseAmount").evaluate(slider => {
     slider.value = slider.min;
@@ -46,10 +55,15 @@ test("UI polish adds control semantics, selected quick bets, and modal motion", 
   expect(await tutorialOverlay.evaluate(element => getComputedStyle(element).animationName)).toContain("uiPolishOverlayIn");
   expect(await page.locator(".tutorial-modal").evaluate(element => getComputedStyle(element).animationName)).toContain("uiPolishModalIn");
 
-  await page.locator("#tutorialCloseButton").click();
-  await page.waitForTimeout(30);
-  await expect(tutorialOverlay).toBeVisible();
-  await expect(tutorialOverlay).toHaveClass(/ui-polish-closing/);
+  const closeState = await page.locator("#tutorialCloseButton").evaluate(button => {
+    button.click();
+    const overlay = document.querySelector("#tutorialOverlay");
+    return {
+      hidden: Boolean(overlay?.hidden),
+      closing: Boolean(overlay?.classList.contains("ui-polish-closing")),
+    };
+  });
+  expect(closeState).toEqual({ hidden: false, closing: true });
   await expect(tutorialOverlay).toBeHidden({ timeout: 1_000 });
   await expect(tutorialButton).toHaveAttribute("aria-pressed", "false");
 

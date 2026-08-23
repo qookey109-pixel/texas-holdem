@@ -19,7 +19,7 @@
     if (document.querySelector('script[data-game-mode-controls-v2]')) return false;
 
     const script = document.createElement("script");
-    script.src = "js/game-mode-controls-v2.js?v=normal-default-gemini-instant-off-v1";
+    script.src = "js/game-mode-controls-v2.js?v=runtime-20260821-r1";
     script.async = false;
     script.dataset.gameModeControlsV2 = "true";
     script.addEventListener("load", scheduleSync, { once: true });
@@ -35,7 +35,7 @@
     if (document.querySelector('script[data-tournament-cloud-save]')) return false;
 
     const script = document.createElement("script");
-    script.src = "js/tournament-cloud-save.js?v=tournament-cloud-save-v2";
+    script.src = "js/tournament-cloud-save.js?v=runtime-20260821-r1";
     script.async = false;
     script.dataset.tournamentCloudSave = "true";
     script.addEventListener("load", scheduleSync, { once: true });
@@ -51,7 +51,7 @@
     if (document.querySelector('script[data-street-transition-performance]')) return false;
 
     const script = document.createElement("script");
-    script.src = "js/street-transition-performance.js?v=street-paint-v2";
+    script.src = "js/street-transition-performance.js?v=runtime-20260821-r1";
     script.async = false;
     script.dataset.streetTransitionPerformance = "true";
     document.body.appendChild(script);

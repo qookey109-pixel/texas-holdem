@@ -123,7 +123,7 @@
   "use strict";
   if (document.querySelector("script[data-layout-editor-compact-tools-v1]")) return;
   const script = document.createElement("script");
-  script.src = "js/layout-editor-compact-tools-v1.js?v=compact-tools-v1";
+  script.src = "js/layout-editor-compact-tools-v1.js?v=runtime-20260821-r1";
   script.async = false;
   script.dataset.layoutEditorCompactToolsV1 = "true";
   document.body.appendChild(script);
@@ -135,7 +135,7 @@
   "use strict";
   if (document.querySelector("script[data-ui-polish-accessibility-v1]")) return;
   const script = document.createElement("script");
-  script.src = "js/ui-polish-accessibility-v1.js?v=ui-polish-a11y-v1";
+  script.src = "js/ui-polish-accessibility-v1.js?v=runtime-20260821-r1";
   script.async = false;
   script.dataset.uiPolishAccessibilityV1 = "true";
   document.body.appendChild(script);
@@ -147,7 +147,7 @@
   "use strict";
   if (document.querySelector("script[data-ai-wtsd-discipline-v2-9-5-r1]")) return;
   const script = document.createElement("script");
-  script.src = "js/ai-wtsd-discipline-v2-9-5-r1.js?v=wtsd-recovery-r1";
+  script.src = "js/ai-wtsd-discipline-v2-9-5-r1.js?v=runtime-20260821-r1";
   script.async = false;
   script.dataset.aiWtsdDisciplineV295R1 = "true";
   document.body.appendChild(script);
@@ -160,7 +160,7 @@
   "use strict";
   if (document.querySelector("script[data-long-session-mode-v1]")) return;
   const script = document.createElement("script");
-  script.src = "js/long-session-mode-v1.js?v=long-session-opt-in-v1";
+  script.src = "js/long-session-mode-v1.js?v=runtime-20260821-r1";
   script.async = false;
   script.dataset.longSessionModeV1 = "true";
   document.body.appendChild(script);
@@ -172,7 +172,7 @@
   "use strict";
   if (document.querySelector("script[data-long-session-entry-visibility-v1]")) return;
   const script = document.createElement("script");
-  script.src = "js/long-session-entry-visibility-v1.js?v=hidden-entry-v1";
+  script.src = "js/long-session-entry-visibility-v1.js?v=runtime-20260821-r1";
   script.async = false;
   script.dataset.longSessionEntryVisibilityV1 = "true";
   document.body.appendChild(script);
@@ -194,6 +194,7 @@
   const RETRY_LIMIT = 400;
   let retryCount = 0;
   let bodyObserver = null;
+  let lastLongSessionBodyState = null;
 
   function longSessionOwnsGeminiControl() {
     const snapshot = window.LongSessionModeV1?.snapshot?.();
@@ -230,6 +231,19 @@
     return true;
   }
 
+  function longSessionBodyState() {
+    return Boolean(document.body?.classList.contains("is-long-session-mode"));
+  }
+
+  function syncOnLongSessionBodyTransition() {
+    const nextState = longSessionBodyState();
+    if (nextState === lastLongSessionBodyState) return false;
+    lastLongSessionBodyState = nextState;
+    preserveWrapperMetadata();
+    restoreGeminiControlOwnership();
+    return true;
+  }
+
   function installBridge() {
     if (!window.LongSessionModeV1?.isInstalled?.()) {
       if (retryCount < RETRY_LIMIT) {
@@ -241,12 +255,10 @@
 
     preserveWrapperMetadata();
     restoreGeminiControlOwnership();
+    lastLongSessionBodyState = longSessionBodyState();
 
     if (!bodyObserver) {
-      bodyObserver = new MutationObserver(() => {
-        preserveWrapperMetadata();
-        restoreGeminiControlOwnership();
-      });
+      bodyObserver = new MutationObserver(syncOnLongSessionBodyTransition);
       bodyObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
     }
 
@@ -256,7 +268,7 @@
       )) return;
       window.setTimeout(() => {
         preserveWrapperMetadata();
-        restoreGeminiControlOwnership();
+        syncOnLongSessionBodyTransition();
       }, 0);
     });
 

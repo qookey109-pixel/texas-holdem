@@ -285,21 +285,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const loadTournamentGeminiBridge = () => loadTrackedScript({
     selector: 'script[data-tournament-gemini-bridge]',
-    src: "js/tournament-gemini-bridge.js?v=secure-final-boss-v1",
+    src: "js/tournament-gemini-bridge.js?v=runtime-20260821-r1",
     dataAttribute: "data-tournament-gemini-bridge",
     label: "Tournament Gemini bridge",
   });
 
   const loadTournamentVisibleEntry = () => loadTrackedScript({
     selector: 'script[data-tournament-visible-entry]',
-    src: "js/tournament-mode-visible-entry.js?v=visible-entry-v1",
+    src: "js/tournament-mode-visible-entry.js?v=runtime-20260821-r1",
     dataAttribute: "data-tournament-visible-entry",
     label: "Tournament visible entry",
   });
 
   const loadReplacementStackBalance = () => loadTrackedScript({
     selector: 'script[data-replacement-stack-balance]',
-    src: "js/replacement-stack-balance.js?v=table-average-v1",
+    src: "js/replacement-stack-balance.js?v=runtime-20260821-r1",
     dataAttribute: "data-replacement-stack-balance",
     label: "Replacement stack authority",
     critical: true,
@@ -315,14 +315,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const loadTableStatusDock = () => loadTrackedScript({
     selector: 'script[data-table-status-dock]',
-    src: "js/table-status-dock.js?v=board-safe-v1",
+    src: "js/table-status-dock.js?v=runtime-20260821-r1",
     dataAttribute: "data-table-status-dock",
     label: "Table status dock",
   });
 
   const loadEliteCharacterPresentation = () => loadTrackedScript({
     selector: 'script[data-elite-character-presentation]',
-    src: "js/elite-character-presentation.js?v=tiered-multiway-equity-v2-7",
+    src: "js/elite-character-presentation.js?v=runtime-20260821-r1",
     dataAttribute: "data-elite-character-presentation",
     label: "AI V2.9.5 authority chain",
     critical: true,
@@ -343,7 +343,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const loadCoachHandReviewIntegration = () => loadTrackedScript({
     selector: 'script[data-coach-hand-review-integration]',
-    src: "js/coach-hand-review-integration.js?v=coach-review-v1",
+    src: "js/coach-hand-review-integration.js?v=runtime-20260821-r1",
     dataAttribute: "data-coach-hand-review-integration",
     label: "Coach hand-review integration",
   });
@@ -431,7 +431,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const loadGoogleAuth = () => loadTrackedScript({
     selector: 'script[data-google-auth]',
-    src: "js/auth-entry-v2.js?v=auth-entry-safari-runtime-v3",
+    src: "js/auth-entry-v2.js?v=runtime-20260821-r1",
     dataAttribute: "data-google-auth",
     label: "Google auth entry",
     onLoad: installGoogleAuthTopbarPlacement,
@@ -448,7 +448,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!document.querySelector('script[data-tournament-mode]')) {
     loadTrackedScript({
       selector: 'script[data-tournament-mode]',
-      src: "js/tournament-mode.js?v=elimination-mode-v1",
+      src: "js/tournament-mode.js?v=runtime-20260821-r1",
       dataAttribute: "data-tournament-mode",
       label: "Tournament mode",
       onLoad: () => {
@@ -469,14 +469,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   loadTrackedScript({
     selector: 'script[data-ai-profile-position]',
-    src: "js/ai-profile-position.js?v=nearby-seat-v1",
+    src: "js/ai-profile-position.js?v=runtime-20260821-r1",
     dataAttribute: "data-ai-profile-position",
     label: "AI profile position",
   });
 
   loadTrackedScript({
     selector: 'script[data-accessibility-focus]',
-    src: "js/accessibility-focus.js?v=desktop-a11y-v2",
+    src: "js/accessibility-focus.js?v=runtime-20260821-r1",
     dataAttribute: "data-accessibility-focus",
     label: "Accessibility focus",
   });

@@ -7,7 +7,7 @@
   const VERSION = "4.0.1";
   const RUNTIME_AUTHORITY_VERSION = "1.0.0";
   const READABILITY_VERSION = "1.2.0";
-  const READABILITY_SRC = "js/layout-readability-trial.js?v=layout-v4-position-authority-v2";
+  const READABILITY_SRC = "js/layout-readability-trial.js?v=runtime-20260821-r1";
   const SIZE_STORAGE_KEY = "texasHoldemLayoutSizesV2";
   const POT_STORAGE_KEY = "texasHoldemPotScaleV1";
   const RUNTIME_READY_ATTRIBUTE = "data-official-layout-runtime-ready";
