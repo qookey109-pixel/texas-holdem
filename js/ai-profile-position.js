@@ -4,7 +4,10 @@
 
   if (window.AiProfilePositioner?.version || typeof window.renderAiProfilePanel !== "function") return;
 
-  const EDGE_PADDING = 10;
+  // WebKit can render the transformed profile box a few fractional pixels
+  // outside its untransformed offset box. Keep a small containment reserve so
+  // the visible card still clears the table edge on Safari.
+  const EDGE_PADDING = 16;
   const GAP = 12;
   let scheduledFrame = 0;
   let panelResizeObserver = null;
@@ -59,22 +62,8 @@
       { name: "right-below", side: "left", left: seat.right + GAP, top: seat.top },
       { name: "right-above", side: "left", left: seat.right + GAP, top: seat.bottom - panelHeight },
       { name: "left-below", side: "right", left: seat.left - GAP - panelWidth, top: seat.top },
-      { name: "left-above", side: "right", left: seat.left - GAP - panelWidth, top: seat.bottom - panelHeight },
+      { name: "left-above", side: "right", left: seat.left - GAP, top: seat.bottom - panelHeight },
     ];
-  }
-
-  function collectAvoidRects(arena, arenaRect, selectedSeat) {
-    const selectors = [
-      ".controls",
-      "#playerCards",
-      ".pot-chip",
-      ".board-cards",
-      ".seat[data-profile-position]",
-    ];
-    return selectors.flatMap(selector => Array.from(arena.querySelectorAll(selector)))
-      .filter(node => node !== selectedSeat && !node.hidden)
-      .map(node => localRect(node.getBoundingClientRect(), arenaRect))
-      .filter(rect => rect.width > 0 && rect.height > 0);
   }
 
   function scoreCandidate(candidate, panelWidth, panelHeight, arenaWidth, arenaHeight, seat, avoidRects, index) {
@@ -93,6 +82,20 @@
       + obstruction * 2.5
       + distance * 0.08
       + index;
+  }
+
+  function collectAvoidRects(arena, arenaRect, selectedSeat) {
+    const selectors = [
+      ".controls",
+      "#playerCards",
+      ".pot-chip",
+      ".board-cards",
+      ".seat[data-profile-position]",
+    ];
+    return selectors.flatMap(selector => Array.from(arena.querySelectorAll(selector)))
+      .filter(node => node !== selectedSeat && !node.hidden)
+      .map(node => localRect(node.getBoundingClientRect(), arenaRect))
+      .filter(rect => rect.width > 0 && rect.height > 0);
   }
 
   function applyPosition() {
