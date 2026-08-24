@@ -7,8 +7,10 @@ const ONE_PIXEL_PNG = Buffer.from(
 
 test("guest can rename Hero, choose an avatar, and keep the profile after reload", async ({ page }) => {
   await page.addInitScript(() => {
+    if (sessionStorage.getItem("playerProfileGuestPersistenceInit") === "1") return;
     localStorage.removeItem("texasHoldemGuestProfileV1");
     localStorage.removeItem("texasHoldemPlayerIdentityV1");
+    sessionStorage.setItem("playerProfileGuestPersistenceInit", "1");
   });
 
   await page.goto("/");
