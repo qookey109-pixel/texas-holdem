@@ -578,8 +578,6 @@
         currentProviderProfile = null;
         lastError = "";
         activateProfile(guestProfile, "guest");
-      } else {
-        renderActiveProfile();
       }
       return;
     }
