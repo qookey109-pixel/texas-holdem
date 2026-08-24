@@ -66,6 +66,20 @@
     ];
   }
 
+  function collectAvoidRects(arena, arenaRect, selectedSeat) {
+    const selectors = [
+      ".controls",
+      "#playerCards",
+      ".pot-chip",
+      ".board-cards",
+      ".seat[data-profile-position]",
+    ];
+    return selectors.flatMap(selector => Array.from(arena.querySelectorAll(selector)))
+      .filter(node => node !== selectedSeat && !node.hidden)
+      .map(node => localRect(node.getBoundingClientRect(), arenaRect))
+      .filter(rect => rect.width > 0 && rect.height > 0);
+  }
+
   function scoreCandidate(candidate, panelWidth, panelHeight, arenaWidth, arenaHeight, seat, avoidRects, index) {
     const rect = panelRectAt(candidate, panelWidth, panelHeight);
     const overflow = overflowAmount(rect, arenaWidth, arenaHeight);
@@ -82,20 +96,6 @@
       + obstruction * 2.5
       + distance * 0.08
       + index;
-  }
-
-  function collectAvoidRects(arena, arenaRect, selectedSeat) {
-    const selectors = [
-      ".controls",
-      "#playerCards",
-      ".pot-chip",
-      ".board-cards",
-      ".seat[data-profile-position]",
-    ];
-    return selectors.flatMap(selector => Array.from(arena.querySelectorAll(selector)))
-      .filter(node => node !== selectedSeat && !node.hidden)
-      .map(node => localRect(node.getBoundingClientRect(), arenaRect))
-      .filter(rect => rect.width > 0 && rect.height > 0);
   }
 
   function applyPosition() {
