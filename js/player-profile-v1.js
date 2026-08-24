@@ -36,6 +36,8 @@
   let activeSource = "guest";
   let guestProfile = readGuestProfile();
   let lastAuthUserId = "";
+  let lastAuthSignature = "";
+  let deferredAuthSignature = "";
   let syncing = false;
   let lastError = "";
   let authTimer = null;
@@ -100,7 +102,6 @@
     if (kind === "provider") value = safeHttpsUrl(raw.avatarValue);
     if (kind === "custom") value = safeDataAvatar(raw.avatarValue) || safeHttpsUrl(raw.avatarValue);
     if (!value) {
-      value = fallback.avatarValue;
       return {
         ...fallback,
         displayName: cleanName(raw.displayName) || fallback.displayName,
@@ -122,8 +123,8 @@
     const kind = AVATAR_KINDS.has(raw.avatar_kind ?? raw.avatarKind)
       ? (raw.avatar_kind ?? raw.avatarKind)
       : "preset";
-    let value = "";
     const rawValue = raw.avatar_value ?? raw.avatarValue;
+    let value = "";
     if (kind === "preset") value = presetKey(rawValue);
     if (kind === "provider" || kind === "custom") value = safeHttpsUrl(rawValue);
     if (!displayName) return null;
@@ -144,7 +145,7 @@
     try {
       localStorage.setItem(CONFIG.guestStorageKey, JSON.stringify(guestProfile));
     } catch (_) {
-      // Guest profile remains usable for the active tab when storage is blocked.
+      // The active tab can still use the profile when storage is blocked.
     }
     return guestProfile;
   }
@@ -165,13 +166,46 @@
     };
   }
 
+  function authStatus() {
+    try {
+      return window.TexasHoldemAuth?.status?.() || {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function authSignature(auth = authStatus()) {
+    return `${auth.signedIn ? "1" : "0"}|${cleanText(auth.email, 100)}|${cleanName(auth.name)}`;
+  }
+
+  // Name authority is intentionally narrower than avatar presentation.
+  // A default Guest profile is passive so it cannot overwrite Google identity,
+  // Tournament cloud-save restores, or any other existing game-owned name.
+  function ownsGameName() {
+    if (activeSource === "cloud" && activeProfile) return true;
+    if (authStatus().signedIn) return false;
+    return activeSource === "guest" && guestProfile?.nameCustomized === true;
+  }
+
   function installStylesheet() {
-    if (document.querySelector('link[data-player-profile-style]')) return;
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = CONFIG.styleUrl;
-    link.dataset.playerProfileStyle = "true";
-    document.head.appendChild(link);
+    if (!document.querySelector('link[data-player-profile-style]')) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = CONFIG.styleUrl;
+      link.dataset.playerProfileStyle = "true";
+      document.head.appendChild(link);
+    }
+    if (!document.querySelector("#playerProfileGeometryGuard")) {
+      const style = document.createElement("style");
+      style.id = "playerProfileGeometryGuard";
+      style.textContent = `
+        .player-profile-hero-button { left: -50px !important; }
+        @media (max-width: 900px) {
+          .player-profile-hero-button { left: -42px !important; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
   }
 
   function avatarMarkup(idPrefix) {
@@ -241,6 +275,7 @@
         </div>
       </div>`;
     document.body.appendChild(overlay);
+
     overlay.querySelector("#playerProfileClose")?.addEventListener("click", closeEditor);
     overlay.querySelector("#playerProfileCancel")?.addEventListener("click", closeEditor);
     overlay.querySelector("#playerProfileUploadButton")?.addEventListener("click", () => {
@@ -293,7 +328,8 @@
     let button = document.querySelector("#playerProfileButton");
     if (panel && !button) {
       button = createHeroButton();
-      panel.classList.add("player-profile-enabled");
+      // Do not add the legacy padding class: the avatar is an overlay and must
+      // not change the player-panel box used by responsive/Safari geometry.
       panel.prepend(button);
     }
     let overlay = document.querySelector("#playerProfileOverlay");
@@ -310,11 +346,10 @@
     }
     if (!mountTimer) {
       mountTimer = window.setInterval(() => {
-        if (ensureUi().mounted) {
-          window.clearInterval(mountTimer);
-          mountTimer = null;
-          renderActiveProfile();
-        }
+        if (!ensureUi().mounted) return;
+        window.clearInterval(mountTimer);
+        mountTimer = null;
+        renderActiveProfile();
       }, 100);
     }
   }
@@ -345,9 +380,16 @@
     }
   }
 
+  function currentPresentationProfile() {
+    if (activeSource === "cloud" && activeProfile) return activeProfile;
+    if (authStatus().signedIn && currentProviderProfile) return currentProviderProfile;
+    return guestProfile;
+  }
+
   function applyProfileToGame() {
-    const profile = activeProfile || guestProfile;
-    if (!profile) return;
+    if (!ownsGameName()) return;
+    const profile = activeSource === "cloud" ? activeProfile : guestProfile;
+    if (!profile?.displayName) return;
     try {
       if (typeof state !== "undefined" && state.players?.[0]) state.players[0].name = profile.displayName;
       const nameNode = document.querySelector("#playerName");
@@ -372,8 +414,7 @@
 
   function renderActiveProfile() {
     ensureUi();
-    const profile = activeProfile || guestProfile;
-    setAvatar(document.querySelector('[data-profile-avatar-shell="hero"]'), profile);
+    setAvatar(document.querySelector('[data-profile-avatar-shell="hero"]'), currentPresentationProfile());
     applyProfileToGame();
     mirrorProfileIntoAuthUi();
   }
@@ -381,18 +422,16 @@
   function activateProfile(profile, source) {
     activeProfile = source === "cloud" ? normalizeCloud(profile) : normalizeGuest(profile);
     activeSource = source === "cloud" && activeProfile ? "cloud" : "guest";
-    if (!activeProfile) activeProfile = guestProfile;
+    if (activeSource === "guest") activeProfile = guestProfile;
     renderActiveProfile();
     renderEditorState();
   }
 
   async function createClient() {
     if (window.__SUPABASE_PLAYER_PROFILE_TEST_CLIENT__) return window.__SUPABASE_PLAYER_PROFILE_TEST_CLIENT__;
-    if (
-      window.__SUPABASE_AUTH_TEST_CLIENT__
-      && typeof window.__SUPABASE_AUTH_TEST_CLIENT__.from === "function"
-      && window.__SUPABASE_AUTH_TEST_CLIENT__.storage
-    ) return window.__SUPABASE_AUTH_TEST_CLIENT__;
+    // Existing auth-only E2E mocks intentionally do not emulate the profile
+    // table/storage. Stay passive instead of falling through to live network.
+    if (window.__SUPABASE_AUTH_TEST_CLIENT__) return null;
     const module = await import(CONFIG.clientModuleUrl);
     if (typeof module.createClient !== "function") throw new Error("玩家 profile 模組載入失敗");
     return module.createClient(CONFIG.projectUrl, CONFIG.publishableKey, {
@@ -402,7 +441,7 @@
 
   async function ensureClient() {
     if (!clientPromise) {
-      clientPromise = createClient().catch(error => {
+      clientPromise = Promise.resolve(createClient()).catch(error => {
         clientPromise = null;
         throw error;
       });
@@ -412,6 +451,7 @@
 
   async function authenticatedContext() {
     const client = await ensureClient();
+    if (!client?.auth?.getSession) return null;
     const { data, error } = await client.auth.getSession();
     if (error) throw error;
     const user = data?.session?.user;
@@ -442,7 +482,7 @@
     try {
       await client.storage.from(CONFIG.bucket).remove([avatarObjectPath(userId)]);
     } catch (_) {
-      // A missing previous custom avatar is not an error.
+      // Missing prior custom avatars are harmless.
     }
   }
 
@@ -453,28 +493,31 @@
       avatar_value: profile.avatarValue,
     });
     if (!normalized) throw new Error("玩家個人資料格式不正確");
-    const now = new Date().toISOString();
     const { error } = await context.client.from(CONFIG.table).upsert({
       user_id: context.user.id,
       display_name: normalized.displayName,
       avatar_kind: normalized.avatarKind,
       avatar_value: normalized.avatarValue,
-      updated_at: now,
+      updated_at: new Date().toISOString(),
     }, { onConflict: "user_id" });
     if (error) throw error;
     return normalized;
   }
 
+  async function dataUrlToBlob(value) {
+    const response = await fetch(value);
+    return response.blob();
+  }
+
   async function seedCloudProfile(context) {
     currentProviderProfile = providerProfileFromUser(context.user);
-    let seed = {
+    const seed = {
       displayName: guestProfile.nameCustomized ? guestProfile.displayName : currentProviderProfile.displayName,
       avatarKind: guestProfile.avatarCustomized ? guestProfile.avatarKind : currentProviderProfile.avatarKind,
       avatarValue: guestProfile.avatarCustomized ? guestProfile.avatarValue : currentProviderProfile.avatarValue,
     };
     if (seed.avatarKind === "custom" && safeDataAvatar(seed.avatarValue)) {
-      const blob = await dataUrlToBlob(seed.avatarValue);
-      seed.avatarValue = await uploadAvatar(context.client, context.user.id, blob);
+      seed.avatarValue = await uploadAvatar(context.client, context.user.id, await dataUrlToBlob(seed.avatarValue));
     }
     if (seed.avatarKind === "provider") {
       seed.avatarValue = safeHttpsUrl(seed.avatarValue) || currentProviderProfile.avatarValue;
@@ -484,14 +527,18 @@
 
   async function syncSignedInProfile() {
     if (syncing) return;
+    const auth = authStatus();
+    if (!auth.signedIn) return;
     syncing = true;
     lastError = "";
     renderEditorState();
     try {
       const context = await authenticatedContext();
       if (!context) {
-        lastAuthUserId = "";
-        activateProfile(guestProfile, "guest");
+        // Google Auth remains the name authority until a profile-capable
+        // Supabase context is available. Never replace it with Guest Owl.
+        deferredAuthSignature = authSignature(auth);
+        renderActiveProfile();
         return;
       }
       currentProviderProfile = providerProfileFromUser(context.user);
@@ -504,15 +551,15 @@
       const cloud = normalizeCloud(data);
       const resolved = cloud || await seedCloudProfile(context);
       lastAuthUserId = cleanText(context.user.id, 80);
+      lastAuthSignature = authSignature(auth);
+      deferredAuthSignature = "";
       activateProfile(resolved, "cloud");
     } catch (error) {
       lastError = cleanText(error?.message || error, 180) || "玩家資料同步失敗";
-      const authName = cleanName(window.TexasHoldemAuth?.status?.().name);
-      activateProfile({
-        display_name: authName || DEFAULT_NAME,
-        avatar_kind: currentProviderProfile?.avatarKind || "preset",
-        avatar_value: currentProviderProfile?.avatarValue || "owl",
-      }, "cloud");
+      // Failure is non-destructive: the existing Google Auth identity stays on
+      // the table and Guest data remains separate for a later sign-out.
+      deferredAuthSignature = authSignature(auth);
+      renderActiveProfile();
     } finally {
       syncing = false;
       renderEditorState();
@@ -520,11 +567,14 @@
   }
 
   async function reconcileAuthState() {
-    const auth = window.TexasHoldemAuth?.status?.();
+    const auth = authStatus();
     if (!auth || auth.loading) return;
+    const signature = authSignature(auth);
     if (!auth.signedIn) {
-      if (lastAuthUserId || activeSource !== "guest") {
+      if (lastAuthUserId || activeSource !== "guest" || lastAuthSignature || deferredAuthSignature) {
         lastAuthUserId = "";
+        lastAuthSignature = "";
+        deferredAuthSignature = "";
         currentProviderProfile = null;
         lastError = "";
         activateProfile(guestProfile, "guest");
@@ -533,16 +583,17 @@
       }
       return;
     }
-    try {
-      const context = await authenticatedContext();
-      const userId = cleanText(context?.user?.id, 80);
-      if (!userId) return;
-      if (userId !== lastAuthUserId || activeSource !== "cloud") await syncSignedInProfile();
-      else mirrorProfileIntoAuthUi();
-    } catch (error) {
-      lastError = cleanText(error?.message || error, 180);
-      renderEditorState();
+
+    if (activeSource === "cloud" && signature === lastAuthSignature) {
+      mirrorProfileIntoAuthUi();
+      return;
     }
+    if (signature === deferredAuthSignature) {
+      // Auth-only test doubles and transient sync failures remain passive until
+      // the identity actually changes or refresh() is explicitly requested.
+      return;
+    }
+    await syncSignedInProfile();
   }
 
   function loadImage(file) {
@@ -574,11 +625,6 @@
     });
   }
 
-  async function dataUrlToBlob(value) {
-    const response = await fetch(value);
-    return response.blob();
-  }
-
   async function normalizeAvatarFile(file) {
     if (!file || !ALLOWED_SOURCE_TYPES.has(file.type)) throw new Error("請選擇 JPG、PNG 或 WebP 圖片");
     if (file.size > CONFIG.maxSourceBytes) throw new Error("原始圖片請小於 8 MB");
@@ -593,17 +639,7 @@
     const sourceY = Math.max(0, (image.naturalHeight - sourceSize) / 2);
     context.fillStyle = "#101923";
     context.fillRect(0, 0, CONFIG.avatarSize, CONFIG.avatarSize);
-    context.drawImage(
-      image,
-      sourceX,
-      sourceY,
-      sourceSize,
-      sourceSize,
-      0,
-      0,
-      CONFIG.avatarSize,
-      CONFIG.avatarSize,
-    );
+    context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, CONFIG.avatarSize, CONFIG.avatarSize);
     let blob = await canvasBlob(canvas, "image/webp", 0.86);
     if (!blob) blob = await canvasBlob(canvas, "image/jpeg", 0.88);
     if (!blob) throw new Error("瀏覽器無法輸出大頭貼");
@@ -656,8 +692,9 @@
   function renderEditorState() {
     const overlay = document.querySelector("#playerProfileOverlay");
     if (!overlay) return;
-    const signedIn = activeSource === "cloud" && Boolean(window.TexasHoldemAuth?.status?.().signedIn);
-    const auth = window.TexasHoldemAuth?.status?.() || {};
+    const auth = authStatus();
+    const signedIn = Boolean(auth.signedIn);
+    const cloudReady = signedIn && activeSource === "cloud";
     const bindingState = overlay.querySelector("#playerProfileBindingState");
     const bindingTitle = overlay.querySelector("#playerProfileBindingTitle");
     const bindingDetail = overlay.querySelector("#playerProfileBindingDetail");
@@ -665,10 +702,10 @@
     const accountButton = overlay.querySelector("#playerProfileAccountButton");
     const providerButton = overlay.querySelector("#playerProfileProviderAvatarButton");
     const saveButton = overlay.querySelector("#playerProfileSave");
-    if (bindingState) bindingState.textContent = signedIn ? "Google 已綁定" : "遊客模式";
+    if (bindingState) bindingState.textContent = cloudReady ? "Google 已綁定" : (signedIn ? "Google 已登入" : "遊客模式");
     if (bindingTitle) bindingTitle.textContent = signedIn ? "Google 雲端 profile" : "遊客資料";
     if (bindingDetail) bindingDetail.textContent = signedIn
-      ? `已綁定 ${cleanText(auth.email, 80) || "目前 Google 帳號"}；此 profile 可跨裝置同步。`
+      ? `已登入 ${cleanText(auth.email, 80) || "目前 Google 帳號"}；同步完成後此 profile 可跨裝置使用。`
       : "名稱與頭像只存在這台瀏覽器；登入 Google 後可建立或讀取雲端 profile。";
     if (bindButton) bindButton.hidden = signedIn;
     if (accountButton) accountButton.hidden = !signedIn;
@@ -677,23 +714,34 @@
     if (syncing) setEditorStatus("正在同步玩家個人資料…", "pending");
     else if (lastError) setEditorStatus(`雲端同步提示：${lastError}`, "error");
     else if (!overlay.hidden) setEditorStatus(
-      signedIn ? "修改後會同步到這個 Google 帳號。" : "遊客修改只會儲存在這台裝置。",
-      signedIn ? "success" : "neutral",
+      cloudReady ? "修改後會同步到這個 Google 帳號。" : (signedIn ? "正在使用 Google 身份；雲端 profile 尚未完成同步。" : "遊客修改只會儲存在這台裝置。"),
+      cloudReady ? "success" : "neutral",
     );
+  }
+
+  function editorBaseProfile() {
+    if (activeSource === "cloud" && activeProfile) return activeProfile;
+    if (authStatus().signedIn) {
+      const authName = cleanName(authStatus().name);
+      return {
+        ...guestProfile,
+        displayName: authName || guestProfile.displayName,
+        ...(currentProviderProfile || {}),
+      };
+    }
+    return guestProfile;
   }
 
   function openEditor() {
     const { overlay } = ensureUi();
-    const profile = activeProfile || guestProfile;
-    draftProfile = { ...profile };
+    draftProfile = { ...editorBaseProfile() };
     draftAvatarBlob = null;
     draftNameTouched = false;
     draftAvatarTouched = false;
     const nameInput = overlay.querySelector("#playerProfileNameInput");
     if (nameInput) nameInput.value = draftProfile.displayName;
-    renderDraft();
-    renderEditorState();
     overlay.hidden = false;
+    renderDraft();
     renderEditorState();
     window.setTimeout(() => nameInput?.focus(), 0);
   }
@@ -717,7 +765,7 @@
       return false;
     }
     draftProfile.displayName = displayName;
-    const signedIn = Boolean(window.TexasHoldemAuth?.status?.().signedIn);
+    const signedIn = Boolean(authStatus().signedIn);
     const saveButton = document.querySelector("#playerProfileSave");
     if (saveButton) saveButton.disabled = true;
     setEditorStatus(signedIn ? "正在同步到 Google profile…" : "正在儲存遊客資料…", "pending");
@@ -733,9 +781,9 @@
         setEditorStatus("遊客個人資料已儲存在這台裝置。", "success");
       } else {
         const context = await authenticatedContext();
-        if (!context) throw new Error("Google 工作階段已失效，請重新登入");
+        if (!context) throw new Error("Google profile 同步尚未就緒，請稍後再試");
         currentProviderProfile = providerProfileFromUser(context.user);
-        let cloudDraft = { ...draftProfile };
+        const cloudDraft = { ...draftProfile };
         if (cloudDraft.avatarKind === "custom" && draftAvatarBlob) {
           cloudDraft.avatarValue = await uploadAvatar(context.client, context.user.id, draftAvatarBlob);
         } else if (cloudDraft.avatarKind === "custom") {
@@ -744,12 +792,13 @@
         } else {
           await removeStoredAvatar(context.client, context.user.id);
           if (cloudDraft.avatarKind === "provider") {
-            cloudDraft.avatarValue = safeHttpsUrl(cloudDraft.avatarValue)
-              || currentProviderProfile.avatarValue;
+            cloudDraft.avatarValue = safeHttpsUrl(cloudDraft.avatarValue) || currentProviderProfile.avatarValue;
           }
         }
         const saved = await upsertCloudProfile(context, cloudDraft);
         lastAuthUserId = cleanText(context.user.id, 80);
+        lastAuthSignature = authSignature();
+        deferredAuthSignature = "";
         lastError = "";
         activateProfile(saved, "cloud");
         setEditorStatus("玩家名稱與大頭貼已同步到 Google profile。", "success");
@@ -770,7 +819,8 @@
     const node = document.querySelector("#playerName");
     if (!node) return;
     nameObserver = new MutationObserver(() => {
-      const expected = (activeProfile || guestProfile)?.displayName;
+      if (!ownsGameName()) return;
+      const expected = (activeSource === "cloud" ? activeProfile : guestProfile)?.displayName;
       if (!expected || node.textContent === expected) return;
       applyProfileToGame();
     });
@@ -786,7 +836,6 @@
       return result;
     };
     wrapped.playerProfileIdentityWrapped = true;
-    // Prevent the auth layer's delayed wrapper from being re-applied outside this profile wrapper.
     wrapped.googleAuthIdentityWrapped = true;
     window.startHand = wrapped;
     return true;
@@ -812,16 +861,20 @@
   });
 
   window.TexasHoldemPlayerProfile = Object.freeze({
-    version: "1.0.0",
+    version: "1.1.0",
     open: openEditor,
     close: closeEditor,
-    refresh: syncSignedInProfile,
+    refresh: async () => {
+      deferredAuthSignature = "";
+      await syncSignedInProfile();
+    },
     status: () => ({
       source: activeSource,
-      signedIn: Boolean(window.TexasHoldemAuth?.status?.().signedIn),
-      displayName: (activeProfile || guestProfile)?.displayName || DEFAULT_NAME,
-      avatarKind: (activeProfile || guestProfile)?.avatarKind || "preset",
+      signedIn: Boolean(authStatus().signedIn),
+      displayName: (activeSource === "cloud" ? activeProfile : guestProfile)?.displayName || DEFAULT_NAME,
+      avatarKind: currentPresentationProfile()?.avatarKind || "preset",
       syncing,
+      ownsGameName: ownsGameName(),
       lastError,
     }),
   });
