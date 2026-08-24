@@ -62,7 +62,7 @@
       { name: "right-below", side: "left", left: seat.right + GAP, top: seat.top },
       { name: "right-above", side: "left", left: seat.right + GAP, top: seat.bottom - panelHeight },
       { name: "left-below", side: "right", left: seat.left - GAP - panelWidth, top: seat.top },
-      { name: "left-above", side: "right", left: seat.left - GAP, top: seat.bottom - panelHeight },
+      { name: "left-above", side: "right", left: seat.left - GAP - panelWidth, top: seat.bottom - panelHeight },
     ];
   }
 
