@@ -95,6 +95,31 @@
       + index;
   }
 
+  function correctRenderedContainment(arena, panel) {
+    if (!arena || !panel || panel.hidden) return;
+    const arenaRect = arena.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    if (!arenaRect.width || !arenaRect.height || !panelRect.width || !panelRect.height) return;
+
+    let deltaX = 0;
+    let deltaY = 0;
+    const minLeft = arenaRect.left + EDGE_PADDING;
+    const minTop = arenaRect.top + EDGE_PADDING;
+    const maxRight = arenaRect.right - EDGE_PADDING;
+    const maxBottom = arenaRect.bottom - EDGE_PADDING;
+
+    if (panelRect.left < minLeft) deltaX += minLeft - panelRect.left;
+    if (panelRect.right > maxRight) deltaX -= panelRect.right - maxRight;
+    if (panelRect.top < minTop) deltaY += minTop - panelRect.top;
+    if (panelRect.bottom > maxBottom) deltaY -= panelRect.bottom - maxBottom;
+    if (Math.abs(deltaX) < 0.01 && Math.abs(deltaY) < 0.01) return;
+
+    const currentLeft = Number.parseFloat(panel.style.left);
+    const currentTop = Number.parseFloat(panel.style.top);
+    if (Number.isFinite(currentLeft) && deltaX) panel.style.left = `${currentLeft + deltaX}px`;
+    if (Number.isFinite(currentTop) && deltaY) panel.style.top = `${currentTop + deltaY}px`;
+  }
+
   function applyPosition() {
     scheduledFrame = 0;
     const arena = document.querySelector("#arena");
@@ -145,6 +170,7 @@
     panel.style.top = `${Math.round(top)}px`;
     panel.dataset.anchorPosition = best.name;
     panel.dataset.anchorSide = best.side;
+    correctRenderedContainment(arena, panel);
   }
 
   function schedulePosition() {
@@ -211,6 +237,10 @@
     panelResizeObserver?.disconnect();
     panelResizeObserver = new ResizeObserver(schedulePosition);
     panelResizeObserver.observe(panel);
+    panel.addEventListener("animationend", event => {
+      if (event.target !== panel || event.animationName !== "aiProfileNearbyIn") return;
+      correctRenderedContainment(document.querySelector("#arena"), panel);
+    });
   }
 
   const originalRenderAiProfilePanel = window.renderAiProfilePanel;
@@ -225,7 +255,7 @@
   window.addEventListener("resize", schedulePosition, { passive: true });
 
   window.AiProfilePositioner = {
-    version: "1.0.0",
+    version: "1.0.1",
     refresh: schedulePosition,
     positionNow: applyPosition,
   };
