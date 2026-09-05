@@ -21,16 +21,8 @@
       <button class="instrument-btn" data-instrument="classical" type="button"><span class="instrument-icon">♬</span><span>古典吉他</span><small>NYLON</small></button>
     </section>
 
-    <section class="settings-row">
-      <div class="mode-switcher">
-        <button class="mode-btn active" data-play-mode="single" type="button">🎯 單弦精準</button>
-        <button class="mode-btn" data-play-mode="chord" type="button">🎼 和弦刷弦</button>
-      </div>
-      <div class="orientation-switcher">
-        <button class="orientation-btn active" data-orientation="right" type="button">右手吉他</button>
-        <button class="orientation-btn" data-orientation="left" type="button">左手吉他</button>
-      </div>
-      <p id="modeHelp" class="mode-help">右手吉他預設：琴頸在左、琴身在右。</p>
+    <section class="settings-row" aria-label="演奏方式">
+      <p id="modeHelp" class="mode-help">🎸 自動演奏 · 右手吉他：單指撥弦就是單弦；左手按住和弦後，右手直接上下刷弦。</p>
     </section>
 
     <section class="stage-card">
@@ -38,13 +30,13 @@
         <video id="camera" playsinline muted></video>
         <canvas id="canvas"></canvas>
         <div class="instrument-badge"><strong id="instrumentBadgeName">電吉他</strong><span id="instrumentBadgeDetail">6 弦 · HIGH GAIN</span></div>
-        <div id="chordBadge" class="chord-badge hidden"><span>CHORD</span><strong id="chordName">等待按弦</strong></div>
+        <div id="chordBadge" class="chord-badge"><span>CHORD</span><strong id="chordName">OPEN</strong></div>
 
         <div id="permissionOverlay" class="permission-overlay">
           <div class="permission-panel">
             <div class="guitar-mark">ϟ</div>
-            <h2>先測試聲音，再開鏡頭</h2>
-            <p>右手吉他已修正成琴頸在左、琴身在右。若 Safari 沒聲音，先按「測試聲音」解鎖音訊，再開啟鏡頭。</p>
+            <h2>直接開始演奏</h2>
+            <p>固定右手吉他：琴頸在左、琴身在右。不用切換模式；右手可直接單弦撥奏或上下刷弦，左手在指板按住和弦後會自動套用和弦音。</p>
             <button id="overlayTestSoundBtn" class="control-btn sound" type="button">🔊 測試聲音</button>
             <button id="startCameraBtn" class="primary-btn" type="button">開啟鏡頭與樂器</button>
           </div>
@@ -72,6 +64,6 @@
     </section>
   </main>
   <script src="./audio-guard-v5.js?v=1"></script>
-  <script type="module" src="./app-v5.js?v=1"></script>
+  <script type="module" src="./app-v6.js?v=1"></script>
 </body>
 </html>
