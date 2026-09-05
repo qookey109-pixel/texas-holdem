@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#09090b" />
-  <title>Virtual Metal Guitar</title>
+  <title>Virtual Guitar Studio</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
@@ -12,7 +12,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">HAND TRACKED INSTRUMENT</p>
-        <h1>VIRTUAL METAL GUITAR</h1>
+        <h1>VIRTUAL GUITAR STUDIO</h1>
       </div>
       <div class="status-wrap">
         <span id="cameraDot" class="dot"></span>
@@ -20,17 +20,37 @@
       </div>
     </header>
 
+    <section class="instrument-switcher" aria-label="樂器切換">
+      <button class="instrument-btn" data-instrument="bass" type="button">
+        <span class="instrument-icon">𝄢</span><span>貝斯</span><small>4 STRINGS</small>
+      </button>
+      <button class="instrument-btn active" data-instrument="electric" type="button">
+        <span class="instrument-icon">ϟ</span><span>電吉他</span><small>ELECTRIC</small>
+      </button>
+      <button class="instrument-btn" data-instrument="acoustic" type="button">
+        <span class="instrument-icon">◉</span><span>民謠吉他</span><small>ACOUSTIC</small>
+      </button>
+      <button class="instrument-btn" data-instrument="classical" type="button">
+        <span class="instrument-icon">♬</span><span>古典吉他</span><small>NYLON</small>
+      </button>
+    </section>
+
     <section class="stage-card">
       <div id="stage" class="stage">
         <video id="camera" playsinline muted></video>
         <canvas id="canvas"></canvas>
 
+        <div id="instrumentBadge" class="instrument-badge">
+          <strong id="instrumentBadgeName">電吉他</strong>
+          <span id="instrumentBadgeDetail">6 弦 · HIGH GAIN</span>
+        </div>
+
         <div id="permissionOverlay" class="permission-overlay">
           <div class="permission-panel">
             <div class="guitar-mark">ϟ</div>
             <h2>開啟鏡頭後即可演奏</h2>
-            <p>畫面會自動左右鏡像。把手指移到虛擬吉他六條弦上，跨過弦線即可撥弦。</p>
-            <button id="startCameraBtn" class="primary-btn">開啟鏡頭與吉他</button>
+            <p>先選樂器，再開啟鏡頭。把手指移到虛擬琴弦上，跨過弦線就會撥弦；演奏中也能即時切換樂器。</p>
+            <button id="startCameraBtn" class="primary-btn">開啟鏡頭與樂器</button>
           </div>
         </div>
 
@@ -46,8 +66,8 @@
         <button id="fullscreenBtn" class="control-btn">⛶ 全螢幕</button>
 
         <label class="slider-control">
-          <span>失真 DRIVE</span>
-          <input id="driveSlider" type="range" min="10" max="120" value="72" />
+          <span id="toneLabel">失真 DRIVE</span>
+          <input id="driveSlider" type="range" min="0" max="120" value="72" />
         </label>
         <label class="slider-control">
           <span>音量</span>
@@ -56,7 +76,7 @@
       </div>
 
       <div class="info-row">
-        <span>🎸 六弦：E2 · A2 · D3 · G3 · B3 · E4</span>
+        <span id="tuningText">🎸 電吉他六弦：E2 · A2 · D3 · G3 · B3 · E4</span>
         <span id="codecText">錄影格式檢查中…</span>
       </div>
     </section>
