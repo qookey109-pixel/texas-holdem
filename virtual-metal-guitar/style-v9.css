@@ -1,0 +1,63 @@
+/* v9 compact performance layout: camera + physical-key chord guide visible together. */
+.app-shell{width:min(1380px,100%);padding:12px 14px 16px}
+.topbar{margin-bottom:8px;align-items:center}.eyebrow{font-size:9px;margin-bottom:2px}h1{font-size:clamp(20px,2.1vw,30px)}
+.instrument-switcher{gap:7px;margin-bottom:7px}
+.instrument-btn{min-height:52px;padding:7px 10px;grid-template-columns:26px 1fr;gap:0 7px}
+.instrument-icon{font-size:18px}.instrument-btn>span:not(.instrument-icon){font-size:12px}.instrument-btn small{font-size:8px}
+.settings-row{margin-bottom:8px;padding:7px 10px;border-radius:10px}.mode-help{font-size:11px;line-height:1.35}
+
+.performance-layout{display:grid;grid-template-columns:minmax(0,1.68fr) minmax(330px,.72fr);gap:10px;align-items:start}
+.performance-layout .stage-card{min-width:0}
+.stage-card{border-radius:14px}
+.stage{min-height:0;aspect-ratio:16/9}
+.permission-panel{width:min(470px,calc(100% - 28px));padding:18px}.guitar-mark{font-size:38px}.permission-panel h2{font-size:20px;margin:2px 0 6px}.permission-panel p{font-size:12px;line-height:1.45;margin:0 0 12px}
+.primary-btn{padding:10px 14px;font-size:12px}.permission-panel .control-btn{padding:8px 10px;font-size:11px}
+.controls{gap:6px;padding:8px 10px}.control-btn{padding:7px 9px;font-size:11px}.slider-control{font-size:10px;gap:5px}.slider-control input{width:92px}
+.info-row{padding:7px 10px 9px;gap:7px;font-size:10px}
+
+.chord-keyboard-card{margin:0;padding:10px;border-radius:14px;position:sticky;top:8px}
+.chord-keyboard-head{display:block;margin-bottom:8px;position:relative}.chord-keyboard-head>div{display:none}
+.keyboard-chord-display{width:100%;min-height:86px;display:flex;align-items:center;justify-content:center;gap:16px;padding:12px;border-color:color-mix(in srgb,var(--accent) 55%,#30303a);background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 12%,#15151a),#0d0d11)}
+.keyboard-chord-display span{font:900 24px ui-monospace,SFMono-Regular,Menlo,monospace;color:#a1a1aa}
+.keyboard-chord-display strong{font:950 clamp(28px,3.2vw,44px) ui-monospace,SFMono-Regular,Menlo,monospace;color:#fff;letter-spacing:-.04em}
+.keyboard-chord-display:before{content:"目前和弦";font-size:9px;letter-spacing:.16em;color:#6f6f79;position:absolute;margin-top:-62px}
+
+.chord-keyboard{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.chord-key{min-height:48px;padding:5px;gap:3px;border-radius:9px}
+.chord-key kbd{min-width:26px;padding:2px 5px;font-size:11px}.chord-key span{font-size:10px}
+.chord-key.open{grid-column:1/-1;min-height:42px;flex-direction:row;gap:10px}.chord-key.open kbd{min-width:62px}
+
+.keymap-editor{margin-top:8px;padding-top:7px}.keymap-editor summary{font-size:11px}.keymap-hint{font-size:9px;margin-bottom:6px}
+.keymap-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.keymap-grid label{padding:4px;gap:4px}.keymap-grid kbd{min-width:22px;font-size:9px;padding:2px 3px}.keymap-select{padding:4px 5px;font-size:9px}
+.keymap-actions{margin-top:6px;font-size:9px}.keymap-actions .control-btn{padding:5px 7px;font-size:9px}
+
+.instrument-badge,.chord-badge,.record-badge{font-size:9px;padding:6px 8px}.instrument-badge{left:9px;top:9px}.chord-badge{top:9px}.record-badge{right:9px;top:9px}
+
+@media(max-width:1080px){
+  .performance-layout{grid-template-columns:minmax(0,1fr) 300px}
+  .keyboard-chord-display{min-height:74px}
+  .keyboard-chord-display strong{font-size:28px}
+  .slider-control{width:auto}
+}
+@media(max-width:900px){
+  .performance-layout{grid-template-columns:1fr}
+  .chord-keyboard-card{position:static}
+  .chord-keyboard{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .chord-key.open{grid-column:span 1;flex-direction:column}
+  .keyboard-chord-display{min-height:68px}
+  .keyboard-chord-display:before{margin-top:-50px}
+}
+@media(max-width:620px){
+  .app-shell{padding:8px}
+  .topbar{margin-bottom:6px}
+  .instrument-switcher{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .instrument-btn{min-height:46px;display:flex;align-items:center;justify-content:center;text-align:center;padding:6px}
+  .instrument-btn .instrument-icon,.instrument-btn small{display:none}
+  .instrument-btn>span:not(.instrument-icon){font-size:10px;align-self:auto}
+  .settings-row{display:none}
+  .chord-keyboard{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .chord-key.open{grid-column:1/-1;flex-direction:row}
+  .controls{align-items:stretch}
+  .slider-control{width:100%;justify-content:space-between}.slider-control input{width:48%}
+}
