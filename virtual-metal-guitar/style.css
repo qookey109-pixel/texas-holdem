@@ -21,7 +21,7 @@ body::before {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 18% 10%, rgba(239,68,68,.14), transparent 28%),
+    radial-gradient(circle at 18% 10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 28%),
     radial-gradient(circle at 86% 4%, rgba(245,158,11,.08), transparent 26%),
     linear-gradient(180deg, #070709, #030304 70%);
 }
@@ -39,7 +39,7 @@ h1 { margin: 0; font-size: clamp(24px, 3vw, 42px); line-height: 1; letter-spacin
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 .instrument-btn {
   min-height: 72px;
@@ -60,7 +60,7 @@ h1 { margin: 0; font-size: clamp(24px, 3vw, 42px); line-height: 1; letter-spacin
 .instrument-btn:hover { transform: translateY(-1px); border-color: #44444f; }
 .instrument-btn.active {
   border-color: var(--accent);
-  background: linear-gradient(180deg, rgba(61,20,20,.78), rgba(18,14,17,.98));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 18%, #15151a), rgba(18,14,17,.98));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 10px 28px rgba(0,0,0,.28);
   color: #fff;
 }
@@ -80,16 +80,41 @@ h1 { margin: 0; font-size: clamp(24px, 3vw, 42px); line-height: 1; letter-spacin
 .instrument-btn small { color: #71717a; font-size: 9px; letter-spacing: .12em; font-weight: 800; align-self: start; }
 .instrument-btn.active small { color: #bdbdc5; }
 
+.play-mode-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 9px 10px;
+  border: 1px solid #25252e;
+  border-radius: 13px;
+  background: rgba(12,12,16,.72);
+}
+.mode-switcher { display: flex; gap: 7px; flex: 0 0 auto; }
+.mode-btn {
+  border: 1px solid #30303a;
+  color: #b7b7c1;
+  background: #17171d;
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.mode-btn.active { color: #fff; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, #17171d); }
+.mode-btn:disabled { opacity: .36; cursor: not-allowed; }
+.mode-help { margin: 0; color: #8d8d98; font-size: 12px; line-height: 1.5; }
+
 .stage-card { background: rgba(16,16,20,.86); border: 1px solid #24242c; border-radius: 18px; overflow: hidden; box-shadow: 0 20px 70px rgba(0,0,0,.35); backdrop-filter: blur(14px); }
 .stage { position: relative; width: 100%; aspect-ratio: 16/9; min-height: 360px; background: #000; overflow: hidden; }
 #camera { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 #canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; background: #000; }
 
-.instrument-badge {
+.instrument-badge,
+.chord-badge {
   position: absolute;
   z-index: 2;
   left: 16px;
-  top: 16px;
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -100,14 +125,19 @@ h1 { margin: 0; font-size: clamp(24px, 3vw, 42px); line-height: 1; letter-spacin
   backdrop-filter: blur(12px);
   pointer-events: none;
 }
+.instrument-badge { top: 16px; }
 .instrument-badge strong { font-size: 12px; }
 .instrument-badge span { color: #aaaab3; font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.chord-badge { top: 56px; border-color: color-mix(in srgb, var(--accent) 50%, #333); }
+.chord-badge span { color: #858590; font: 800 9px/1 ui-monospace, monospace; letter-spacing: .12em; }
+.chord-badge strong { color: #fff; font-size: 13px; }
+.chord-badge.locked { box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 34%, transparent); }
 
 .permission-overlay { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(circle, rgba(18,18,22,.62), rgba(0,0,0,.9)); z-index: 3; }
 .permission-overlay.hidden { display: none; }
-.permission-panel { width: min(540px, calc(100% - 36px)); padding: 30px; text-align: center; border: 1px solid rgba(255,255,255,.09); border-radius: 18px; background: rgba(10,10,13,.88); box-shadow: 0 20px 80px rgba(0,0,0,.55); }
+.permission-panel { width: min(560px, calc(100% - 36px)); padding: 30px; text-align: center; border: 1px solid rgba(255,255,255,.09); border-radius: 18px; background: rgba(10,10,13,.88); box-shadow: 0 20px 80px rgba(0,0,0,.55); }
 .permission-panel h2 { margin: 4px 0 10px; font-size: 24px; }
-.permission-panel p { margin: 0 auto 22px; max-width: 470px; color: #b8b8c0; line-height: 1.7; }
+.permission-panel p { margin: 0 auto 22px; max-width: 490px; color: #b8b8c0; line-height: 1.7; }
 .guitar-mark { font-size: 58px; line-height: 1; color: var(--accent); text-shadow: 0 0 26px color-mix(in srgb, var(--accent) 80%, transparent); }
 .primary-btn, .control-btn { border: 1px solid #33333c; color: #fff; background: #1b1b22; border-radius: 10px; padding: 11px 16px; cursor: pointer; transition: .15s ease; }
 .primary-btn { border-color: var(--accent); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, white 8%), color-mix(in srgb, var(--accent) 72%, black)); font-weight: 800; box-shadow: 0 8px 28px color-mix(in srgb, var(--accent) 24%, transparent); }
@@ -119,18 +149,22 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .control-btn.record.active { background: #b91c1c; border-color: #ef4444; }
 .slider-control { display: flex; align-items: center; gap: 9px; margin-left: auto; color: #c4c4cc; font-size: 12px; font-weight: 700; white-space: nowrap; }
 .slider-control + .slider-control { margin-left: 0; }
-.slider-control input { accent-color: var(--accent); width: 120px; }
-.info-row { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 10px 14px 13px; color: #888894; font-size: 12px; }
+.slider-control input { accent-color: var(--accent); width: 112px; }
+.info-row { display: flex; justify-content: space-between; gap: 10px 18px; flex-wrap: wrap; padding: 10px 14px 13px; color: #888894; font-size: 12px; }
+#patternText { color: color-mix(in srgb, var(--accent) 70%, #aaa); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
 .record-badge { position: absolute; top: 16px; right: 16px; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 999px; background: rgba(0,0,0,.72); border: 1px solid rgba(255,255,255,.12); font: 700 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .rec-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 12px #ef4444; animation: pulse 1s infinite; }
 .hidden { display: none !important; }
 @keyframes pulse { 50% { opacity: .35; } }
 
+@media (max-width: 1000px) {
+  .slider-control { margin-left: 0; }
+}
 @media (max-width: 900px) {
   .instrument-switcher { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .play-mode-bar { align-items: flex-start; flex-direction: column; }
 }
-
 @media (max-width: 760px) {
   .app-shell { padding: 10px; }
   .topbar { align-items: start; flex-direction: column; }
@@ -138,8 +172,10 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   .slider-control { width: 100%; margin-left: 0; justify-content: space-between; }
   .slider-control input { width: 48%; }
   .instrument-badge { top: 10px; left: 10px; }
+  .chord-badge { top: 49px; left: 10px; }
+  .mode-switcher { width: 100%; }
+  .mode-btn { flex: 1; }
 }
-
 @media (max-width: 460px) {
   .instrument-switcher { gap: 7px; }
   .instrument-btn { min-height: 64px; padding: 8px 9px; grid-template-columns: 28px 1fr; }
