@@ -16,15 +16,23 @@ const recordBadge = document.querySelector('#recordBadge');
 const recordTimer = document.querySelector('#recordTimer');
 const driveSlider = document.querySelector('#driveSlider');
 const volumeSlider = document.querySelector('#volumeSlider');
+const stringSpacingSlider = document.querySelector('#stringSpacingSlider');
 const toneLabel = document.querySelector('#toneLabel');
 const tuningText = document.querySelector('#tuningText');
+const patternText = document.querySelector('#patternText');
+const modeHelp = document.querySelector('#modeHelp');
+const chordBadge = document.querySelector('#chordBadge');
+const chordName = document.querySelector('#chordName');
 const instrumentBadgeName = document.querySelector('#instrumentBadgeName');
 const instrumentBadgeDetail = document.querySelector('#instrumentBadgeDetail');
 const instrumentButtons = [...document.querySelectorAll('.instrument-btn')];
+const modeButtons = [...document.querySelectorAll('.mode-btn')];
 
 const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
 const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm';
 const FINGERTIP_IDS = [4, 8, 12, 16, 20];
+const FRET_FINGER_IDS = [8, 12, 16, 20];
+const FINGER_LABELS = { 4: 'T', 8: '1', 12: '2', 16: '3', 20: '4' };
 
 const INSTRUMENTS = {
   bass: {
@@ -53,7 +61,19 @@ const INSTRUMENTS = {
   }
 };
 
+const CHORDS = {
+  C:  { frets: [null, 3, 2, 0, 1, 0], required: [[1,3],[2,2],[4,1]] },
+  G:  { frets: [3, 2, 0, 0, 0, 3], required: [[0,3],[1,2],[5,3]] },
+  D:  { frets: [null, null, 0, 2, 3, 2], required: [[3,2],[4,3],[5,2]] },
+  E:  { frets: [0, 2, 2, 1, 0, 0], required: [[1,2],[2,2],[3,1]] },
+  Em: { frets: [0, 2, 2, 0, 0, 0], required: [[1,2],[2,2]] },
+  A:  { frets: [null, 0, 2, 2, 2, 0], required: [[2,2],[3,2],[4,2]] },
+  Am: { frets: [null, 0, 2, 2, 1, 0], required: [[2,2],[3,2],[4,1]] },
+  Dm: { frets: [null, null, 0, 2, 3, 1], required: [[3,2],[4,3],[5,1]] }
+};
+
 let currentInstrument = 'electric';
+let currentPlayMode = 'single';
 let cameraStream = null;
 let handLandmarker = null;
 let lastVideoTime = -1;
@@ -69,8 +89,14 @@ let recordStartedAt = 0;
 let timerInterval = null;
 let mp4MimeType = '';
 let handHistory = new Map();
+let fingerSmoothing = new Map();
 let activeStrings = new Map();
 let lastPluckAt = new Map();
+let pickSequence = [];
+let chordCandidate = null;
+let chordCandidateSince = 0;
+let activeChordName = null;
+let lastChordSeenAt = 0;
 
 function config() { return INSTRUMENTS[currentInstrument]; }
 
@@ -78,6 +104,19 @@ function setStatus(text, type = 'idle') {
   statusText.textContent = text;
   cameraDot.classList.toggle('live', type === 'live');
   cameraDot.classList.toggle('error', type === 'error');
+}
+
+function resetTrackingState() {
+  handHistory.clear();
+  fingerSmoothing.clear();
+  activeStrings.clear();
+  lastPluckAt.clear();
+  chordCandidate = null;
+  chordCandidateSince = 0;
+  activeChordName = null;
+  lastChordSeenAt = 0;
+  chordName.textContent = '等待按弦';
+  chordBadge.classList.remove('locked');
 }
 
 function resizeCanvas() {
@@ -155,6 +194,17 @@ function rebuildStringBuffers() {
   stringBuffers = c.freqs.map(freq => buildStringBuffer(freq, c.tone));
 }
 
+function updateModeUI() {
+  modeButtons.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.playMode === currentPlayMode);
+    if (btn.dataset.playMode === 'chord') btn.disabled = currentInstrument === 'bass';
+  });
+  chordBadge.classList.toggle('hidden', currentPlayMode !== 'chord');
+  modeHelp.textContent = currentPlayMode === 'single'
+    ? '單弦模式：弦距加寬，每根手指獨立判定；T=拇指、1=食指、2=中指、3=無名指、4=小指。'
+    : '和弦模式：一隻手在前 1–3 格按弦，另一隻手在琴身附近刷弦。支援 C、G、D、E、Em、A、Am、Dm。';
+}
+
 function applyInstrumentTone() {
   const c = config();
   document.documentElement.style.setProperty('--accent', c.accent);
@@ -164,6 +214,7 @@ function applyInstrumentTone() {
   instrumentBadgeName.textContent = c.name;
   instrumentBadgeDetail.textContent = c.badge;
   instrumentButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.instrument === currentInstrument));
+  updateModeUI();
 
   if (audioNodes && audioCtx) {
     const t = c.tone;
@@ -172,8 +223,7 @@ function applyInstrumentTone() {
     audioNodes.highpass.frequency.setTargetAtTime(t.highpass, audioCtx.currentTime, .02);
     audioNodes.presence.frequency.setTargetAtTime(t.presenceFreq, audioCtx.currentTime, .02);
     audioNodes.presence.gain.setTargetAtTime(t.presenceGain, audioCtx.currentTime, .02);
-    const amount = Number(driveSlider.value) * t.distortionScale;
-    audioNodes.distortion.curve = makeDistortionCurve(amount);
+    audioNodes.distortion.curve = makeDistortionCurve(Number(driveSlider.value) * t.distortionScale);
     rebuildStringBuffers();
   }
 }
@@ -181,15 +231,25 @@ function applyInstrumentTone() {
 function switchInstrument(next) {
   if (!INSTRUMENTS[next] || next === currentInstrument) return;
   currentInstrument = next;
-  handHistory.clear();
-  activeStrings.clear();
-  lastPluckAt.clear();
+  if (currentInstrument === 'bass' && currentPlayMode === 'chord') currentPlayMode = 'single';
+  resetTrackingState();
+  pickSequence = [];
+  patternText.textContent = '撥弦序列：—';
   applyInstrumentTone();
-  if (cameraStream) setStatus(`已切換：${config().name} · 手指追蹤中`, 'live');
-  else {
-    drawMirroredCamera();
-    drawInstrument();
-  }
+  if (cameraStream) setStatus(`已切換：${config().name} · ${currentPlayMode === 'single' ? '單弦精準' : '和弦按弦'}`, 'live');
+  else drawIdleScene();
+}
+
+function switchPlayMode(next) {
+  if (!['single', 'chord'].includes(next) || next === currentPlayMode) return;
+  if (next === 'chord' && currentInstrument === 'bass') return;
+  currentPlayMode = next;
+  resetTrackingState();
+  pickSequence = [];
+  patternText.textContent = '撥弦序列：—';
+  updateModeUI();
+  if (cameraStream) setStatus(`${config().name} · ${next === 'single' ? '單弦精準模式' : '和弦按弦模式'}`, 'live');
+  else drawIdleScene();
 }
 
 async function initAudio() {
@@ -224,34 +284,43 @@ async function initAudio() {
   applyInstrumentTone();
 }
 
-function pluckString(index, strength = 1) {
+function rememberPick(fingerLabel) {
+  if (!fingerLabel) return;
+  pickSequence.push(fingerLabel);
+  if (pickSequence.length > 12) pickSequence.shift();
+  patternText.textContent = `撥弦序列：${pickSequence.join(' · ')}`;
+}
+
+function pluckString(index, strength = 1, fret = 0, fingerLabel = '') {
   if (!audioCtx || !audioNodes || !stringBuffers[index]) return;
   const nowMs = performance.now();
-  const debounce = currentInstrument === 'bass' ? 90 : 68;
+  const debounce = currentInstrument === 'bass' ? 86 : currentPlayMode === 'single' ? 58 : 62;
   if (nowMs - (lastPluckAt.get(index) || 0) < debounce) return;
   lastPluckAt.set(index, nowMs);
-  activeStrings.set(index, nowMs);
+  activeStrings.set(index, { t: nowMs, fret });
 
   const src = audioCtx.createBufferSource();
   src.buffer = stringBuffers[index];
+  src.playbackRate.value = Math.pow(2, Math.max(0, fret) / 12);
   const gain = audioCtx.createGain();
-  gain.gain.value = Math.min(1.25, Math.max(.16, strength));
+  gain.gain.value = Math.min(1.25, Math.max(.14, strength));
   src.connect(gain);
   gain.connect(audioNodes.preGain);
   src.start();
+  rememberPick(fingerLabel);
 }
 
 async function initHandTracking() {
   if (handLandmarker) return;
-  setStatus('載入手部辨識模型…');
+  setStatus('載入高精度手部辨識模型…');
   const vision = await FilesetResolver.forVisionTasks(WASM_URL);
   handLandmarker = await HandLandmarker.createFromOptions(vision, {
     baseOptions: { modelAssetPath: MODEL_URL, delegate: 'GPU' },
     runningMode: 'VIDEO',
     numHands: 2,
-    minHandDetectionConfidence: .5,
-    minHandPresenceConfidence: .5,
-    minTrackingConfidence: .5
+    minHandDetectionConfidence: .58,
+    minHandPresenceConfidence: .58,
+    minTrackingConfidence: .62
   });
 }
 
@@ -263,7 +332,7 @@ async function startCamera() {
     setStatus('等待鏡頭授權…');
 
     cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 60 } },
+      video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60, min: 30 } },
       audio: false
     });
 
@@ -271,7 +340,7 @@ async function startCamera() {
     await camera.play();
     permissionOverlay.classList.add('hidden');
     recordBtn.disabled = !mp4MimeType;
-    setStatus(`${config().name} · 鏡頭已開啟 · 手指追蹤中`, 'live');
+    setStatus(`${config().name} · ${currentPlayMode === 'single' ? '單弦精準' : '和弦按弦'} · 手指追蹤中`, 'live');
     resizeCanvas();
     renderLoop();
   } catch (error) {
@@ -281,18 +350,34 @@ async function startCamera() {
   }
 }
 
+function fretPosition(start, end, fretIndex) {
+  const t = fretIndex / 12;
+  return start + (end - start) * (1 - Math.pow(1 - t, 1.28));
+}
+
 function instrumentGeometry(w, h) {
   const count = config().names.length;
-  const stringX1 = w * .24;
-  const stringX2 = w * .91;
-  const spacing = Math.max(12, h * (count === 4 ? .046 : .035));
+  const spacingScale = Number(stringSpacingSlider.value) / 100;
+  const baseSpacing = count === 4 ? .050 : (currentPlayMode === 'single' ? .041 : .0355);
+  const spacing = Math.max(13, h * baseSpacing * spacingScale);
   const centerY = h * .59;
   const yTop = centerY - spacing * (count - 1) / 2;
+  const stringX1 = w * .24;
+  const stringX2 = w * .91;
+  const bodyX = w * .23;
+  const bodyW = w * .20;
+  const fretStart = bodyX + bodyW * .47;
+  const fretLines = Array.from({ length: 7 }, (_, i) => fretPosition(fretStart, stringX2, i));
   return {
     count, stringX1, stringX2, spacing, yTop,
     stringYs: Array.from({ length: count }, (_, i) => yTop + i * spacing),
-    bodyX: w * .23, bodyY: centerY, bodyW: w * .20, bodyH: h * .32,
-    neckY: centerY, neckH: Math.max(spacing * (count + .4), h * .12)
+    bodyX, bodyY: centerY, bodyW, bodyH: h * .32,
+    neckY: centerY, neckH: Math.max(spacing * (count + .4), h * .12),
+    fretStart, fretLines,
+    pluckX1: w * .18,
+    pluckX2: fretStart + w * .018,
+    fretX1: fretLines[0],
+    fretX2: fretLines[4]
   };
 }
 
@@ -380,6 +465,34 @@ function drawWoodBody(g, classical = false) {
   ctx.fillStyle = '#4b2a17'; roundRect(ctx, cx + bw * .26, cy - bh * .10, bw * .045, bh * .22, 4); ctx.fill();
 }
 
+function drawPlayZones(g) {
+  const h = canvas.height;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,.035)';
+  roundRect(ctx, g.pluckX1, g.yTop - g.spacing * .7, g.pluckX2 - g.pluckX1, g.spacing * (g.count - 1 + 1.4), 10);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.10)';
+  ctx.setLineDash([6, 6]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(255,255,255,.58)';
+  ctx.font = `700 ${Math.max(10, h * .014)}px ui-sans-serif`;
+  ctx.fillText(currentPlayMode === 'single' ? '精準撥弦區' : '刷弦區', g.pluckX1 + 8, g.yTop - g.spacing * .85);
+
+  if (currentPlayMode === 'chord') {
+    ctx.fillStyle = 'rgba(255,255,255,.026)';
+    roundRect(ctx, g.fretX1, g.yTop - g.spacing * .65, g.fretX2 - g.fretX1, g.spacing * (g.count - 1 + 1.3), 8);
+    ctx.fill();
+    ctx.strokeStyle = config().accent;
+    ctx.globalAlpha = .34;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(255,255,255,.58)';
+    ctx.fillText('按弦區 1–3 格', g.fretX1 + 8, g.yTop - g.spacing * .85);
+  }
+  ctx.restore();
+}
+
 function drawInstrument() {
   const w = canvas.width, h = canvas.height, c = config();
   const g = instrumentGeometry(w, h);
@@ -401,73 +514,257 @@ function drawInstrument() {
   if (c.body === 'classical') drawWoodBody(g, true);
   ctx.shadowBlur = 0;
 
-  const fretStart = g.bodyX + g.bodyW * .47;
   ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = Math.max(1, h * .0012);
   for (let i = 0; i < 13; i++) {
-    const t = i / 12;
-    const x = fretStart + (g.stringX2 - fretStart) * (1 - Math.pow(1 - t, 1.28));
+    const x = fretPosition(g.fretStart, g.stringX2, i);
     ctx.beginPath(); ctx.moveTo(x, g.yTop - g.spacing * .5); ctx.lineTo(x, g.stringYs[g.stringYs.length - 1] + g.spacing * .5); ctx.stroke();
+    if (i > 0 && i <= 4) {
+      ctx.fillStyle = 'rgba(255,255,255,.42)';
+      ctx.font = `700 ${Math.max(9, h * .012)}px ui-monospace`;
+      ctx.fillText(String(i), x - 4, g.yTop - g.spacing * .62);
+    }
   }
 
   g.stringYs.forEach((y, i) => {
-    const age = performance.now() - (activeStrings.get(i) || -9999);
+    const state = activeStrings.get(i);
+    const age = performance.now() - (state?.t || -9999);
     const glow = age < 260 ? 1 - age / 260 : 0;
     ctx.beginPath(); ctx.moveTo(g.stringX1, y); ctx.lineTo(g.stringX2, y);
-    ctx.lineWidth = Math.max(1.35, h * (.0014 + (g.count - 1 - i) * .00018));
-    ctx.strokeStyle = glow > 0 ? c.accent : (c.body === 'classical' ? 'rgba(244,229,205,.90)' : 'rgba(235,235,240,.90)');
+    ctx.lineWidth = Math.max(1.45, h * (.0015 + (g.count - 1 - i) * .0002));
+    ctx.strokeStyle = glow > 0 ? c.accent : (c.body === 'classical' ? 'rgba(244,229,205,.92)' : 'rgba(235,235,240,.92)');
     ctx.shadowColor = glow > 0 ? c.accent : 'rgba(255,255,255,.15)'; ctx.shadowBlur = glow * 22; ctx.stroke(); ctx.shadowBlur = 0;
-    ctx.fillStyle = 'rgba(255,255,255,.66)'; ctx.font = `${Math.max(12, h * .018)}px ui-monospace, monospace`;
+    ctx.fillStyle = 'rgba(255,255,255,.68)'; ctx.font = `${Math.max(12, h * .018)}px ui-monospace, monospace`;
     ctx.fillText(c.names[i], g.stringX2 + w * .008, y + h * .006);
   });
 
-  ctx.fillStyle = 'rgba(0,0,0,.44)';
-  roundRect(ctx, g.stringX1, g.yTop - g.spacing * .95, (g.stringX2 - g.stringX1) * .30, g.spacing * .62, 8); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.76)'; ctx.font = `700 ${Math.max(10, h * .015)}px ui-sans-serif`;
-  ctx.fillText(`${c.name} · 手指跨過弦線 = 撥弦`, g.stringX1 + w * .01, g.yTop - g.spacing * .52);
+  drawPlayZones(g);
   ctx.restore();
   return g;
 }
 
-function drawHandsAndDetect(results, instrument) {
+function smoothFinger(key, x, y) {
+  const prev = fingerSmoothing.get(key);
+  const alpha = currentPlayMode === 'single' ? .62 : .54;
+  const next = prev
+    ? { x: prev.x + (x - prev.x) * alpha, y: prev.y + (y - prev.y) * alpha }
+    : { x, y };
+  fingerSmoothing.set(key, next);
+  return next;
+}
+
+function nearestStringIndex(g, y) {
+  let best = 0, bestDist = Infinity;
+  g.stringYs.forEach((stringY, i) => {
+    const d = Math.abs(y - stringY);
+    if (d < bestDist) { bestDist = d; best = i; }
+  });
+  return { index: best, distance: bestDist };
+}
+
+function fretAtX(g, x) {
+  for (let fret = 1; fret <= 4; fret++) {
+    if (x >= g.fretLines[fret - 1] && x < g.fretLines[fret]) return fret;
+  }
+  return null;
+}
+
+function collectChordPresses(hands, g) {
+  if (currentPlayMode !== 'chord' || g.count !== 6) return [];
+  const presses = [];
+  hands.forEach(hand => {
+    FRET_FINGER_IDS.forEach(fingerId => {
+      const p = hand.tips.get(fingerId);
+      if (!p || p.x < g.fretX1 || p.x > g.fretX2) return;
+      const nearest = nearestStringIndex(g, p.y);
+      const fret = fretAtX(g, p.x);
+      if (fret && nearest.distance <= g.spacing * .47) {
+        presses.push({ stringIndex: nearest.index, fret, fingerId, x: p.x, y: p.y });
+      }
+    });
+  });
+  return presses;
+}
+
+function recognizeChord(presses, now) {
+  if (currentPlayMode !== 'chord') return;
+  const observed = new Set(presses.map(p => `${p.stringIndex}:${p.fret}`));
+  let bestName = null;
+  let bestScore = -Infinity;
+
+  Object.entries(CHORDS).forEach(([name, chord]) => {
+    const requiredKeys = chord.required.map(([s, f]) => `${s}:${f}`);
+    const hits = requiredKeys.filter(k => observed.has(k)).length;
+    const misses = requiredKeys.length - hits;
+    if (misses > 0) return;
+    const extras = [...observed].filter(k => !requiredKeys.includes(k)).length;
+    const score = requiredKeys.length * 10 - extras * 2;
+    if (score > bestScore) { bestScore = score; bestName = name; }
+  });
+
+  if (bestName) {
+    lastChordSeenAt = now;
+    if (chordCandidate !== bestName) {
+      chordCandidate = bestName;
+      chordCandidateSince = now;
+    } else if (now - chordCandidateSince > 140) {
+      activeChordName = bestName;
+    }
+  } else {
+    chordCandidate = null;
+    chordCandidateSince = 0;
+    if (now - lastChordSeenAt > 340) activeChordName = null;
+  }
+
+  chordName.textContent = activeChordName || (bestName ? `${bestName}…` : '等待按弦');
+  chordBadge.classList.toggle('locked', Boolean(activeChordName));
+}
+
+function drawChordPresses(presses, g) {
+  if (currentPlayMode !== 'chord') return;
+  presses.forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p.x, g.stringYs[p.stringIndex], Math.max(8, g.spacing * .22), 0, Math.PI * 2);
+    ctx.fillStyle = config().accent;
+    ctx.globalAlpha = .38;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+  });
+}
+
+function fretForString(stringIndex) {
+  if (currentPlayMode !== 'chord' || !activeChordName) return 0;
+  const fret = CHORDS[activeChordName]?.frets?.[stringIndex];
+  return fret == null ? null : fret;
+}
+
+function processPluck(key, fingerId, p, prev, g, now) {
+  if (!prev) return;
+  const inZone = p.x >= g.pluckX1 && p.x <= g.pluckX2;
+  const prevInZone = prev.x >= g.pluckX1 - 8 && prev.x <= g.pluckX2 + 8;
+  if (!inZone || !prevInZone) return;
+
+  const dy = p.y - prev.y;
+  const dt = Math.max(1, now - prev.t);
+  const speed = Math.abs(dy) / dt * 16.67;
+  const minMove = Math.max(2.5, canvas.height * .0043);
+  if (Math.abs(dy) < minMove || speed < minMove) return;
+
+  const deadBand = Math.max(2, g.spacing * .055);
+  const crossed = [];
+  g.stringYs.forEach((stringY, stringIndex) => {
+    const a = prev.y - stringY;
+    const b = p.y - stringY;
+    const crossedWithHysteresis = (a < -deadBand && b > deadBand) || (a > deadBand && b < -deadBand);
+    const crossedFast = (a < 0 && b >= 0) || (a > 0 && b <= 0);
+    if (crossedWithHysteresis || (Math.abs(dy) > g.spacing * .18 && crossedFast)) {
+      crossed.push({ stringIndex, stringY, midpointDistance: Math.abs((prev.y + p.y) * .5 - stringY) });
+    }
+  });
+  if (!crossed.length) return;
+
+  const fingerLabel = FINGER_LABELS[fingerId] || '';
+  const strength = Math.min(1.18, .28 + Math.abs(dy) / (canvas.height * .045));
+
+  if (currentPlayMode === 'single') {
+    crossed.sort((a, b) => a.midpointDistance - b.midpointDistance);
+    const target = crossed[0];
+    pluckString(target.stringIndex, strength, 0, fingerLabel);
+    return;
+  }
+
+  crossed.sort((a, b) => dy > 0 ? a.stringY - b.stringY : b.stringY - a.stringY);
+  crossed.forEach((target, order) => {
+    const fret = fretForString(target.stringIndex);
+    if (fret == null) return;
+    setTimeout(() => pluckString(target.stringIndex, strength * .94, fret, order === 0 ? fingerLabel : ''), order * 13);
+  });
+}
+
+function drawHandsAndDetect(results, g) {
   const w = canvas.width, h = canvas.height, now = performance.now();
+  const hands = [];
   const seenKeys = new Set();
+  const connections = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+
   results.landmarks?.forEach((landmarks, handIndex) => {
-    const label = results.handedness?.[handIndex]?.[0]?.categoryName || `H${handIndex}`;
-    ctx.strokeStyle = 'rgba(245,158,11,.42)'; ctx.fillStyle = 'rgba(255,214,120,.92)'; ctx.lineWidth = Math.max(1, h * .0015);
-    const connections = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+    const handed = results.handedness?.[handIndex]?.[0]?.categoryName || `H${handIndex}`;
+    const hand = { label: handed, points: new Map(), tips: new Map() };
+
+    landmarks.forEach((lm, id) => {
+      const rawX = (1 - lm.x) * w;
+      const rawY = lm.y * h;
+      const key = `${handed}-${id}`;
+      const point = FINGERTIP_IDS.includes(id) ? smoothFinger(key, rawX, rawY) : { x: rawX, y: rawY };
+      hand.points.set(id, point);
+      if (FINGERTIP_IDS.includes(id)) hand.tips.set(id, point);
+    });
+    hands.push(hand);
+  });
+
+  const presses = collectChordPresses(hands, g);
+  recognizeChord(presses, now);
+  drawChordPresses(presses, g);
+
+  hands.forEach(hand => {
+    ctx.strokeStyle = 'rgba(245,158,11,.42)';
+    ctx.lineWidth = Math.max(1, h * .0015);
     connections.forEach(([a,b]) => {
-      const p1 = landmarks[a], p2 = landmarks[b];
-      ctx.beginPath(); ctx.moveTo((1 - p1.x) * w, p1.y * h); ctx.lineTo((1 - p2.x) * w, p2.y * h); ctx.stroke();
+      const p1 = hand.points.get(a), p2 = hand.points.get(b);
+      if (!p1 || !p2) return;
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
     });
 
     FINGERTIP_IDS.forEach(fingerId => {
-      const lm = landmarks[fingerId], x = (1 - lm.x) * w, y = lm.y * h;
-      const key = `${label}-${fingerId}`; seenKeys.add(key); const prev = handHistory.get(key);
-      ctx.beginPath(); ctx.arc(x, y, Math.max(5, h * .009), 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,191,70,.95)'; ctx.shadowColor = 'rgba(245,158,11,.9)'; ctx.shadowBlur = 14; ctx.fill(); ctx.shadowBlur = 0;
+      const p = hand.tips.get(fingerId);
+      if (!p) return;
+      const key = `${hand.label}-${fingerId}`;
+      const prev = handHistory.get(key);
+      seenKeys.add(key);
 
-      if (prev && x >= instrument.stringX1 && x <= instrument.stringX2) {
-        const dy = y - prev.y;
-        const speed = Math.abs(dy) / Math.max(1, now - prev.t) * 16.67;
-        if (Math.abs(dy) > h * .006 && speed > h * .006) {
-          instrument.stringYs.forEach((stringY, stringIndex) => {
-            const crossed = (prev.y < stringY && y >= stringY) || (prev.y > stringY && y <= stringY);
-            if (crossed) pluckString(stringIndex, Math.min(1.15, .35 + Math.abs(dy) / (h * .05)));
-          });
-        }
-      }
-      handHistory.set(key, { x, y, t: now });
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(7, h * .0095), 0, Math.PI * 2);
+      ctx.fillStyle = fingerId === 4 ? 'rgba(96,210,255,.96)' : 'rgba(255,191,70,.96)';
+      ctx.shadowColor = fingerId === 4 ? 'rgba(56,189,248,.9)' : 'rgba(245,158,11,.9)';
+      ctx.shadowBlur = 14; ctx.fill(); ctx.shadowBlur = 0;
+      ctx.fillStyle = '#08080a';
+      ctx.font = `900 ${Math.max(9, h * .012)}px ui-monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(FINGER_LABELS[fingerId], p.x, p.y + 1);
+      ctx.textAlign = 'start';
+      ctx.textBaseline = 'alphabetic';
+
+      processPluck(key, fingerId, p, prev, g, now);
+      handHistory.set(key, { x: p.x, y: p.y, t: now });
     });
   });
-  for (const key of handHistory.keys()) if (!seenKeys.has(key) && now - handHistory.get(key).t > 500) handHistory.delete(key);
+
+  for (const key of handHistory.keys()) {
+    if (!seenKeys.has(key) && now - handHistory.get(key).t > 420) handHistory.delete(key);
+  }
+}
+
+function drawIdleScene() {
+  resizeCanvas();
+  drawMirroredCamera();
+  drawInstrument();
 }
 
 function renderLoop() {
-  resizeCanvas(); drawMirroredCamera(); const instrument = drawInstrument();
+  resizeCanvas();
+  drawMirroredCamera();
+  const instrument = drawInstrument();
   if (handLandmarker && camera.readyState >= 2 && camera.currentTime !== lastVideoTime) {
     lastVideoTime = camera.currentTime;
-    try { drawHandsAndDetect(handLandmarker.detectForVideo(camera, performance.now()), instrument); }
-    catch (error) { console.warn('Hand detection frame skipped:', error); }
+    try {
+      const results = handLandmarker.detectForVideo(camera, performance.now());
+      drawHandsAndDetect(results, instrument);
+    } catch (error) {
+      console.warn('Hand detection frame skipped:', error);
+    }
   }
   animationId = requestAnimationFrame(renderLoop);
 }
@@ -514,9 +811,14 @@ function startRecording() {
 function stopRecording() { if (mediaRecorder?.state === 'recording') mediaRecorder.stop(); }
 
 instrumentButtons.forEach(btn => btn.addEventListener('click', () => switchInstrument(btn.dataset.instrument)));
+modeButtons.forEach(btn => btn.addEventListener('click', () => switchPlayMode(btn.dataset.playMode)));
 driveSlider.addEventListener('input', () => {
   if (!audioNodes) return;
   audioNodes.distortion.curve = makeDistortionCurve(Number(driveSlider.value) * config().tone.distortionScale);
+});
+stringSpacingSlider.addEventListener('input', () => {
+  resetTrackingState();
+  if (!cameraStream) drawIdleScene();
 });
 volumeSlider.addEventListener('input', () => {
   if (masterGain && audioCtx) masterGain.gain.setTargetAtTime(Number(volumeSlider.value) / 100 * .55, audioCtx.currentTime, .02);
@@ -537,6 +839,5 @@ window.addEventListener('beforeunload', () => {
 
 updateCodecStatus();
 applyInstrumentTone();
-resizeCanvas();
-drawMirroredCamera();
-drawInstrument();
+updateModeUI();
+drawIdleScene();
