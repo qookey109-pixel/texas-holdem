@@ -5,101 +5,72 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#09090b" />
   <title>Virtual Guitar Studio</title>
-  <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./style-v4.css" />
 </head>
 <body>
   <main class="app-shell">
     <header class="topbar">
-      <div>
-        <p class="eyebrow">HAND TRACKED INSTRUMENT</p>
-        <h1>VIRTUAL GUITAR STUDIO</h1>
-      </div>
-      <div class="status-wrap">
-        <span id="cameraDot" class="dot"></span>
-        <span id="statusText">尚未開啟鏡頭</span>
-      </div>
+      <div><p class="eyebrow">HAND TRACKED INSTRUMENT</p><h1>VIRTUAL GUITAR STUDIO</h1></div>
+      <div class="status-wrap"><span id="cameraDot" class="dot"></span><span id="statusText">尚未開啟鏡頭</span></div>
     </header>
 
     <section class="instrument-switcher" aria-label="樂器切換">
-      <button class="instrument-btn" data-instrument="bass" type="button">
-        <span class="instrument-icon">𝄢</span><span>貝斯</span><small>4 STRINGS</small>
-      </button>
-      <button class="instrument-btn active" data-instrument="electric" type="button">
-        <span class="instrument-icon">ϟ</span><span>電吉他</span><small>ELECTRIC</small>
-      </button>
-      <button class="instrument-btn" data-instrument="acoustic" type="button">
-        <span class="instrument-icon">◉</span><span>民謠吉他</span><small>ACOUSTIC</small>
-      </button>
-      <button class="instrument-btn" data-instrument="classical" type="button">
-        <span class="instrument-icon">♬</span><span>古典吉他</span><small>NYLON</small>
-      </button>
+      <button class="instrument-btn" data-instrument="bass" type="button"><span class="instrument-icon">𝄢</span><span>貝斯</span><small>4 STRINGS</small></button>
+      <button class="instrument-btn active" data-instrument="electric" type="button"><span class="instrument-icon">ϟ</span><span>電吉他</span><small>ELECTRIC</small></button>
+      <button class="instrument-btn" data-instrument="acoustic" type="button"><span class="instrument-icon">◉</span><span>民謠吉他</span><small>ACOUSTIC</small></button>
+      <button class="instrument-btn" data-instrument="classical" type="button"><span class="instrument-icon">♬</span><span>古典吉他</span><small>NYLON</small></button>
     </section>
 
-    <section class="play-mode-bar" aria-label="演奏模式">
+    <section class="settings-row">
       <div class="mode-switcher">
         <button class="mode-btn active" data-play-mode="single" type="button">🎯 單弦精準</button>
-        <button class="mode-btn" data-play-mode="chord" type="button">🎼 和弦按弦</button>
+        <button class="mode-btn" data-play-mode="chord" type="button">🎼 和弦刷弦</button>
       </div>
-      <p id="modeHelp" class="mode-help">單弦模式：弦距加寬，每根手指獨立判定，可彈 T・1・2・1・3・1・2・1 這類指法。</p>
+      <div class="orientation-switcher">
+        <button class="orientation-btn active" data-orientation="right" type="button">右手吉他</button>
+        <button class="orientation-btn" data-orientation="left" type="button">左手吉他</button>
+      </div>
+      <p id="modeHelp" class="mode-help">右手吉他預設：琴頸在左、琴身在右。</p>
     </section>
 
     <section class="stage-card">
       <div id="stage" class="stage">
         <video id="camera" playsinline muted></video>
         <canvas id="canvas"></canvas>
-
-        <div id="instrumentBadge" class="instrument-badge">
-          <strong id="instrumentBadgeName">電吉他</strong>
-          <span id="instrumentBadgeDetail">6 弦 · HIGH GAIN</span>
-        </div>
-
-        <div id="chordBadge" class="chord-badge hidden">
-          <span>CHORD</span>
-          <strong id="chordName">等待按弦</strong>
-        </div>
+        <div class="instrument-badge"><strong id="instrumentBadgeName">電吉他</strong><span id="instrumentBadgeDetail">6 弦 · HIGH GAIN</span></div>
+        <div id="chordBadge" class="chord-badge hidden"><span>CHORD</span><strong id="chordName">等待按弦</strong></div>
 
         <div id="permissionOverlay" class="permission-overlay">
           <div class="permission-panel">
             <div class="guitar-mark">ϟ</div>
-            <h2>開啟鏡頭後即可演奏</h2>
-            <p>單弦模式可精準分辨拇指與各手指撥弦；和弦模式則用一隻手在指板按弦，另一隻手刷弦。</p>
-            <button id="startCameraBtn" class="primary-btn">開啟鏡頭與樂器</button>
+            <h2>先測試聲音，再開鏡頭</h2>
+            <p>右手吉他已修正成琴頸在左、琴身在右。若 Safari 沒聲音，先按「測試聲音」解鎖音訊，再開啟鏡頭。</p>
+            <button id="overlayTestSoundBtn" class="control-btn sound" type="button">🔊 測試聲音</button>
+            <button id="startCameraBtn" class="primary-btn" type="button">開啟鏡頭與樂器</button>
           </div>
         </div>
 
-        <div id="recordBadge" class="record-badge hidden">
-          <span class="rec-dot"></span>
-          <span id="recordTimer">00:00</span>
-        </div>
+        <div id="recordBadge" class="record-badge hidden"><span id="recordTimer">00:00</span></div>
       </div>
 
       <div class="controls">
+        <button id="testSoundBtn" class="control-btn sound" type="button">🔊 測試聲音</button>
         <button id="recordBtn" class="control-btn record" disabled>● 開始錄製 MP4</button>
         <button id="stopBtn" class="control-btn" disabled>■ 停止錄製</button>
         <button id="fullscreenBtn" class="control-btn">⛶ 全螢幕</button>
-
-        <label class="slider-control">
-          <span id="toneLabel">失真 DRIVE</span>
-          <input id="driveSlider" type="range" min="0" max="120" value="72" />
-        </label>
-        <label class="slider-control">
-          <span>弦距</span>
-          <input id="stringSpacingSlider" type="range" min="90" max="155" value="118" />
-        </label>
-        <label class="slider-control">
-          <span>音量</span>
-          <input id="volumeSlider" type="range" min="0" max="100" value="72" />
-        </label>
+        <label class="slider-control"><span id="toneLabel">失真 DRIVE</span><input id="driveSlider" type="range" min="0" max="120" value="62" /></label>
+        <label class="slider-control"><span>弦距</span><input id="stringSpacingSlider" type="range" min="90" max="155" value="118" /></label>
+        <label class="slider-control"><span>音量</span><input id="volumeSlider" type="range" min="0" max="100" value="78" /></label>
       </div>
 
       <div class="info-row">
-        <span id="tuningText">🎸 電吉他六弦：E2 · A2 · D3 · G3 · B3 · E4</span>
-        <span id="patternText">撥弦序列：—</span>
+        <span id="tuningText">⚡ 電吉他6弦：E2 · A2 · D3 · G3 · B3 · E4</span>
+        <span id="patternText">演奏序列：—</span>
+        <span id="audioStateText" class="audio-state">🔇 尚未啟用音訊</span>
         <span id="codecText">錄影格式檢查中…</span>
       </div>
     </section>
   </main>
-
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app-v4.js"></script>
 </body>
 </html>
