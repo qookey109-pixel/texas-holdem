@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#09090b" />
   <title>Virtual Guitar Studio</title>
   <link rel="stylesheet" href="./style-v7.css" />
+  <link rel="stylesheet" href="./style-v8.css" />
 </head>
 <body>
   <main class="app-shell">
@@ -22,17 +23,18 @@
     </section>
 
     <section class="settings-row" aria-label="演奏方式">
-      <p id="modeHelp" class="mode-help">🎸 自動演奏 · 右手吉他：單指撥弦就是單弦；實體鍵盤選和弦後，右手可直接分解或上下刷弦。</p>
+      <p id="modeHelp" class="mode-help">🎸 自動演奏 · 右手吉他：實體鍵盤選和弦，右手直接單弦、分解和弦或上下刷弦。</p>
     </section>
 
     <section class="chord-keyboard-card" aria-label="實體鍵盤和弦對應">
       <div class="chord-keyboard-head">
         <div>
           <strong>⌨️ 實體鍵盤和弦</strong>
-          <span>按一下就鎖定，不用長按；Space 回到 OPEN。下方虛擬鍵盤會同步亮起。</span>
+          <span>按一下就鎖定，不用長按；Space 回到 OPEN。虛擬鍵盤只做提示，也可點擊。</span>
         </div>
         <strong id="keyboardChordDisplay" class="keyboard-chord-display" aria-live="polite">SPACE → OPEN</strong>
       </div>
+
       <div class="chord-keyboard" role="group" aria-label="和弦快捷鍵">
         <button class="chord-key" type="button" data-chord-key="a" aria-pressed="false"><kbd>A</kbd><span>Am7</span></button>
         <button class="chord-key" type="button" data-chord-key="s" aria-pressed="false"><kbd>S</kbd><span>Cmaj7</span></button>
@@ -45,6 +47,26 @@
         <button class="chord-key" type="button" data-chord-key="l" aria-pressed="false"><kbd>L</kbd><span>E7</span></button>
         <button class="chord-key open active" type="button" data-open-key aria-pressed="true"><kbd>SPACE</kbd><span>OPEN</span></button>
       </div>
+
+      <details class="keymap-editor">
+        <summary>⚙️ 自訂鍵位和弦</summary>
+        <p class="keymap-hint">選你習慣的和弦配置。修改後會立即套用，並保留在這台瀏覽器。</p>
+        <div class="keymap-grid">
+          <label><kbd>A</kbd><select class="keymap-select" data-map-key="a" aria-label="A 鍵和弦"></select></label>
+          <label><kbd>S</kbd><select class="keymap-select" data-map-key="s" aria-label="S 鍵和弦"></select></label>
+          <label><kbd>D</kbd><select class="keymap-select" data-map-key="d" aria-label="D 鍵和弦"></select></label>
+          <label><kbd>F</kbd><select class="keymap-select" data-map-key="f" aria-label="F 鍵和弦"></select></label>
+          <label><kbd>G</kbd><select class="keymap-select" data-map-key="g" aria-label="G 鍵和弦"></select></label>
+          <label><kbd>H</kbd><select class="keymap-select" data-map-key="h" aria-label="H 鍵和弦"></select></label>
+          <label><kbd>J</kbd><select class="keymap-select" data-map-key="j" aria-label="J 鍵和弦"></select></label>
+          <label><kbd>K</kbd><select class="keymap-select" data-map-key="k" aria-label="K 鍵和弦"></select></label>
+          <label><kbd>L</kbd><select class="keymap-select" data-map-key="l" aria-label="L 鍵和弦"></select></label>
+        </div>
+        <div class="keymap-actions">
+          <span id="keyboardMapStatus" aria-live="polite">載入鍵位設定…</span>
+          <button id="resetKeyboardMapBtn" class="control-btn" type="button">恢復預設</button>
+        </div>
+      </details>
     </section>
 
     <section class="stage-card">
@@ -58,7 +80,7 @@
           <div class="permission-panel">
             <div class="guitar-mark">ϟ</div>
             <h2>直接開始演奏</h2>
-            <p>固定右手吉他：琴頸在左、琴身在右。實體鍵盤按一下選和弦，不用長按；右手可以直接單弦、分解和弦或上下刷弦。</p>
+            <p>固定右手吉他。實體鍵盤按一下選和弦，不用長按；右手可以直接單弦、分解和弦或上下刷弦。</p>
             <button id="overlayTestSoundBtn" class="control-btn sound" type="button">🔊 測試聲音</button>
             <button id="startCameraBtn" class="primary-btn" type="button">開啟鏡頭與樂器</button>
           </div>
@@ -86,6 +108,6 @@
     </section>
   </main>
   <script src="./audio-guard-v5.js?v=1"></script>
-  <script type="module" src="./app-v7.js?v=1"></script>
+  <script type="module" src="./app-v8.js?v=1"></script>
 </body>
 </html>
