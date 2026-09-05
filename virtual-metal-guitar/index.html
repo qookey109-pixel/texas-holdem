@@ -35,6 +35,14 @@
       </button>
     </section>
 
+    <section class="play-mode-bar" aria-label="演奏模式">
+      <div class="mode-switcher">
+        <button class="mode-btn active" data-play-mode="single" type="button">🎯 單弦精準</button>
+        <button class="mode-btn" data-play-mode="chord" type="button">🎼 和弦按弦</button>
+      </div>
+      <p id="modeHelp" class="mode-help">單弦模式：弦距加寬，每根手指獨立判定，可彈 T・1・2・1・3・1・2・1 這類指法。</p>
+    </section>
+
     <section class="stage-card">
       <div id="stage" class="stage">
         <video id="camera" playsinline muted></video>
@@ -45,11 +53,16 @@
           <span id="instrumentBadgeDetail">6 弦 · HIGH GAIN</span>
         </div>
 
+        <div id="chordBadge" class="chord-badge hidden">
+          <span>CHORD</span>
+          <strong id="chordName">等待按弦</strong>
+        </div>
+
         <div id="permissionOverlay" class="permission-overlay">
           <div class="permission-panel">
             <div class="guitar-mark">ϟ</div>
             <h2>開啟鏡頭後即可演奏</h2>
-            <p>先選樂器，再開啟鏡頭。把手指移到虛擬琴弦上，跨過弦線就會撥弦；演奏中也能即時切換樂器。</p>
+            <p>單弦模式可精準分辨拇指與各手指撥弦；和弦模式則用一隻手在指板按弦，另一隻手刷弦。</p>
             <button id="startCameraBtn" class="primary-btn">開啟鏡頭與樂器</button>
           </div>
         </div>
@@ -70,6 +83,10 @@
           <input id="driveSlider" type="range" min="0" max="120" value="72" />
         </label>
         <label class="slider-control">
+          <span>弦距</span>
+          <input id="stringSpacingSlider" type="range" min="90" max="155" value="118" />
+        </label>
+        <label class="slider-control">
           <span>音量</span>
           <input id="volumeSlider" type="range" min="0" max="100" value="72" />
         </label>
@@ -77,6 +94,7 @@
 
       <div class="info-row">
         <span id="tuningText">🎸 電吉他六弦：E2 · A2 · D3 · G3 · B3 · E4</span>
+        <span id="patternText">撥弦序列：—</span>
         <span id="codecText">錄影格式檢查中…</span>
       </div>
     </section>
