@@ -7,6 +7,7 @@
   <title>Virtual Guitar Studio</title>
   <link rel="stylesheet" href="./style-v7.css" />
   <link rel="stylesheet" href="./style-v8.css" />
+  <link rel="stylesheet" href="./style-v9.css" />
 </head>
 <body>
   <main class="app-shell">
@@ -23,91 +24,96 @@
     </section>
 
     <section class="settings-row" aria-label="演奏方式">
-      <p id="modeHelp" class="mode-help">🎸 自動演奏 · 右手吉他：實體鍵盤選和弦，右手直接單弦、分解和弦或上下刷弦。</p>
+      <p id="modeHelp" class="mode-help">🎸 右手吉他：實體鍵盤選和弦；右手直接單弦、分解和弦或上下刷弦。</p>
     </section>
 
-    <section class="chord-keyboard-card" aria-label="實體鍵盤和弦對應">
-      <div class="chord-keyboard-head">
-        <div>
-          <strong>⌨️ 實體鍵盤和弦</strong>
-          <span>按一下就鎖定，不用長按；Space 回到 OPEN。虛擬鍵盤只做提示，也可點擊。</span>
+    <section class="performance-layout">
+      <section class="stage-card">
+        <div id="stage" class="stage">
+          <video id="camera" playsinline muted></video>
+          <canvas id="canvas"></canvas>
+          <div class="instrument-badge"><strong id="instrumentBadgeName">電吉他</strong><span id="instrumentBadgeDetail">6 弦 · HIGH GAIN</span></div>
+          <div id="chordBadge" class="chord-badge"><span>CHORD</span><strong id="chordName">OPEN</strong></div>
+
+          <div id="permissionOverlay" class="permission-overlay">
+            <div class="permission-panel">
+              <div class="guitar-mark">ϟ</div>
+              <h2>直接開始演奏</h2>
+              <p>固定右手吉他。實體鍵盤按一下選和弦，右手直接單弦、分解和弦或上下刷弦。</p>
+              <button id="overlayTestSoundBtn" class="control-btn sound" type="button">🔊 測試聲音</button>
+              <button id="startCameraBtn" class="primary-btn" type="button">開啟鏡頭與樂器</button>
+            </div>
+          </div>
+
+          <div id="recordBadge" class="record-badge hidden"><span id="recordTimer">00:00</span></div>
         </div>
-        <strong id="keyboardChordDisplay" class="keyboard-chord-display" aria-live="polite">SPACE → OPEN</strong>
-      </div>
 
-      <div class="chord-keyboard" role="group" aria-label="和弦快捷鍵">
-        <button class="chord-key" type="button" data-chord-key="a" aria-pressed="false"><kbd>A</kbd><span>Am7</span></button>
-        <button class="chord-key" type="button" data-chord-key="s" aria-pressed="false"><kbd>S</kbd><span>Cmaj7</span></button>
-        <button class="chord-key" type="button" data-chord-key="d" aria-pressed="false"><kbd>D</kbd><span>Dm7</span></button>
-        <button class="chord-key" type="button" data-chord-key="f" aria-pressed="false"><kbd>F</kbd><span>Fmaj7</span></button>
-        <button class="chord-key" type="button" data-chord-key="g" aria-pressed="false"><kbd>G</kbd><span>G7</span></button>
-        <button class="chord-key" type="button" data-chord-key="h" aria-pressed="false"><kbd>H</kbd><span>Em7</span></button>
-        <button class="chord-key" type="button" data-chord-key="j" aria-pressed="false"><kbd>J</kbd><span>A7</span></button>
-        <button class="chord-key" type="button" data-chord-key="k" aria-pressed="false"><kbd>K</kbd><span>D7</span></button>
-        <button class="chord-key" type="button" data-chord-key="l" aria-pressed="false"><kbd>L</kbd><span>E7</span></button>
-        <button class="chord-key open active" type="button" data-open-key aria-pressed="true"><kbd>SPACE</kbd><span>OPEN</span></button>
-      </div>
-
-      <details class="keymap-editor">
-        <summary>⚙️ 自訂鍵位和弦</summary>
-        <p class="keymap-hint">選你習慣的和弦配置。修改後會立即套用，並保留在這台瀏覽器。</p>
-        <div class="keymap-grid">
-          <label><kbd>A</kbd><select class="keymap-select" data-map-key="a" aria-label="A 鍵和弦"></select></label>
-          <label><kbd>S</kbd><select class="keymap-select" data-map-key="s" aria-label="S 鍵和弦"></select></label>
-          <label><kbd>D</kbd><select class="keymap-select" data-map-key="d" aria-label="D 鍵和弦"></select></label>
-          <label><kbd>F</kbd><select class="keymap-select" data-map-key="f" aria-label="F 鍵和弦"></select></label>
-          <label><kbd>G</kbd><select class="keymap-select" data-map-key="g" aria-label="G 鍵和弦"></select></label>
-          <label><kbd>H</kbd><select class="keymap-select" data-map-key="h" aria-label="H 鍵和弦"></select></label>
-          <label><kbd>J</kbd><select class="keymap-select" data-map-key="j" aria-label="J 鍵和弦"></select></label>
-          <label><kbd>K</kbd><select class="keymap-select" data-map-key="k" aria-label="K 鍵和弦"></select></label>
-          <label><kbd>L</kbd><select class="keymap-select" data-map-key="l" aria-label="L 鍵和弦"></select></label>
+        <div class="controls">
+          <button id="testSoundBtn" class="control-btn sound" type="button">🔊 測試</button>
+          <button id="recordBtn" class="control-btn record" disabled>● 錄製</button>
+          <button id="stopBtn" class="control-btn" disabled>■ 停止</button>
+          <button id="fullscreenBtn" class="control-btn">⛶ 全螢幕</button>
+          <label class="slider-control"><span id="toneLabel">失真</span><input id="driveSlider" type="range" min="0" max="120" value="62" /></label>
+          <label class="slider-control"><span>弦距</span><input id="stringSpacingSlider" type="range" min="90" max="155" value="118" /></label>
+          <label class="slider-control"><span>音量</span><input id="volumeSlider" type="range" min="0" max="100" value="78" /></label>
         </div>
-        <div class="keymap-actions">
-          <span id="keyboardMapStatus" aria-live="polite">載入鍵位設定…</span>
-          <button id="resetKeyboardMapBtn" class="control-btn" type="button">恢復預設</button>
+
+        <div class="info-row">
+          <span id="tuningText">⚡ 電吉他6弦：E2 · A2 · D3 · G3 · B3 · E4</span>
+          <span id="patternText">演奏序列：—</span>
+          <span id="audioStateText" class="audio-state">🔇 尚未啟用音訊</span>
+          <span id="codecText">錄影格式檢查中…</span>
         </div>
-      </details>
-    </section>
+      </section>
 
-    <section class="stage-card">
-      <div id="stage" class="stage">
-        <video id="camera" playsinline muted></video>
-        <canvas id="canvas"></canvas>
-        <div class="instrument-badge"><strong id="instrumentBadgeName">電吉他</strong><span id="instrumentBadgeDetail">6 弦 · HIGH GAIN</span></div>
-        <div id="chordBadge" class="chord-badge"><span>CHORD</span><strong id="chordName">OPEN</strong></div>
-
-        <div id="permissionOverlay" class="permission-overlay">
-          <div class="permission-panel">
-            <div class="guitar-mark">ϟ</div>
-            <h2>直接開始演奏</h2>
-            <p>固定右手吉他。實體鍵盤按一下選和弦，不用長按；右手可以直接單弦、分解和弦或上下刷弦。</p>
-            <button id="overlayTestSoundBtn" class="control-btn sound" type="button">🔊 測試聲音</button>
-            <button id="startCameraBtn" class="primary-btn" type="button">開啟鏡頭與樂器</button>
+      <aside class="chord-keyboard-card" aria-label="實體鍵盤和弦對應">
+        <div class="chord-keyboard-head">
+          <div>
+            <strong>⌨️ 實體鍵盤和弦</strong>
+            <span>按一下鎖定；Space 回到 OPEN。</span>
+          </div>
+          <div id="keyboardChordDisplay" class="keyboard-chord-display" aria-live="polite">
+            <span>SPACE</span><strong>OPEN</strong>
           </div>
         </div>
 
-        <div id="recordBadge" class="record-badge hidden"><span id="recordTimer">00:00</span></div>
-      </div>
+        <div class="chord-keyboard" role="group" aria-label="和弦快捷鍵">
+          <button class="chord-key" type="button" data-chord-key="a" aria-pressed="false"><kbd>A</kbd><span>Am7</span></button>
+          <button class="chord-key" type="button" data-chord-key="s" aria-pressed="false"><kbd>S</kbd><span>Cmaj7</span></button>
+          <button class="chord-key" type="button" data-chord-key="d" aria-pressed="false"><kbd>D</kbd><span>Dm7</span></button>
+          <button class="chord-key" type="button" data-chord-key="f" aria-pressed="false"><kbd>F</kbd><span>Fmaj7</span></button>
+          <button class="chord-key" type="button" data-chord-key="g" aria-pressed="false"><kbd>G</kbd><span>G7</span></button>
+          <button class="chord-key" type="button" data-chord-key="h" aria-pressed="false"><kbd>H</kbd><span>Em7</span></button>
+          <button class="chord-key" type="button" data-chord-key="j" aria-pressed="false"><kbd>J</kbd><span>A7</span></button>
+          <button class="chord-key" type="button" data-chord-key="k" aria-pressed="false"><kbd>K</kbd><span>D7</span></button>
+          <button class="chord-key" type="button" data-chord-key="l" aria-pressed="false"><kbd>L</kbd><span>E7</span></button>
+          <button class="chord-key open active" type="button" data-open-key aria-pressed="true"><kbd>SPACE</kbd><span>OPEN</span></button>
+        </div>
 
-      <div class="controls">
-        <button id="testSoundBtn" class="control-btn sound" type="button">🔊 測試聲音</button>
-        <button id="recordBtn" class="control-btn record" disabled>● 開始錄製 MP4</button>
-        <button id="stopBtn" class="control-btn" disabled>■ 停止錄製</button>
-        <button id="fullscreenBtn" class="control-btn">⛶ 全螢幕</button>
-        <label class="slider-control"><span id="toneLabel">失真 DRIVE</span><input id="driveSlider" type="range" min="0" max="120" value="62" /></label>
-        <label class="slider-control"><span>弦距</span><input id="stringSpacingSlider" type="range" min="90" max="155" value="118" /></label>
-        <label class="slider-control"><span>音量</span><input id="volumeSlider" type="range" min="0" max="100" value="78" /></label>
-      </div>
-
-      <div class="info-row">
-        <span id="tuningText">⚡ 電吉他6弦：E2 · A2 · D3 · G3 · B3 · E4</span>
-        <span id="patternText">演奏序列：—</span>
-        <span id="audioStateText" class="audio-state">🔇 尚未啟用音訊</span>
-        <span id="codecText">錄影格式檢查中…</span>
-      </div>
+        <details class="keymap-editor">
+          <summary>⚙️ 自訂鍵位</summary>
+          <p class="keymap-hint">修改後立即套用，並保存在這台瀏覽器。</p>
+          <div class="keymap-grid">
+            <label><kbd>A</kbd><select class="keymap-select" data-map-key="a" aria-label="A 鍵和弦"></select></label>
+            <label><kbd>S</kbd><select class="keymap-select" data-map-key="s" aria-label="S 鍵和弦"></select></label>
+            <label><kbd>D</kbd><select class="keymap-select" data-map-key="d" aria-label="D 鍵和弦"></select></label>
+            <label><kbd>F</kbd><select class="keymap-select" data-map-key="f" aria-label="F 鍵和弦"></select></label>
+            <label><kbd>G</kbd><select class="keymap-select" data-map-key="g" aria-label="G 鍵和弦"></select></label>
+            <label><kbd>H</kbd><select class="keymap-select" data-map-key="h" aria-label="H 鍵和弦"></select></label>
+            <label><kbd>J</kbd><select class="keymap-select" data-map-key="j" aria-label="J 鍵和弦"></select></label>
+            <label><kbd>K</kbd><select class="keymap-select" data-map-key="k" aria-label="K 鍵和弦"></select></label>
+            <label><kbd>L</kbd><select class="keymap-select" data-map-key="l" aria-label="L 鍵和弦"></select></label>
+          </div>
+          <div class="keymap-actions">
+            <span id="keyboardMapStatus" aria-live="polite">載入鍵位設定…</span>
+            <button id="resetKeyboardMapBtn" class="control-btn" type="button">恢復預設</button>
+          </div>
+        </details>
+      </aside>
     </section>
   </main>
+
   <script src="./audio-guard-v5.js?v=1"></script>
-  <script type="module" src="./app-v8.js?v=1"></script>
+  <script type="module" src="./app-v9.js?v=1"></script>
 </body>
 </html>
