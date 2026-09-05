@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#09090b" />
+  <title>Virtual Metal Guitar</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">HAND TRACKED INSTRUMENT</p>
+        <h1>VIRTUAL METAL GUITAR</h1>
+      </div>
+      <div class="status-wrap">
+        <span id="cameraDot" class="dot"></span>
+        <span id="statusText">尚未開啟鏡頭</span>
+      </div>
+    </header>
+
+    <section class="stage-card">
+      <div id="stage" class="stage">
+        <video id="camera" playsinline muted></video>
+        <canvas id="canvas"></canvas>
+
+        <div id="permissionOverlay" class="permission-overlay">
+          <div class="permission-panel">
+            <div class="guitar-mark">ϟ</div>
+            <h2>開啟鏡頭後即可演奏</h2>
+            <p>畫面會自動左右鏡像。把手指移到虛擬吉他六條弦上，跨過弦線即可撥弦。</p>
+            <button id="startCameraBtn" class="primary-btn">開啟鏡頭與吉他</button>
+          </div>
+        </div>
+
+        <div id="recordBadge" class="record-badge hidden">
+          <span class="rec-dot"></span>
+          <span id="recordTimer">00:00</span>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="recordBtn" class="control-btn record" disabled>● 開始錄製 MP4</button>
+        <button id="stopBtn" class="control-btn" disabled>■ 停止錄製</button>
+        <button id="fullscreenBtn" class="control-btn">⛶ 全螢幕</button>
+
+        <label class="slider-control">
+          <span>失真 DRIVE</span>
+          <input id="driveSlider" type="range" min="10" max="120" value="72" />
+        </label>
+        <label class="slider-control">
+          <span>音量</span>
+          <input id="volumeSlider" type="range" min="0" max="100" value="72" />
+        </label>
+      </div>
+
+      <div class="info-row">
+        <span>🎸 六弦：E2 · A2 · D3 · G3 · B3 · E4</span>
+        <span id="codecText">錄影格式檢查中…</span>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
